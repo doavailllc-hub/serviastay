@@ -1,0 +1,119 @@
+/* ===========================
+LEFT SIDEBAR
+=========================== */
+
+.profile-layout{
+
+display:grid;
+
+grid-template-columns:320px 1fr;
+
+min-height:100vh;
+
+}
+
+.left-menu{
+
+padding:50px 30px;
+
+border-right:1px solid #e5e5e5;
+
+background:#fff;
+
+}
+
+.left-menu h1{
+
+font-size:34px;
+
+margin-bottom:30px;
+
+}
+
+.menu{
+
+display:flex;
+
+align-items:center;
+
+gap:16px;
+
+padding:16px 18px;
+
+border-radius:14px;
+
+cursor:pointer;
+
+font-size:16px;
+
+font-weight:600;
+
+transition:.2s;
+
+margin-bottom:10px;
+
+}
+
+.menu:hover{
+
+background:#f7f7f7;
+
+}
+
+.menu.active{
+
+background:#f2f2f2;
+
+}
+
+.menu-icon{
+
+width:34px;
+
+height:34px;
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+font-size:22px;
+
+}
+
+/* ===========================
+RIGHT CONTENT
+=========================== */
+
+.right-content{
+
+padding:60px;
+
+}
+
+.right-content h2{
+
+font-size:38px;
+
+margin-bottom:20px;
+
+}
+
+.trip-card{
+
+display:flex;
+
+align-items:center;
+
+gap:20px;
+
+padding:20px;
+
+margin-top:20px;
+
+border:1px solid #eee;
+
+border-radius:18px;
+
+}
