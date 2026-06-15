@@ -1,3 +1,55 @@
+import { Routes, Route } from "react-router-dom";
+
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Home from "./pages/Home";
+import ResortDetails from "./pages/ResortDetails";
+import BecomeHost from "./pages/BecomeHost";
+import CategorySelect from "./pages/CategorySelect";
+import Profile from "./pages/Profile";
+import Wishlist from "./pages/Wishlist";
+import Trips from "./pages/Trips";
+import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
+import AccountSettings from "./pages/AccountSettings";
+import Checkout from "./pages/Checkout";
+import BookingSuccess from "./pages/BookingSuccess";
+import HostDashboard from "./pages/HostDashboard";
+import SearchResults from "./pages/SearchResults";
+import HostListings from "./pages/HostListings";
+import EditListing from "./pages/EditListing";
+import HostCalendar from "./pages/HostCalendar";
+import Earnings from "./pages/Earnings";
+import Reviews from "./pages/Reviews";
+import AdminDashboard from "./pages/AdminDashboard";
+import NotFound from "./pages/NotFound";
+import HelpCenter from "./pages/HelpCenter";
+import LanguageCurrency from "./pages/LanguageCurrency";
+import Experience from "./pages/Experiences";
+import Services from "./pages/Services";
+import PaymentMethods from "./pages/PaymentMethods";
+import AddProperty from "./pages/AddProperty";
+import HostReservations from "./pages/HostReservations";
+import HostReviews from "./pages/HostReviews";
+import Analytics from "./pages/Analytics";
+import PaymentHistory from "./pages/PaymentHistory";
+import Payouts from "./pages/Payouts";
+import AdminLayout from "./layouts/AdminLayout";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import TripDetails from "./pages/TripDetails";
+import WriteReview from "./pages/WriteReview";
+import Receipt from "./pages/Receipt";
+import Security from "./pages/Security";
+import ForgotPassword from "./pages/ForgotPassword";
+import Support from "./pages/Support";
+import RecentlyViewed from "./pages/RecentlyViewed";
+import HostProfile from "./pages/HostProfile";
+import Verification from "./pages/Verification";
+import ServiceDetails from "./pages/ServiceDetails";
+import ServiceBookingDetails from "./pages/ServiceBookingDetails";
+function ProtectedPage({ children }) {
+  return <ProtectedRoute>{children}</ProtectedRoute>;
+}
 export default function App() {
   return (
     <Routes>
