@@ -1,287 +1,150 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  Star,
-  Share,
-  Heart,
-  MapPin,
-  Wifi,
+  AirVent,
+  CalendarDays,
   Car,
+  ChevronDown,
+  Heart,
+  Lock,
+  MapPin,
+  MessageCircle,
+  Share,
+  Star,
+  Tv,
   Utensils,
   Waves,
-  Wind,
-  Tv,
-  CalendarDays,
-  MessageCircle,
+  Wifi,
+  X,
 } from "lucide-react";
 
-import api from "../api/api";
 import Navbar from "../components/Navbar";
-import ImageGallery from "../components/ImageGallery";
-import PropertyMap from "../components/PropertyMap";
-import LoadingSkeleton from "../components/LoadingSkeleton";
-import SimilarProperties from "../components/SimilarProperties";
+import Footer from "../components/Footer";
+import api from "../api/api";
 
 export default function ResortDetails() {
-  const navigate = useNavigate();
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [property, setProperty] = useState(null);
-  const [reviews, setReviews] = useState([]);
-
-  const [guestOpen, setGuestOpen] = useState(false);
-  const [checkinOpen, setCheckinOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const [checkin, setCheckin] = useState("2026-06-12");
   const [checkout, setCheckout] = useState("2026-06-14");
-
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
-  const [infants, setInfants] = useState(0);
-  const [pets, setPets] = useState(0);
-
-  const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [savingWishlist, setSavingWishlist] = useState(false);
-  const [startingChat, setStartingChat] = useState(false);
-  const [sharing, setSharing] = useState(false);
-
-  const totalGuests = adults + children;
+  const [guests, setGuests] = useState(1);
 
   useEffect(() => {
     loadProperty();
-    loadReviews();
   }, [id]);
-
-  const getStoredUser = () =>
-    JSON.parse(localStorage.getItem("user")) ||
-    JSON.parse(sessionStorage.getItem("user"));
-
-  const getToken = () =>
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
-  const saveRecentlyViewed = (item) => {
-    if (!item?.id) return;
-
-    const oldItems =
-      JSON.parse(localStorage.getItem("recentlyViewedProperties")) || [];
-
-    const filtered = oldItems.filter(
-      (oldItem) => Number(oldItem.id) !== Number(item.id)
-    );
-
-    const updated = [
-      {
-        id: item.id,
-        title: item.title,
-        location: item.location,
-        image: item.image,
-        price: item.price,
-        rating: item.rating,
-        category: item.category,
-        guests: item.guests,
-        bedrooms: item.bedrooms,
-        bathrooms: item.bathrooms,
-        viewedAt: new Date().toISOString(),
-      },
-      ...filtered,
-    ].slice(0, 12);
-
-    localStorage.setItem("recentlyViewedProperties", JSON.stringify(updated));
-  };
 
   const loadProperty = async () => {
     try {
+      setLoading(true);
       const res = await api.get(`/properties/${id}`);
       setProperty(res.data);
-      saveRecentlyViewed(res.data);
     } catch (err) {
       console.log("Property load failed:", err);
       alert("Property failed to load");
-      navigate("/home");
+      navigate("/");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadReviews = async () => {
-    try {
-      const res = await api.get(`/reviews/${id}`);
-      setReviews(res.data || []);
-    } catch (err) {
-      console.log("Reviews load failed:", err);
-    }
-  };
+  const price = Number(property?.price || 0);
+  const nights = useMemo(() => {
+    const start = new Date(checkin);
+    const end = new Date(checkout);
+    const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 1;
+  }, [checkin, checkout]);
+
+  const subtotal = price * nights;
+  const serviceFee = Math.round(subtotal * 0.05);
+  const taxes = Math.round(subtotal * 0.12);
+  const total = subtotal + serviceFee + taxes;
 
   const formatINR = (amount) =>
     `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
-  const requireLogin = () => {
-    const user = getStoredUser();
-    const token = getToken();
+  const isLoggedIn = () => {
+    const user =
+      JSON.parse(localStorage.getItem("user")) ||
+      JSON.parse(sessionStorage.getItem("user"));
 
-    if (!user || !token) {
-      alert("Please login first");
-      navigate("/");
-      return null;
-    }
+    const token =
+      localStorage.getItem("token") || sessionStorage.getItem("token");
 
-    return user;
+    return Boolean(user && token);
   };
 
-  const shareProperty = async () => {
-    try {
-      if (!property) return;
-
-      setSharing(true);
-
-      const url = window.location.href;
-      const title = property.title || "Staybnb property";
-      const text =
-        property.description ||
-        `Check out this property in ${property.location || "Staybnb"}`;
-
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          text,
-          url,
-        });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-        alert("Property link copied to clipboard");
-      } else {
-        window.prompt("Copy this property link:", url);
-      }
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        console.log("Share failed:", err);
-        alert("Unable to share property");
-      }
-    } finally {
-      setSharing(false);
+  const handleReserve = () => {
+    if (!isLoggedIn()) {
+      setLoginModalOpen(true);
+      return;
     }
-  };
 
-  const checkAvailabilityAndReserve = async () => {
-    try {
-      const user = requireLogin();
-      if (!user) return;
-
-      if (!property?.id) {
-        alert("Property not found");
-        return;
-      }
-
-      if (new Date(checkout) <= new Date(checkin)) {
-        alert("Checkout date must be after check-in date.");
-        return;
-      }
-
-      if (totalGuests > Number(property.guests || 1)) {
-        alert(`This property allows maximum ${property.guests || 1} guests.`);
-        return;
-      }
-
-      setCheckingAvailability(true);
-
-      const res = await api.post("/check-availability", {
-        property_id: property.id,
+    navigate("/checkout", {
+      state: {
+        property,
+        guests,
+        nights,
         checkin,
         checkout,
-      });
-
-      if (!res.data.available) {
-        alert(res.data.message || "This property is not available.");
-        return;
-      }
-
-      navigate("/checkout", {
-        state: {
-          property,
-          guests: totalGuests,
-          adults,
-          children,
-          infants,
-          pets,
-          nights,
-          total,
-          checkin,
-          checkout,
-        },
-      });
-    } catch (err) {
-      console.log("Availability check failed:", err);
-      alert("Availability check failed. Please try again.");
-    } finally {
-      setCheckingAvailability(false);
-    }
+      },
+    });
   };
 
-  const saveToWishlist = async () => {
+  const handleMessageHost = () => {
+    if (!isLoggedIn()) {
+      setLoginModalOpen(true);
+      return;
+    }
+
+    navigate("/messages");
+  };
+
+  const handleWishlist = async () => {
+    if (!isLoggedIn()) {
+      setLoginModalOpen(true);
+      return;
+    }
+
     try {
-      const user = requireLogin();
-      if (!user) return;
-
-      if (!property?.id) {
-        alert("Property not found");
-        return;
-      }
-
-      setSavingWishlist(true);
+      const user =
+        JSON.parse(localStorage.getItem("user")) ||
+        JSON.parse(sessionStorage.getItem("user"));
 
       await api.post("/wishlist", {
         user_id: user.id,
         property_id: property.id,
       });
 
-      alert("Saved to wishlist ❤️");
+      alert("Added to wishlist");
     } catch (err) {
       console.log("Wishlist failed:", err);
-
-      if (err.response?.status === 409) {
-        alert("Already saved in wishlist");
-        return;
-      }
-
-      alert("Unable to save wishlist");
-    } finally {
-      setSavingWishlist(false);
+      alert(err.response?.data?.message || "Wishlist failed");
     }
   };
 
-  const startChatWithHost = async () => {
-    try {
-      const user = requireLogin();
-      if (!user) return;
+  const shareProperty = async () => {
+    const url = window.location.href;
 
-      if (!property?.user_id) {
-        alert("Host information unavailable");
-        return;
-      }
-
-      if (Number(user.id) === Number(property.user_id)) {
-        alert("This is your own listing");
-        return;
-      }
-
-      setStartingChat(true);
-
-      await api.post("/messages", {
-        sender_id: user.id,
-        receiver_id: property.user_id,
-        property_id: property.id,
-        message: `Hi, I am interested in your property: ${property.title}`,
+    if (navigator.share) {
+      await navigator.share({
+        title: property?.title || "Servia Stay",
+        text: property?.description || "Check this stay",
+        url,
       });
-
-      navigate("/messages");
-    } catch (err) {
-      console.log("Start chat failed:", err);
-      alert("Unable to start chat");
-    } finally {
-      setStartingChat(false);
+      return;
     }
+
+    await navigator.clipboard.writeText(url);
+    alert("Link copied");
   };
 
-  if (!property) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
@@ -293,110 +156,72 @@ export default function ResortDetails() {
     );
   }
 
-  const price = Number(property.price || 0);
-
-  const nights = Math.max(
-    1,
-    Math.ceil(
-      (new Date(checkout).getTime() - new Date(checkin).getTime()) /
-        (1000 * 60 * 60 * 24)
-    )
-  );
-
-  const subtotal = price * nights;
-  const serviceFee = Math.round(subtotal * 0.05);
-  const taxes = Math.round(subtotal * 0.12);
-  const total = subtotal + serviceFee + taxes;
-
-  const amenities = [
-    { icon: <Wifi size={24} />, label: "Wifi" },
-    { icon: <Car size={24} />, label: "Free parking" },
-    { icon: <Utensils size={24} />, label: "Kitchen" },
-    { icon: <Waves size={24} />, label: "Pool" },
-    { icon: <Wind size={24} />, label: "Air conditioning" },
-    { icon: <Tv size={24} />, label: "TV" },
-  ];
+  if (!property) return null;
 
   return (
     <div className="min-h-screen bg-white text-[#222]">
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold md:text-3xl">
-            {property.title || "Property Details"}
-          </h1>
+        <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <h1 className="text-3xl font-bold md:text-4xl">
+              {property.title}
+            </h1>
 
-          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Star size={16} fill="black" />
-
               <span className="font-semibold">
                 {property.rating || "5.0"}
               </span>
-
               <span>·</span>
-
-              <button className="font-semibold underline">
-                {reviews.length} reviews
-              </button>
-
+              <span className="font-semibold underline">Guest favorite</span>
               <span>·</span>
-
               <span className="flex items-center gap-1 text-gray-600">
                 <MapPin size={15} />
-                {property.location || "Location unavailable"}
+                {property.location}
               </span>
             </div>
+          </div>
 
-            <div className="flex gap-4 text-sm font-semibold">
-              <button
-                onClick={shareProperty}
-                disabled={sharing}
-                className="flex items-center gap-2 underline transition hover:text-[#8363F5] disabled:opacity-60"
-              >
-                <Share size={16} />
-                {sharing ? "Sharing..." : "Share"}
-              </button>
+          <div className="flex gap-4 text-sm font-semibold">
+            <button
+              onClick={shareProperty}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 hover:bg-gray-100"
+            >
+              <Share size={16} />
+              Share
+            </button>
 
-              <button
-                onClick={saveToWishlist}
-                disabled={savingWishlist}
-                className="flex items-center gap-2 underline transition hover:text-[#8363F5] disabled:opacity-60"
-              >
-                <Heart size={16} />
-                {savingWishlist ? "Saving..." : "Save"}
-              </button>
-            </div>
+            <button
+              onClick={handleWishlist}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 hover:bg-gray-100"
+            >
+              <Heart size={16} />
+              Save
+            </button>
           </div>
         </div>
 
-        <ImageGallery propertyId={property.id} coverImage={property.image} />
+        <div className="overflow-hidden rounded-[32px]">
+          <img
+            src={property.image}
+            alt={property.title}
+            className="h-[420px] w-full object-cover"
+          />
+        </div>
 
-        <section className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_390px]">
+        <section className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]">
           <div>
             <div className="border-b pb-8">
-              <div className="flex items-center justify-between gap-5">
-                <div>
-                  <h2 className="text-2xl font-semibold">
-                    Entire {property.category || "home"} hosted by Staybnb Host
-                  </h2>
+              <h2 className="text-2xl font-bold">
+                Entire place in {property.location}
+              </h2>
 
-                  <p className="mt-2 text-gray-600">
-                    {property.guests || 1} guests · {property.bedrooms || 1}{" "}
-                    bedroom · {property.bathrooms || 1} bath
-                  </p>
-                </div>
-
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#8363F5] text-xl font-bold text-white">
-                <button
-  onClick={() => navigate(`/host/${property.user_id}`)}
-  className="flex h-14 w-14 items-center justify-center rounded-full bg-[#8363F5] text-xl font-bold text-white"
->
-  S
-</button>
-                </div>
-              </div>
+              <p className="mt-2 text-gray-600">
+                {property.guests || 1} guests · {property.bedrooms || 1} bedroom ·{" "}
+                {property.bathrooms || 1} bath
+              </p>
             </div>
 
             <div className="space-y-6 border-b py-8">
@@ -407,7 +232,7 @@ export default function ResortDetails() {
               />
 
               <Feature
-                icon="📅"
+                icon="🧾"
                 title="Free cancellation"
                 text="Cancel before check-in according to the host cancellation policy."
               />
@@ -415,77 +240,45 @@ export default function ResortDetails() {
               <Feature
                 icon="🔐"
                 title="Secure booking"
-                text="Your booking is protected by Staybnb secure reservation system."
+                text="Your booking is protected by Servia Stay secure reservation system."
               />
             </div>
 
             <div className="border-b py-8">
-              <h2 className="mb-4 text-2xl font-semibold">
-                About this place
-              </h2>
+              <h2 className="mb-4 text-2xl font-bold">About this place</h2>
 
-              <p className="leading-8 text-gray-700">
-                {property.description ||
-                  "Enjoy a beautiful stay with premium comfort, peaceful surroundings, and everything you need for a relaxing trip."}
+              <p className="max-w-3xl whitespace-pre-line leading-8 text-gray-700">
+                {property.description}
               </p>
             </div>
 
             <div className="border-b py-8">
-              <h2 className="mb-6 text-2xl font-semibold">
+              <h2 className="mb-6 text-2xl font-bold">
                 What this place offers
               </h2>
 
               <div className="grid gap-5 md:grid-cols-2">
-                {amenities.map((item) => (
-                  <div key={item.label} className="flex items-center gap-4">
-                    <span>{item.icon}</span>
-                    <span className="font-medium">{item.label}</span>
-                  </div>
-                ))}
+                <Amenity icon={<Wifi />} text="Wifi" />
+                <Amenity icon={<Car />} text="Free parking" />
+                <Amenity icon={<Utensils />} text="Kitchen" />
+                <Amenity icon={<Waves />} text="Pool" />
+                <Amenity icon={<AirVent />} text="Air conditioning" />
+                <Amenity icon={<Tv />} text="TV" />
               </div>
             </div>
 
             <div className="border-b py-8">
-              <h2 className="mb-6 text-2xl font-semibold">
-                Where you&apos;ll be
-              </h2>
+              <h2 className="mb-6 text-2xl font-bold">Where you'll be</h2>
 
-              <PropertyMap property={property} />
-            </div>
-
-            <div className="py-8">
-              <h2 className="mb-6 flex items-center gap-2 text-2xl font-semibold">
-                <Star size={22} fill="black" />
-                {property.rating || "5.0"} · {reviews.length} reviews
-              </h2>
-
-              {reviews.length === 0 ? (
-                <p className="text-gray-500">No reviews yet.</p>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="rounded-2xl border p-5">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-bold">
-                            {review.fullname || "Guest"}
-                          </h4>
-
-                          <p className="text-sm text-gray-500">
-                            Verified guest
-                          </p>
-                        </div>
-
-                        <span className="font-semibold">
-                          ⭐ {review.rating}
-                        </span>
-                      </div>
-
-                      <p className="text-gray-700">{review.review}</p>
-                    </div>
-                  ))}
+              <div className="flex h-80 items-center justify-center rounded-3xl bg-[#F4F1FF]">
+                <div className="text-center">
+                  <MapPin size={42} className="mx-auto mb-3 text-[#8363F5]" />
+                  <h3 className="text-xl font-bold">{property.location}</h3>
+                  <p className="mt-2 text-gray-500">
+                    Google Maps integration can be added here.
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -505,126 +298,71 @@ export default function ResortDetails() {
                 </span>
               </div>
 
-              <div className="mb-4 rounded-2xl border border-gray-300">
-                <div className="grid grid-cols-2 border-b">
-                  <DateBox
-                    label="Check-in"
-                    date={checkin}
-                    open={checkinOpen}
-                    setOpen={setCheckinOpen}
-                    setDate={setCheckin}
-                    closeOther={() => setCheckoutOpen(false)}
-                    border
+              <div className="overflow-hidden rounded-2xl border border-gray-300">
+                <div className="grid grid-cols-2">
+                  <DateInput
+                    label="CHECK-IN"
+                    value={checkin}
+                    onChange={setCheckin}
                   />
 
-                  <DateBox
-                    label="Checkout"
-                    date={checkout}
-                    open={checkoutOpen}
-                    setOpen={setCheckoutOpen}
-                    setDate={setCheckout}
-                    closeOther={() => setCheckinOpen(false)}
+                  <DateInput
+                    label="CHECKOUT"
+                    value={checkout}
+                    onChange={setCheckout}
+                    borderLeft
                   />
                 </div>
 
-                <div className="relative">
-                  <button
-                    onClick={() => setGuestOpen(!guestOpen)}
-                    className="flex w-full items-center justify-between p-3 text-left"
-                  >
-                    <div>
-                      <span className="block text-[11px] font-bold uppercase">
-                        Guests
-                      </span>
+                <div className="border-t p-4">
+                  <label className="block text-xs font-bold uppercase">
+                    Guests
+                  </label>
 
-                      <p className="mt-1 text-sm">
-                        {totalGuests}{" "}
-                        {totalGuests === 1 ? "guest" : "guests"}
-                      </p>
-                    </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <select
+                      value={guests}
+                      onChange={(e) => setGuests(Number(e.target.value))}
+                      className="w-full bg-white outline-none"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
+                        <option key={item} value={item}>
+                          {item} {item === 1 ? "guest" : "guests"}
+                        </option>
+                      ))}
+                    </select>
 
-                    <span>{guestOpen ? "⌃" : "⌄"}</span>
-                  </button>
-
-                  {guestOpen && (
-                    <div className="absolute left-0 right-0 top-full z-50 rounded-2xl border bg-white p-5 shadow-2xl">
-                      <GuestRow
-                        title="Adults"
-                        subtitle="Age 13+"
-                        value={adults}
-                        onMinus={() => setAdults(Math.max(1, adults - 1))}
-                        onPlus={() => setAdults(adults + 1)}
-                      />
-
-                      <GuestRow
-                        title="Children"
-                        subtitle="Ages 2–12"
-                        value={children}
-                        onMinus={() =>
-                          setChildren(Math.max(0, children - 1))
-                        }
-                        onPlus={() => setChildren(children + 1)}
-                      />
-
-                      <GuestRow
-                        title="Infants"
-                        subtitle="Under 2"
-                        value={infants}
-                        onMinus={() => setInfants(Math.max(0, infants - 1))}
-                        onPlus={() => setInfants(infants + 1)}
-                      />
-
-                      <GuestRow
-                        title="Pets"
-                        subtitle="Bringing a service animal?"
-                        value={pets}
-                        onMinus={() => setPets(Math.max(0, pets - 1))}
-                        onPlus={() => setPets(pets + 1)}
-                      />
-
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={() => setGuestOpen(false)}
-                          className="font-semibold underline"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    <ChevronDown size={18} />
+                  </div>
                 </div>
               </div>
 
               <button
-                onClick={checkAvailabilityAndReserve}
-                disabled={checkingAvailability}
-                className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
+                onClick={handleReserve}
+                className="mt-5 h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8]"
               >
-                {checkingAvailability ? "Checking..." : "Reserve"}
+                Reserve
               </button>
 
               <button
-                onClick={startChatWithHost}
-                disabled={startingChat}
-                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50 disabled:opacity-60"
+                onClick={handleMessageHost}
+                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
               >
                 <MessageCircle size={18} />
-                {startingChat ? "Opening chat..." : "Message Host"}
+                Message Host
               </button>
 
               <p className="mt-4 text-center text-sm text-gray-500">
-                You won&apos;t be charged yet
+                You won’t be charged yet
               </p>
 
-              <div className="mt-6 space-y-4 text-sm">
+              <div className="mt-6 space-y-3 text-sm">
                 <PriceRow
                   label={`${formatINR(price)} x ${nights} nights`}
                   value={formatINR(subtotal)}
-                  underline
                 />
 
                 <PriceRow label="Service fee" value={formatINR(serviceFee)} />
-
                 <PriceRow label="Taxes" value={formatINR(taxes)} />
 
                 <div className="flex justify-between border-t pt-4 text-base font-bold">
@@ -635,122 +373,117 @@ export default function ResortDetails() {
             </div>
           </aside>
         </section>
- <SimilarProperties propertyId={property.id} />
       </main>
-    </div>
-  );
-}
 
-function DateBox({ label, date, open, setOpen, setDate, closeOther, border }) {
-  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+      <Footer />
 
-  return (
-    <div className={`relative p-3 ${border ? "border-r" : ""}`}>
-      <button
-        onClick={() => {
-          closeOther();
-          setOpen(!open);
-        }}
-        className="w-full text-left"
-      >
-        <span className="block text-[11px] font-bold uppercase">{label}</span>
-
-        <p className="mt-1 text-sm">
-          {new Date(date).toLocaleDateString("en-IN")}
-        </p>
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-[320px] rounded-3xl border bg-white p-5 shadow-2xl">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-bold">Select {label}</h3>
-
-            <CalendarDays size={20} className="text-[#8363F5]" />
-          </div>
-
-          <div className="grid grid-cols-7 gap-2 text-center">
-            {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={i} className="py-1 text-xs font-bold text-gray-400">
-                {d}
-              </div>
-            ))}
-
-            {days.map((day) => {
-              const value = `2026-06-${String(day).padStart(2, "0")}`;
-              const active = value === date;
-
-              return (
-                <button
-                  key={day}
-                  onClick={() => {
-                    setDate(value);
-                    setOpen(false);
-                  }}
-                  className={`h-9 rounded-full text-sm font-semibold ${
-                    active
-                      ? "bg-[#8363F5] text-white"
-                      : "hover:bg-[#F4F1FF]"
-                  }`}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {loginModalOpen && (
+        <LoginRequiredModal
+          onClose={() => setLoginModalOpen(false)}
+          onLogin={() => navigate("/login")}
+          onSignup={() => navigate("/signup")}
+        />
       )}
     </div>
   );
 }
 
-function GuestRow({ title, subtitle, value, onMinus, onPlus }) {
+function LoginRequiredModal({ onClose, onLogin, onSignup }) {
   return (
-    <div className="flex items-center justify-between border-b py-4 last:border-b-0">
-      <div>
-        <h4 className="font-semibold">{title}</h4>
-
-        <p className="text-sm text-gray-500">{subtitle}</p>
-      </div>
-
-      <div className="flex items-center gap-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
+      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
         <button
-          onClick={onMinus}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-400"
+          onClick={onClose}
+          className="absolute right-5 top-5 rounded-full p-2 hover:bg-gray-100"
         >
-          −
+          <X size={20} />
         </button>
 
-        <span className="w-5 text-center">{value}</span>
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+          <Lock size={26} />
+        </div>
 
-        <button
-          onClick={onPlus}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xl"
-        >
-          +
-        </button>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Log in to continue
+        </h2>
+
+        <p className="mt-3 leading-6 text-gray-500">
+          Please log in or create an account to reserve this stay, message the
+          host, or save it to your wishlist.
+        </p>
+
+        <div className="mt-6 space-y-3">
+          <button
+            onClick={onLogin}
+            className="h-12 w-full rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8]"
+          >
+            Log in
+          </button>
+
+          <button
+            onClick={onSignup}
+            className="h-12 w-full rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
+          >
+            Create account
+          </button>
+
+          <button
+            onClick={onClose}
+            className="h-12 w-full rounded-xl text-gray-500 hover:bg-gray-50"
+          >
+            Continue browsing
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+function DateInput({ label, value, onChange, borderLeft }) {
+  return (
+    <label className={`block p-4 ${borderLeft ? "border-l" : ""}`}>
+      <span className="block text-xs font-bold uppercase">{label}</span>
+
+      <div className="mt-2 flex items-center gap-2">
+        <CalendarDays size={16} />
+
+        <input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-white text-sm outline-none"
+        />
+      </div>
+    </label>
   );
 }
 
 function Feature({ icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <span className="text-2xl">{icon}</span>
+      <div className="text-2xl">{icon}</div>
 
       <div>
-        <h4 className="font-semibold">{title}</h4>
-
-        <p className="mt-1 text-sm text-gray-600">{text}</p>
+        <h4 className="font-bold">{title}</h4>
+        <p className="mt-1 text-sm leading-6 text-gray-600">{text}</p>
       </div>
     </div>
   );
 }
 
-function PriceRow({ label, value, underline }) {
+function Amenity({ icon, text }) {
+  return (
+    <div className="flex items-center gap-4 text-gray-800">
+      {icon}
+      <span className="font-medium">{text}</span>
+    </div>
+  );
+}
+
+function PriceRow({ label, value }) {
   return (
     <div className="flex justify-between">
-      <span className={underline ? "underline" : ""}>{label}</span>
+      <span className="underline">{label}</span>
       <span>{value}</span>
     </div>
   );
