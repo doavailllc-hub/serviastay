@@ -7,7 +7,12 @@ export default function BookingSuccess() {
   const guests = location.state?.guests || 1;
   const nights = location.state?.nights || 2;
   const total = location.state?.total || 0;
-  const paymentMethod = location.state?.paymentMethod || "card";
+  const paymentMethod = location.state?.paymentMethod || "cash";
+  const checkin = location.state?.checkin || "2026-06-12";
+  const checkout = location.state?.checkout || "2026-06-14";
+
+  const formatINR = (amount) =>
+    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
   return (
     <div className="min-h-screen bg-[#FAFAFC] flex items-center justify-center px-4">
@@ -23,53 +28,25 @@ export default function BookingSuccess() {
         <p className="mt-4 text-gray-500 leading-7">
           Your stay at{" "}
           <span className="font-semibold text-gray-800">
-            {property?.title || "Luxury Beach Villa"}
+            {property?.title || "Selected Stay"}
           </span>{" "}
           has been successfully confirmed.
         </p>
 
         <div className="mt-8 bg-gray-50 rounded-2xl p-5 text-left">
-          <div className="flex justify-between py-2">
-            <span className="text-gray-500">Property</span>
-            <span className="font-medium text-right">
-              {property?.title || "Luxury Beach Villa"}
-            </span>
-          </div>
-
-          <div className="flex justify-between py-2">
-            <span className="text-gray-500">Dates</span>
-            <span className="font-medium">
-              Jun 12 - Jun 14
-            </span>
-          </div>
-
-          <div className="flex justify-between py-2">
-            <span className="text-gray-500">Guests</span>
-            <span className="font-medium">
-              {guests} {guests === 1 ? "Guest" : "Guests"}
-            </span>
-          </div>
-
-          <div className="flex justify-between py-2">
-            <span className="text-gray-500">Nights</span>
-            <span className="font-medium">
-              {nights}
-            </span>
-          </div>
-
-          <div className="flex justify-between py-2">
-            <span className="text-gray-500">Payment</span>
-            <span className="font-medium capitalize">
-              {paymentMethod}
-            </span>
-          </div>
+          <InfoRow label="Property" value={property?.title || "Selected Stay"} />
+          <InfoRow label="Dates" value={`${checkin} - ${checkout}`} />
+          <InfoRow
+            label="Guests"
+            value={`${guests} ${guests === 1 ? "Guest" : "Guests"}`}
+          />
+          <InfoRow label="Nights" value={nights} />
+          <InfoRow label="Payment" value={paymentMethod} capitalize />
 
           <div className="flex justify-between py-2 border-t mt-2 pt-4">
-            <span className="font-semibold">
-              Total
-            </span>
+            <span className="font-semibold">Total</span>
             <span className="font-bold text-[#8363F5]">
-              ${total}
+              {formatINR(total)}
             </span>
           </div>
         </div>
@@ -87,6 +64,21 @@ export default function BookingSuccess() {
           Continue Exploring
         </Link>
       </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, capitalize }) {
+  return (
+    <div className="flex justify-between py-2 gap-4">
+      <span className="text-gray-500">{label}</span>
+      <span
+        className={`font-medium text-right ${
+          capitalize ? "capitalize" : ""
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }

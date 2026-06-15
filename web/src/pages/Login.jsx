@@ -1,129 +1,216 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { Apple } from "lucide-react";
+
+import api from "../api/api";
+import logo from "../assets/logo.png";
 
 export default function Login() {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("demo@gmail.com");
-  const [password, setPassword] = useState("demopassword");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password.trim()) {
+      setError("Email and password are required");
+      return;
+    }
+
     try {
+      setLoading(true);
       setError("");
 
-      const res = await axios.post("http://localhost:5000/api/login", {
-        email,
+      const res = await api.post("/login", {
+        email: cleanEmail,
         password,
       });
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+      if (!res.data?.token || !res.data?.user) {
+        setError("Login failed. Please try again.");
+        return;
+      }
 
-      navigate("/home");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("token", res.data.token);
+      storage.setItem("user", JSON.stringify(res.data.user));
+
+      navigate("/home", { replace: true });
     } catch (err) {
-      setError("Invalid email or password");
+      console.log("Login failed:", err);
+      setError(
+        err.response?.data?.message ||
+          "Invalid email or password. Please check your details."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
-      <div className="w-full lg:w-[42%] flex items-center justify-center px-6 py-10">
+    <div className="min-h-screen bg-white lg:grid lg:grid-cols-[42%_58%]">
+      <div className="flex min-h-screen items-center justify-center bg-white px-6 py-10">
         <div className="w-full max-w-md">
-          <h1 className="text-4xl font-bold text-[#8363F5] mb-10">
-            Staybnb
-          </h1>
+          <Link to="/" className="mb-10 inline-flex items-center">
+            <img
+              src={logo}
+              alt="Servia Stay"
+              className="h-10 w-auto object-contain"
+            />
+          </Link>
 
-          <div className="border border-gray-200 rounded-2xl shadow-sm p-8 bg-white">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-              Welcome back
-            </h2>
+          <form
+            onSubmit={handleLogin}
+            className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl"
+          >
+            <div className="mb-7">
+              <h1 className="text-3xl font-bold text-gray-900">
+                Welcome back
+              </h1>
+              <p className="mt-2 text-gray-500">
+                Log in to manage your bookings, wishlists, and stays.
+              </p>
+            </div>
 
             <div className="space-y-4">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-14 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
-              />
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 shadow-sm outline-none transition focus:border-[#8363F5] focus:ring-2 focus:ring-[#8363F5]"
+                />
+              </div>
 
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-14 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
-              />
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Password
+                </label>
+
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 pr-20 text-gray-900 placeholder:text-gray-400 shadow-sm outline-none transition focus:border-[#8363F5] focus:ring-2 focus:ring-[#8363F5]"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8363F5]"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 accent-[#8363F5]"
+                  />
+                  Remember me
+                </label>
+
+                <button
+                  type="button"
+                    onClick={() => navigate("/forgot-password")}
+                  className="text-sm font-semibold text-[#8363F5] hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
 
               {error && (
-                <p className="text-sm text-red-500 font-medium">
-                  {error}
-                </p>
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-sm font-medium text-red-600">{error}</p>
+                </div>
               )}
 
               <button
-                onClick={handleLogin}
-                className="w-full h-14 rounded-xl bg-[#8363F5] text-white font-semibold text-lg hover:bg-[#7152E8] transition"
+                type="submit"
+                disabled={loading}
+                className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Log in
+                {loading ? "Logging in..." : "Log in"}
               </button>
             </div>
 
-            <div className="mt-5 rounded-xl bg-[#F4F1FF] border border-[#8363F5]/20 p-4">
-              <p className="text-sm font-semibold text-[#8363F5] mb-2">
-                Demo Credentials
-              </p>
-
-              <p className="text-sm text-gray-700">
-                <strong>Email:</strong> demo@gmail.com
-              </p>
-
-              <p className="text-sm text-gray-700">
-                <strong>Password:</strong> demopassword
-              </p>
-            </div>
-
-            <div className="flex items-center my-6">
-              <div className="flex-1 border-t"></div>
-              <span className="px-3 text-gray-400 text-sm">or</span>
-              <div className="flex-1 border-t"></div>
+            <div className="my-6 flex items-center">
+              <div className="flex-1 border-t" />
+              <span className="px-3 text-sm text-gray-400">or</span>
+              <div className="flex-1 border-t" />
             </div>
 
             <div className="space-y-3">
-              <button className="w-full h-12 border rounded-xl font-medium hover:bg-gray-50 transition">
+              <button
+                type="button"
+                className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white font-medium text-gray-900 shadow-sm transition hover:bg-gray-50"
+              >
+                <img
+                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                  alt="Google"
+                  className="h-5 w-5"
+                />
                 Continue with Google
               </button>
 
-              <button className="w-full h-12 border rounded-xl font-medium hover:bg-gray-50 transition">
+              <button
+                type="button"
+                className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white font-medium text-gray-900 shadow-sm transition hover:bg-gray-50"
+              >
+                <Apple size={21} />
                 Continue with Apple
               </button>
             </div>
 
-            <p className="text-center text-gray-500 mt-6">
-              Don't have an account?{" "}
+            <p className="mt-6 text-center text-gray-500">
+              Don&apos;t have an account?{" "}
               <Link
                 to="/signup"
-                className="text-[#8363F5] font-semibold hover:underline"
+                className="font-semibold text-[#8363F5] hover:underline"
               >
                 Sign up
               </Link>
             </p>
-          </div>
+          </form>
         </div>
       </div>
 
-      <div className="hidden lg:block flex-1 relative overflow-hidden">
+      <div className="relative hidden overflow-hidden lg:block">
         <img
           src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1600"
-          alt="Staybnb"
-          className="w-full h-full object-cover"
+          alt="Luxury stay"
+          className="h-full w-full object-cover"
         />
 
-        <div className="absolute inset-0 bg-black/25"></div>
+        <div className="absolute inset-0 bg-black/35" />
 
-        <div className="absolute bottom-16 left-16 text-white max-w-lg">
+        <div className="absolute bottom-16 left-16 max-w-lg text-white">
           <h2 className="text-6xl font-bold leading-tight">
             Live
             <br />
@@ -131,8 +218,8 @@ export default function Login() {
           </h2>
 
           <p className="mt-4 text-xl text-gray-200">
-            Discover unique homes, unforgettable experiences, and places you'll
-            love.
+            Discover unique homes, unforgettable experiences, and places
+            you&apos;ll love.
           </p>
         </div>
       </div>

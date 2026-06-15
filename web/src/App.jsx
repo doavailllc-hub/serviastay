@@ -1,11 +1,12 @@
 import { Routes, Route } from "react-router-dom";
+
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Home from "./pages/Home";
 import ResortDetails from "./pages/ResortDetails";
-import BecomeHost from "./pages/BecomeHost"; // 🔥 IMPORT THE NEW COMPONENT HERE!
+import BecomeHost from "./pages/BecomeHost";
 import CategorySelect from "./pages/CategorySelect";
-import Profile from "./pages/Profile"
+import Profile from "./pages/Profile";
 import Wishlist from "./pages/Wishlist";
 import Trips from "./pages/Trips";
 import Messages from "./pages/Messages";
@@ -28,57 +29,380 @@ import Experience from "./pages/Experiences";
 import Services from "./pages/Services";
 import PaymentMethods from "./pages/PaymentMethods";
 import AddProperty from "./pages/AddProperty";
-
-import { Link, useLocation } from "react-router-dom";
-function App() {
-  return (
-    <Routes>
-      {/* Auth Entry Routes */}
-      <Route path="/" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      
-      {/* Marketplace Overview Home Route */}
-      <Route path="/home" element={<Home />} />
-      
-      {/* Resort Details - Both paths accepted so both URL types work perfectly! */}
-      <Route path="/category" element={<CategorySelect />} />
-  <Route path="/help" element={<HelpCenter />} />
-
-      {/* Resort Details - Both paths accepted so both URL types work perfectly! */}
-   <Route
-path="/profile"
-element={<Profile/>}
-/>
-<Route path="/reserve/:id" element={<ResortDetails />} />
-
-   <Route path="/wishlist" element={<Wishlist />} />
-      <Route path="/trips" element={<Trips />} />
-      <Route path="/messages" element={<Messages />} />
-      <Route path="/notifications" element={<Notifications />} />
-      <Route path="/account-settings" element={<AccountSettings />} />
-      <Route path="/checkout" element={<Checkout />} />
-      <Route path="/booking-success" element={<BookingSuccess />} />
-      <Route path="/host-dashboard" element={<HostDashboard />} />
-<Route path="/language" element={<LanguageCurrency />} />
-<Route path="/search-results" element={<SearchResults />} />
-<Route path="/host-listings" element={<HostListings />} />
-<Route path="/edit-listing" element={<EditListing />} />
-<Route path="/host-calendar" element={<HostCalendar />} />
-<Route path="/earnings" element={<Earnings />} />
-<Route path="/reviews" element={<Reviews />} />
-<Route path="/experiences" element={<Experience />} />
-<Route path="/admin" element={<AdminDashboard />} />
-<Route path="/services" element={<Services />} />
-<Route path="*" element={<NotFound />} />
-<Route path="/add-property" element={<AddProperty />} />
-<Route path="/edit-listing/:id" element={<EditListing />} />
-<Route path="/payment-methods" element={<PaymentMethods />} />
-      {/* Become a Host - Setup Dashboard Listing Page */}
-      <Route path="/become-a-host" element={<BecomeHost />} />
-    </Routes>
-
-    
-  );
+import HostReservations from "./pages/HostReservations";
+import HostReviews from "./pages/HostReviews";
+import Analytics from "./pages/Analytics";
+import PaymentHistory from "./pages/PaymentHistory";
+import Payouts from "./pages/Payouts";
+import AdminLayout from "./layouts/AdminLayout";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import TripDetails from "./pages/TripDetails";
+import WriteReview from "./pages/WriteReview";
+import Receipt from "./pages/Receipt";
+import Security from "./pages/Security";
+import ForgotPassword from "./pages/ForgotPassword";
+import Support from "./pages/Support";
+import RecentlyViewed from "./pages/RecentlyViewed";
+import HostProfile from "./pages/HostProfile";
+import Verification from "./pages/Verification";
+import ServiceDetails from "./pages/ServiceDetails";
+import ServiceBookingDetails from "./pages/ServiceBookingDetails";
+function ProtectedPage({ children }) {
+  return <ProtectedRoute>{children}</ProtectedRoute>;
 }
 
-export default App;
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+
+      <Route
+        path="/home"
+        element={
+          <ProtectedPage>
+            <Home />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/category"
+        element={
+          <ProtectedPage>
+            <CategorySelect />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/help"
+        element={
+          <ProtectedPage>
+            <HelpCenter />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedPage>
+            <Profile />
+          </ProtectedPage>
+        }
+      />
+<Route
+  path="/verification"
+  element={
+    <ProtectedPage>
+      <Verification />
+    </ProtectedPage>
+  }
+/>
+      <Route
+        path="/reserve/:id"
+        element={
+          <ProtectedPage>
+            <ResortDetails />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/wishlist"
+        element={
+          <ProtectedPage>
+            <Wishlist />
+          </ProtectedPage>
+        }
+      />
+<Route
+  path="/receipt/:id"
+  element={
+    <ProtectedPage>
+      <Receipt />
+    </ProtectedPage>
+  }
+/>
+      <Route
+        path="/trips"
+        element={
+          <ProtectedPage>
+            <Trips />
+          </ProtectedPage>
+        }
+      />
+<Route
+  path="/security"
+  element={
+    <ProtectedPage>
+      <Security />
+    </ProtectedPage>
+  }
+/>
+      <Route
+        path="/messages"
+        element={
+          <ProtectedPage>
+            <Messages />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedPage>
+            <Notifications />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/account-settings"
+        element={
+          <ProtectedPage>
+            <AccountSettings />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/checkout"
+        element={
+          <ProtectedPage>
+            <Checkout />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/booking-success"
+        element={
+          <ProtectedPage>
+            <BookingSuccess />
+          </ProtectedPage>
+        }
+      />
+<Route
+  path="/host/:id"
+  element={
+    <ProtectedPage>
+      <HostProfile />
+    </ProtectedPage>
+  }
+/>
+      <Route
+        path="/language"
+        element={
+          <ProtectedPage>
+            <LanguageCurrency />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/search-results"
+        element={
+          <ProtectedPage>
+            <SearchResults />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/experiences"
+        element={
+          <ProtectedPage>
+            <Experience />
+          </ProtectedPage>
+        }
+      />
+<Route
+  path="/service-booking/:id"
+  element={<ServiceBookingDetails />}
+/>
+      <Route
+        path="/services"
+        element={
+          <ProtectedPage>
+            <Services />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/reviews"
+        element={
+          <ProtectedPage>
+            <Reviews />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/payment-methods"
+        element={
+          <ProtectedPage>
+            <PaymentMethods />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/payments"
+        element={
+          <ProtectedPage>
+            <PaymentHistory />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/become-a-host"
+        element={
+          <ProtectedPage>
+            <BecomeHost />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/add-property"
+        element={
+          <ProtectedPage>
+            <AddProperty />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/host-dashboard"
+        element={
+          <ProtectedPage>
+            <HostDashboard />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/host-listings"
+        element={
+          <ProtectedPage>
+            <HostListings />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/host-reservations"
+        element={
+          <ProtectedPage>
+            <HostReservations />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/host-calendar"
+        element={
+          <ProtectedPage>
+            <HostCalendar />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/host-reviews"
+        element={
+          <ProtectedPage>
+            <HostReviews />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/earnings"
+        element={
+          <ProtectedPage>
+            <Earnings />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/payouts"
+        element={
+          <ProtectedPage>
+            <Payouts />
+          </ProtectedPage>
+        }
+      />
+
+      <Route
+        path="/edit-listing"
+        element={
+          <ProtectedPage>
+            <EditListing />
+          </ProtectedPage>
+        }
+      />
+<Route
+  path="/support"
+  element={
+    <ProtectedPage>
+      <Support />
+    </ProtectedPage>
+  }
+/>
+      <Route
+  path="/trip/:id"
+  element={
+    <ProtectedPage>
+      <TripDetails />
+    </ProtectedPage>
+  }
+/>
+<Route
+  path="/review/:bookingId"
+  element={
+    <ProtectedPage>
+      <WriteReview />
+    </ProtectedPage>
+  }
+/>
+<Route path="/service/:id" element={<ServiceDetails />} />
+
+
+<Route
+  path="/recently-viewed"
+  element={
+    <ProtectedPage>
+      <RecentlyViewed />
+    </ProtectedPage>
+  }
+/>
+<Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route
+        path="/edit-listing/:id"
+        element={
+          <ProtectedPage>
+            <EditListing />
+          </ProtectedPage>
+        }
+      />
+
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="users" element={<AdminDashboard />} />
+        <Route path="properties" element={<AdminDashboard />} />
+        <Route path="bookings" element={<AdminDashboard />} />
+        <Route path="payments" element={<PaymentHistory />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}

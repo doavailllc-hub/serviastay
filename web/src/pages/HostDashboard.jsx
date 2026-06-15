@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api/api";
 
 export default function HostDashboard() {
   const navigate = useNavigate();
@@ -13,31 +13,39 @@ export default function HostDashboard() {
     loadDashboard();
   }, []);
 
+  const formatINR = (amount) =>
+    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+
   const loadDashboard = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("token");
 
-      if (!user) {
+      if (!user || !token) {
         navigate("/");
         return;
       }
 
-      const listingsRes = await axios.get(
-        `http://localhost:5000/api/my-properties/${user.id}`
-      );
+      const listingsRes = await api.get(`/my-properties/${user.id}`);
+      const bookingsRes = await api.get(`/bookings/${user.id}`);
 
-      const bookingsRes = await axios.get(
-        `http://localhost:5000/api/bookings/${user.id}`
-      );
-
-      setListings(listingsRes.data);
-      setBookings(bookingsRes.data);
+      setListings(listingsRes.data || []);
+      setBookings(bookingsRes.data || []);
     } catch (err) {
       console.log("Dashboard load failed:", err);
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+
+      navigate("/");
     }
   };
 
-  const totalEarnings = bookings.reduce(
+  const confirmedBookings = bookings.filter(
+    (item) => item.status !== "Cancelled"
+  );
+
+  const totalEarnings = confirmedBookings.reduce(
     (sum, item) => sum + Number(item.total || 0),
     0
   );
@@ -69,7 +77,7 @@ export default function HostDashboard() {
         <div className="grid gap-6 md:grid-cols-3">
           <StatCard
             title="Total Earnings"
-            value={`$${totalEarnings}`}
+            value={formatINR(totalEarnings)}
             subtitle="Total confirmed revenue"
             highlight
           />
@@ -105,17 +113,27 @@ export default function HostDashboard() {
               <p className="text-gray-500 mt-2">
                 Add your first property to start hosting.
               </p>
+
+              <button
+                onClick={() => navigate("/become-a-host")}
+                className="mt-5 px-6 py-3 rounded-xl bg-[#8363F5] text-white font-semibold"
+              >
+                Add Listing
+              </button>
             </div>
           ) : (
             <div className="divide-y">
               {listings.slice(0, 3).map((listing) => (
                 <div
                   key={listing.id}
-                  className="flex flex-col md:flex-row justify-between items-center p-6 hover:bg-gray-50 transition"
+                  className="flex flex-col md:flex-row justify-between items-center gap-5 p-6 hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center gap-4">
                     <img
-                      src={listing.image}
+                      src={
+                        listing.image ||
+                        "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+                      }
                       alt={listing.title}
                       className="w-20 h-20 rounded-2xl object-cover"
                     />
@@ -133,7 +151,7 @@ export default function HostDashboard() {
 
                   <div className="flex items-center gap-6 mt-4 md:mt-0">
                     <span className="font-bold text-[#8363F5]">
-                      ${listing.price}/night
+                      {formatINR(listing.price)} / night
                     </span>
 
                     <span className="px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
@@ -153,35 +171,42 @@ export default function HostDashboard() {
           )}
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-4">
-          <QuickAction
-            icon="🏠"
-            title="Listings"
-            desc="Manage properties"
-            onClick={() => navigate("/host-listings")}
-          />
+      <div className="mt-10 grid gap-6 md:grid-cols-5">
+  <QuickAction
+    icon="🏠"
+    title="Listings"
+    desc="Manage properties"
+    onClick={() => navigate("/host-listings")}
+  />
 
-          <QuickAction
-            icon="📅"
-            title="Calendar"
-            desc="Manage availability"
-            onClick={() => navigate("/host-calendar")}
-          />
+  <QuickAction
+    icon="📋"
+    title="Reservations"
+    desc="Manage bookings"
+    onClick={() => navigate("/host-reservations")}
+  />
 
-          <QuickAction
-            icon="💰"
-            title="Earnings"
-            desc="View payouts"
-            onClick={() => navigate("/earnings")}
-          />
+  <QuickAction
+    icon="📅"
+    title="Calendar"
+    desc="Manage availability"
+    onClick={() => navigate("/host-calendar")}
+  />
 
-          <QuickAction
-            icon="⭐"
-            title="Reviews"
-            desc="Guest feedback"
-            onClick={() => navigate("/reviews")}
-          />
-        </div>
+  <QuickAction
+    icon="💰"
+    title="Earnings"
+    desc="View payouts"
+    onClick={() => navigate("/earnings")}
+  />
+
+ <QuickAction
+  icon="⭐"
+  title="Reviews"
+  desc="Guest feedback"
+  onClick={() => navigate("/host-reviews")}
+/>
+</div>
 
         <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#8363F5] to-[#6D4EEB] p-8 text-white shadow-xl">
           <h2 className="text-2xl font-bold">

@@ -1,125 +1,408 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import {
+  CalendarDays,
+  Download,
+  Eye,
+  MapPin,
+  ReceiptText,
+  RefreshCw,
+  Users,
+} from "lucide-react";
+
+import api from "../api/api";
 import Navbar from "../components/Navbar";
 
 export default function Trips() {
+  const navigate = useNavigate();
+
   const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadTrips();
   }, []);
 
+  const formatINR = (amount) =>
+    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+
   const loadTrips = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
+      setLoading(true);
 
-      if (!user) return;
+      const user =
+        JSON.parse(localStorage.getItem("user")) ||
+        JSON.parse(sessionStorage.getItem("user"));
 
-      const res = await axios.get(
-        `http://localhost:5000/api/bookings/${user.id}`
-      );
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
 
-      setTrips(res.data);
+      if (!user || !token) {
+        navigate("/");
+        return;
+      }
+
+      const res = await api.get(`/bookings/${user.id}`);
+      setTrips(res.data || []);
     } catch (err) {
       console.log("Trips load failed:", err);
+      alert("Trips failed to load");
+      navigate("/");
+    } finally {
+      setLoading(false);
     }
   };
+
+  const downloadInvoice = (trip) => {
+    const invoiceWindow = window.open("", "_blank");
+
+    invoiceWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice #${trip.id}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              color: #222;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              border-bottom: 2px solid #eee;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .brand {
+              font-size: 28px;
+              font-weight: bold;
+              color: #8363F5;
+            }
+            .box {
+              border: 1px solid #eee;
+              border-radius: 14px;
+              padding: 20px;
+              margin-bottom: 20px;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin: 10px 0;
+            }
+            .total {
+              font-size: 22px;
+              font-weight: bold;
+              color: #8363F5;
+              border-top: 1px solid #eee;
+              padding-top: 15px;
+              margin-top: 15px;
+            }
+            .status {
+              display: inline-block;
+              background: #ecfdf5;
+              color: #047857;
+              padding: 6px 12px;
+              border-radius: 999px;
+              font-weight: bold;
+              font-size: 12px;
+            }
+            @media print {
+              button {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="header">
+            <div>
+              <div class="brand">Servia Stay</div>
+              <p>Booking Invoice</p>
+            </div>
+
+            <div>
+              <p><strong>Invoice:</strong> #${trip.id}</p>
+              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          <div class="box">
+            <h2>${trip.title || "Property Booking"}</h2>
+            <p>${trip.location || ""}</p>
+            <span class="status">${trip.status || "Confirmed"}</span>
+          </div>
+
+          <div class="box">
+            <h3>Reservation Details</h3>
+            <div class="row">
+              <span>Check-in</span>
+              <strong>${trip.checkin}</strong>
+            </div>
+            <div class="row">
+              <span>Check-out</span>
+              <strong>${trip.checkout}</strong>
+            </div>
+            <div class="row">
+              <span>Guests</span>
+              <strong>${trip.guests || 1}</strong>
+            </div>
+            <div class="row">
+              <span>Payment Method</span>
+              <strong>${trip.payment_method || "cash"}</strong>
+            </div>
+          </div>
+
+          <div class="box">
+            <h3>Payment Summary</h3>
+            <div class="row">
+              <span>Booking Amount</span>
+              <strong>${formatINR(trip.total)}</strong>
+            </div>
+
+            <div class="row total">
+              <span>Total Paid</span>
+              <span>${formatINR(trip.total)}</span>
+            </div>
+          </div>
+
+          <p>
+            Thank you for booking with Servia Stay.
+          </p>
+
+          <button onclick="window.print()">
+            Download / Print Invoice
+          </button>
+        </body>
+      </html>
+    `);
+
+    invoiceWindow.document.close();
+  };
+
+  const upcomingTrips = trips.filter(
+    (trip) => trip.status !== "Cancelled" && trip.status !== "Completed"
+  );
+
+  const pastTrips = trips.filter(
+    (trip) => trip.status === "Cancelled" || trip.status === "Completed"
+  );
 
   return (
     <div className="min-h-screen bg-[#FAFAFC]">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-10">
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-gray-900">
-            My Trips
-          </h1>
+      <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
+        <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">My Trips</h1>
 
-          <p className="text-gray-500 mt-2">
-            View your upcoming and past reservations.
-          </p>
-        </div>
-
-        {trips.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border border-gray-100">
-            <h2 className="text-2xl font-bold">No trips yet</h2>
-            <p className="text-gray-500 mt-2">
-              Your bookings will appear here.
+            <p className="mt-2 text-gray-500">
+              View your upcoming stays, past reservations, receipts, and booking details.
             </p>
           </div>
+
+          <button
+            onClick={loadTrips}
+            className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold hover:bg-gray-50"
+          >
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="rounded-3xl border border-gray-100 bg-white p-12 text-center text-gray-500">
+            Loading trips...
+          </div>
+        ) : trips.length === 0 ? (
+          <EmptyTrips navigate={navigate} />
         ) : (
-          <div className="space-y-6">
-            {trips.map((trip) => (
-              <div
-                key={trip.id}
-                className="bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-lg transition overflow-hidden"
-              >
-                <div className="flex flex-col md:flex-row">
-                  <img
-                    src={trip.image}
-                    alt={trip.title}
-                    className="w-full md:w-72 h-56 object-cover"
-                  />
+          <div className="space-y-10">
+            <TripSection
+              title="Upcoming Trips"
+              trips={upcomingTrips}
+              navigate={navigate}
+              formatINR={formatINR}
+              downloadInvoice={downloadInvoice}
+            />
 
-                  <div className="flex-1 p-6 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-2xl font-semibold">
-                            {trip.title}
-                          </h2>
-
-                          <p className="text-gray-500 mt-1">
-                            {trip.location}
-                          </p>
-                        </div>
-
-                        <span className="px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
-                          {trip.status}
-                        </span>
-                      </div>
-
-                      <div className="mt-6 space-y-2 text-gray-600">
-                        <p>
-                          📅 {trip.checkin} - {trip.checkout}
-                        </p>
-
-                        <p>
-                          👥 {trip.guests} guest
-                        </p>
-
-                        <p>
-                          💳 Payment:{" "}
-                          <span className="font-medium">
-                            {trip.payment_method}
-                          </span>
-                        </p>
-
-                        <p>
-                          Total Paid:{" "}
-                          <span className="font-bold text-[#8363F5]">
-                            ${trip.total}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 mt-8">
-                      <button className="px-6 py-3 rounded-xl bg-[#8363F5] text-white font-semibold hover:bg-[#7152E8] transition">
-                        View Details
-                      </button>
-
-                      <button className="px-6 py-3 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50 transition">
-                        Download Receipt
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <TripSection
+              title="Past Trips"
+              trips={pastTrips}
+              navigate={navigate}
+              formatINR={formatINR}
+              downloadInvoice={downloadInvoice}
+            />
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function TripSection({ title, trips, navigate, formatINR, downloadInvoice }) {
+  return (
+    <section>
+      <h2 className="mb-5 text-2xl font-bold text-gray-900">{title}</h2>
+
+      {trips.length === 0 ? (
+        <div className="rounded-3xl border border-gray-100 bg-white p-8 text-gray-500">
+          No {title.toLowerCase()}.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              navigate={navigate}
+              formatINR={formatINR}
+              downloadInvoice={downloadInvoice}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TripCard({ trip, navigate, formatINR, downloadInvoice }) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition hover:shadow-lg">
+      <div className="flex flex-col md:flex-row">
+        <img
+          src={
+            trip.image ||
+            "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+          }
+          alt={trip.title}
+          className="h-60 w-full object-cover md:h-auto md:w-72"
+        />
+
+        <div className="flex flex-1 flex-col justify-between p-6">
+          <div>
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {trip.title || "Property Booking"}
+                </h3>
+
+                <p className="mt-2 flex items-center gap-2 text-gray-500">
+                  <MapPin size={17} />
+                  {trip.location || "Location unavailable"}
+                </p>
+              </div>
+
+              <StatusBadge status={trip.status || "Confirmed"} />
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <InfoPill
+                icon={<CalendarDays size={18} />}
+                label="Dates"
+                value={`${trip.checkin} - ${trip.checkout}`}
+              />
+
+              <InfoPill
+                icon={<Users size={18} />}
+                label="Guests"
+                value={`${trip.guests || 1} ${
+                  trip.guests > 1 ? "guests" : "guest"
+                }`}
+              />
+
+              <InfoPill
+                icon={<ReceiptText size={18} />}
+                label="Payment"
+                value={trip.payment_method || "cash"}
+                capitalize
+              />
+            </div>
+
+            <p className="mt-5 text-lg font-bold text-[#8363F5]">
+              Total Paid: {formatINR(trip.total)}
+            </p>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate(`/trip/${trip.id}`)}
+              className="flex items-center gap-2 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
+            >
+              <Eye size={18} />
+              View Details
+            </button>
+
+            <button
+               onClick={() => navigate(`/receipt/${trip.id}`)}
+              className="flex items-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition hover:bg-gray-50"
+            >
+              <Download size={18} />
+              Download Invoice
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoPill({ icon, label, value, capitalize }) {
+  return (
+    <div className="rounded-2xl bg-[#FAFAFC] p-4">
+      <div className="mb-2 flex items-center gap-2 text-[#8363F5]">
+        {icon}
+        <span className="text-xs font-bold uppercase text-gray-500">
+          {label}
+        </span>
+      </div>
+
+      <p
+        className={`text-sm font-semibold text-gray-900 ${
+          capitalize ? "capitalize" : ""
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const style =
+    status === "Cancelled"
+      ? "bg-red-100 text-red-600"
+      : status === "Completed"
+      ? "bg-blue-100 text-blue-700"
+      : status === "Pending"
+      ? "bg-yellow-100 text-yellow-700"
+      : "bg-green-100 text-green-700";
+
+  return (
+    <span className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${style}`}>
+      {status}
+    </span>
+  );
+}
+
+function EmptyTrips({ navigate }) {
+  return (
+    <div className="rounded-3xl border border-gray-100 bg-white p-14 text-center">
+      <div className="mb-4 text-6xl">🧳</div>
+
+      <h2 className="text-2xl font-bold text-gray-900">No trips yet</h2>
+
+      <p className="mt-2 text-gray-500">
+        Your bookings will appear here once you reserve a stay.
+      </p>
+
+      <button
+        onClick={() => navigate("/home")}
+        className="mt-6 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+      >
+        Explore stays
+      </button>
     </div>
   );
 }

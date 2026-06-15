@@ -1,33 +1,38 @@
 import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api/api";
 
 export default function HostListings() {
   const navigate = useNavigate();
-
   const [listings, setListings] = useState([]);
 
   useEffect(() => {
     loadListings();
   }, []);
 
+  const formatINR = (amount) =>
+    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+
   const loadListings = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("token");
 
-      if (!user) {
+      if (!user || !token) {
         navigate("/");
         return;
       }
 
-      const res = await axios.get(
-        `http://localhost:5000/api/my-properties/${user.id}`
-      );
-
-      setListings(res.data);
+      const res = await api.get(`/my-properties/${user.id}`);
+      setListings(res.data || []);
     } catch (err) {
       console.log("Listings load failed:", err);
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+
+      navigate("/");
     }
   };
 
@@ -39,7 +44,7 @@ export default function HostListings() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/properties/${id}`);
+      await api.delete(`/properties/${id}`);
       loadListings();
     } catch (err) {
       console.log("Delete failed:", err);
@@ -97,7 +102,10 @@ export default function HostListings() {
               >
                 <div className="flex flex-col lg:flex-row">
                   <img
-                    src={listing.image}
+                    src={
+                      listing.image ||
+                      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+                    }
                     alt={listing.title}
                     className="w-full lg:w-72 h-56 object-cover"
                   />
@@ -127,7 +135,7 @@ export default function HostListings() {
 
                       <div className="mt-6">
                         <span className="text-2xl font-bold text-[#8363F5]">
-                          ${listing.price}/night
+                          {formatINR(listing.price)} / night
                         </span>
                       </div>
                     </div>

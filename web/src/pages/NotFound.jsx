@@ -1,49 +1,51 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Home, Search } from "lucide-react";
 
 export default function NotFound() {
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-[#FAFAFC] flex items-center justify-center px-4">
-      <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-10 text-center">
-        {/* Illustration */}
-        <div className="w-32 h-32 mx-auto rounded-full bg-[#F4F1FF] flex items-center justify-center text-7xl mb-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#FAFAFC] px-4">
+      <div className="max-w-xl rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#F4F1FF] text-5xl">
           🏡
         </div>
 
-        {/* Error Code */}
-        <p className="text-[#8363F5] font-bold text-lg tracking-widest uppercase">
-          Error 404
+        <h1 className="text-6xl font-black text-[#8363F5]">404</h1>
+
+        <h2 className="mt-4 text-3xl font-bold text-gray-900">
+          Page not found
+        </h2>
+
+        <p className="mt-3 text-gray-500">
+          The page you are looking for may have been moved, deleted, or does not exist.
         </p>
 
-        {/* Title */}
-        <h1 className="text-5xl font-bold text-gray-900 mt-3">
-          Page Not Found
-        </h1>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 font-semibold hover:bg-gray-50"
+          >
+            <ArrowLeft size={18} />
+            Go Back
+          </button>
 
-        {/* Description */}
-        <p className="text-gray-500 mt-5 leading-7">
-          Sorry, the page you're looking for doesn't exist or has been moved.
-          Let's get you back to exploring amazing places.
-        </p>
+          <button
+            onClick={() => navigate("/home")}
+            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#8363F5] px-6 font-semibold text-white hover:bg-[#7152E8]"
+          >
+            <Home size={18} />
+            Go Home
+          </button>
 
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
-          <Link to="/home">
-            <button className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg">
-              🏠 Go Home
-            </button>
-          </Link>
-
-          <Link to="/help-center">
-            <button className="w-full sm:w-auto px-8 py-3 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50 transition">
-              💬 Help Center
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate("/search-results")}
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 font-semibold hover:bg-gray-50"
+          >
+            <Search size={18} />
+            Search
+          </button>
         </div>
-
-        {/* Footer */}
-        <p className="text-sm text-gray-400 mt-8">
-          Staybnb • Find your next perfect stay
-        </p>
       </div>
     </div>
   );

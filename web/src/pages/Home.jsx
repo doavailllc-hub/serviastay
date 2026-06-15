@@ -11,7 +11,8 @@ import axios from "axios";
 
 import Navbar from "../components/Navbar";
 import PropertyCard from "../components/PropertyCard";
-
+import LoadingSkeleton from "../components/LoadingSkeleton";
+import Footer from "../components/Footer";
 export default function Home() {
   const navigate = useNavigate();
 
@@ -85,6 +86,7 @@ export default function Home() {
         <Navbar />
 
         {/* Desktop Search */}
+        <br></br>
         <section className="hidden w-full justify-center bg-white px-4 pb-5 md:flex">
           <div className="relative flex h-[66px] w-full max-w-[900px] items-center rounded-full border border-gray-200 bg-white shadow-[0_3px_18px_rgba(0,0,0,0.08)]">
             {/* Destination */}
@@ -340,29 +342,7 @@ export default function Home() {
           </button>
         </section>
 
-        {/* Categories */}
-        <div className="flex h-[86px] items-center gap-8 overflow-x-auto border-t border-gray-100 px-6 text-sm text-gray-500 md:justify-center md:gap-12">
-          {[
-            "🏖️ Amazing views",
-            "🏠 Apartments",
-            "🌴 Tropical",
-            "⛰️ Mountain",
-            "🏛️ Luxe",
-            "🏡 Cabins",
-            "🌊 Beachfront",
-          ].map((item, index) => (
-            <div
-              key={item}
-              className={`shrink-0 cursor-pointer pb-3 transition hover:text-[#8363F5] ${
-                index === 0
-                  ? "border-b-2 border-[#8363F5] font-semibold text-[#8363F5]"
-                  : ""
-              }`}
-            >
-              {item}
-            </div>
-          ))}
-        </div>
+
       </header>
 
       {/* Body */}
@@ -395,6 +375,7 @@ export default function Home() {
           </div>
         )}
       </main>
+         <Footer />
     </div>
   );
 }
@@ -431,10 +412,12 @@ function GuestRow({ title, subtitle, value, onMinus, onPlus, underline }) {
           +
         </button>
       </div>
+      
     </div>
   );
 }
 
 function Divider() {
   return <div className="h-7 w-px shrink-0 bg-gray-200" />;
+  
 }
