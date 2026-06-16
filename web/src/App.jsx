@@ -21,7 +21,7 @@ import EditListing from "./pages/EditListing";
 import HostCalendar from "./pages/HostCalendar";
 import Earnings from "./pages/Earnings";
 import Reviews from "./pages/Reviews";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import HelpCenter from "./pages/HelpCenter";
 import LanguageCurrency from "./pages/LanguageCurrency";
