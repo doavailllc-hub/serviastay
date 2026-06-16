@@ -274,6 +274,7 @@ export default function App() {
       />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
+
 <Route
   path="/admin"
   element={
@@ -281,15 +282,17 @@ export default function App() {
       <AdminLayout />
     </AdminProtectedRoute>
   }
-></Route>
-     <Route index element={<AdminDashboard />} />
+>
+  <Route index element={<AdminDashboard />} />
   <Route path="dashboard" element={<AdminDashboard />} />
   <Route path="analytics" element={<Analytics />} />
   <Route path="users" element={<AdminDashboard />} />
   <Route path="properties" element={<AdminDashboard />} />
   <Route path="bookings" element={<AdminDashboard />} />
   <Route path="payments" element={<PaymentHistory />} />
+</Route>
 
+<Route path="*" element={<NotFound />} />
       <Route path="*" element={<NotFound />} />
 
     </Routes>
