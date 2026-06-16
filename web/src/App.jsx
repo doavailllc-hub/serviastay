@@ -49,7 +49,7 @@ import ServiceDetails from "./pages/ServiceDetails";
 import ServiceBookingDetails from "./pages/ServiceBookingDetails";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtectedRoute from "./routes/AdminProtectedRoute";
-
+import AdminSignup from "./pages/admin/AdminSignup";
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
@@ -271,7 +271,7 @@ export default function App() {
         }
       />
 <Route path="/admin/login" element={<AdminLogin />} />
-
+<Route path="/admin/signup" element={<AdminSignup />} />
 <Route
   path="/admin"
   element={
