@@ -2562,6 +2562,55 @@ app.post("/api/admin/login", (req, res) => {
     }
   );
 });
+
+app.post("/api/admin/signup", async (req, res) => {
+  const { fullname, email, password, secretKey } = req.body;
+
+  if (!fullname || !email || !password || !secretKey) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (secretKey !== process.env.ADMIN_SIGNUP_KEY) {
+    return res.status(403).json({ message: "Invalid admin secret key" });
+  }
+
+  db.query(
+    "SELECT id FROM servia_users WHERE email = ? LIMIT 1",
+    [email],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ message: "Database error" });
+
+      if (rows.length) {
+        return res.status(409).json({ message: "Admin email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      db.query(
+        `
+        INSERT INTO servia_users
+        (fullname, email, password, role, created_at)
+        VALUES (?, ?, ?, 'admin', NOW())
+        `,
+        [fullname, email, hashedPassword],
+        (insertErr) => {
+          if (insertErr) {
+            return res.status(500).json({
+              message: "Admin creation failed",
+              error: insertErr.message,
+            });
+          }
+
+          res.json({
+            success: true,
+            message: "Admin created successfully",
+          });
+        }
+      );
+    }
+  );
+});
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
