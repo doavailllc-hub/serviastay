@@ -47,6 +47,9 @@ import HostProfile from "./pages/HostProfile";
 import Verification from "./pages/Verification";
 import ServiceDetails from "./pages/ServiceDetails";
 import ServiceBookingDetails from "./pages/ServiceBookingDetails";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminProtectedRoute from "./routes/AdminProtectedRoute";
+
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
@@ -267,15 +270,23 @@ export default function App() {
           </ProtectedPage>
         }
       />
+<Route path="/admin/login" element={<AdminLogin />} />
 
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="users" element={<AdminDashboard />} />
-        <Route path="properties" element={<AdminDashboard />} />
-        <Route path="bookings" element={<AdminDashboard />} />
-        <Route path="payments" element={<PaymentHistory />} />
-      </Route>
+<Route
+  path="/admin"
+  element={
+    <AdminProtectedRoute>
+      <AdminLayout />
+    </AdminProtectedRoute>
+  }
+></Route>
+     <Route index element={<AdminDashboard />} />
+  <Route path="dashboard" element={<AdminDashboard />} />
+  <Route path="analytics" element={<Analytics />} />
+  <Route path="users" element={<AdminDashboard />} />
+  <Route path="properties" element={<AdminDashboard />} />
+  <Route path="bookings" element={<AdminDashboard />} />
+  <Route path="payments" element={<PaymentHistory />} />
 
       <Route path="*" element={<NotFound />} />
 

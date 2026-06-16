@@ -2504,7 +2504,64 @@ app.put("/api/service-booking/:id/cancel", verifyToken, (req, res) => {
     }
   );
 });
+app.post("/api/admin/login", (req, res) => {
+  const { email, password } = req.body;
 
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "Email and password are required",
+    });
+  }
+
+  db.query(
+    "SELECT id, fullname, email, password, role FROM servia_users WHERE email = ? AND role = 'admin' LIMIT 1",
+    [email],
+    async (err, rows) => {
+      if (err) {
+        return res.status(500).json({
+          message: "Admin login failed",
+          error: err.message,
+        });
+      }
+
+      if (!rows.length) {
+        return res.status(401).json({
+          message: "Invalid admin credentials",
+        });
+      }
+
+      const admin = rows[0];
+      const isMatch = await bcrypt.compare(password, admin.password);
+
+      if (!isMatch) {
+        return res.status(401).json({
+          message: "Invalid admin credentials",
+        });
+      }
+
+      const token = jwt.sign(
+        {
+          id: admin.id,
+          email: admin.email,
+          role: admin.role,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      res.json({
+        success: true,
+        token,
+        admin: {
+          id: admin.id,
+          fullname: admin.fullname,
+          email: admin.email,
+          role: admin.role,
+        },
+      });
+    }
+  );
+});
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
