@@ -34,8 +34,8 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
-      const storedUser = JSON.parse(localStorage.getItem("user"));
-      const token = localStorage.getItem("token");
+    const storedUser = JSON.parse(localStorage.getItem("adminUser"));
+const token = localStorage.getItem("adminToken");
 
       if (!storedUser || !token) {
         navigate("/");
@@ -44,7 +44,7 @@ export default function AdminDashboard() {
 
       if (storedUser.role !== "admin") {
         alert("Admin access only");
-        navigate("/home");
+   navigate("/admin/login");
         return;
       }
 
