@@ -50,6 +50,7 @@ import ServiceBookingDetails from "./pages/ServiceBookingDetails";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtectedRoute from "./routes/AdminProtectedRoute";
 import AdminSignup from "./pages/admin/AdminSignup";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 
 
 function ProtectedPage({ children }) {
@@ -274,7 +275,7 @@ export default function App() {
       />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
-
+<Route path="analytics" element={<AdminAnalytics />} />
 <Route
   path="/admin"
   element={
