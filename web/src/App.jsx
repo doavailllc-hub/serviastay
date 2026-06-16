@@ -50,6 +50,8 @@ import ServiceBookingDetails from "./pages/ServiceBookingDetails";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtectedRoute from "./routes/AdminProtectedRoute";
 import AdminSignup from "./pages/admin/AdminSignup";
+
+
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
