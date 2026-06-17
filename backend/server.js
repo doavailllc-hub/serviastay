@@ -585,6 +585,121 @@ app.post(
     }
   }
 );
+app.get("/api/conversations/:userId", verifyToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const rows = await query(
+      `
+      SELECT 
+        m.*,
+        CASE 
+          WHEN m.sender_id = ? THEN m.receiver_id
+          ELSE m.sender_id
+        END AS other_user_id,
+        u.fullname AS other_user_name,
+        p.title AS property_title,
+        p.image AS property_image,
+        (
+          SELECT COUNT(*)
+          FROM servia_messages x
+          WHERE x.receiver_id = ?
+          AND x.sender_id = CASE 
+            WHEN m.sender_id = ? THEN m.receiver_id
+            ELSE m.sender_id
+          END
+          AND x.is_read = false
+        ) AS unread_count
+      FROM servia_messages m
+      JOIN servia_users u ON u.id = CASE 
+        WHEN m.sender_id = ? THEN m.receiver_id
+        ELSE m.sender_id
+      END
+      LEFT JOIN servia_properties p ON p.id = m.property_id
+      WHERE m.id IN (
+        SELECT MAX(id)
+        FROM servia_messages
+        WHERE sender_id = ? OR receiver_id = ?
+        GROUP BY CASE 
+          WHEN sender_id = ? THEN receiver_id
+          ELSE sender_id
+        END
+      )
+      ORDER BY m.created_at DESC
+      `,
+      [userId, userId, userId, userId, userId, userId, userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Conversations fetch failed", error: err.message });
+  }
+});
+
+app.get("/api/notifications/:userId/unread-count", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT COUNT(*) AS count
+      FROM servia_notifications
+      WHERE user_id=? AND is_read=false
+      `,
+      [req.params.userId]
+    );
+
+    res.json({ count: rows[0].count });
+  } catch (err) {
+    res.status(500).json({ message: "Notification count failed", error: err.message });
+  }
+});
+
+app.get("/api/notifications/:userId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_notifications
+      WHERE user_id=?
+      ORDER BY id DESC
+      `,
+      [req.params.userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Notifications fetch failed", error: err.message });
+  }
+});
+
+app.get("/api/host/reservations/:hostId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        p.title,
+        p.location,
+        p.image,
+        p.price,
+        u.fullname AS guest_name,
+        u.email AS guest_email,
+        u.phone AS guest_phone
+      FROM servia_bookings b
+      JOIN servia_properties p ON b.property_id = p.id
+      JOIN servia_users u ON b.user_id = u.id
+      WHERE p.user_id = ?
+      ORDER BY b.id DESC
+      `,
+      [req.params.hostId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Host reservations fetch failed", error: err.message });
+  }
+});
+
+
 
 app.get("/api/my-properties/:userId", verifyToken, async (req, res) => {
   try {
