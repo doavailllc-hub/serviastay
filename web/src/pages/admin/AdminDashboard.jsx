@@ -10,8 +10,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import Navbar from "../components/Navbar";
-import api from "../api/api";
+
+import api from "../../api/api";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -131,7 +131,7 @@ const token = localStorage.getItem("adminToken");
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFC]">
-        <Navbar />
+        
         <main className="mx-auto max-w-7xl px-4 py-20 md:px-8">
           Loading admin dashboard...
         </main>
@@ -141,7 +141,7 @@ const token = localStorage.getItem("adminToken");
 
   return (
     <div className="min-h-screen bg-[#FAFAFC]">
-      <Navbar />
+      
 
       <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
         <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
