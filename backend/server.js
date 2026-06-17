@@ -13,7 +13,7 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "servia_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
 
 const allowedOrigins = [
