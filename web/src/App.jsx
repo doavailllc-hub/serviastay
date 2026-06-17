@@ -51,8 +51,9 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtectedRoute from "./routes/AdminProtectedRoute";
 import AdminSignup from "./pages/admin/AdminSignup";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
-
-
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminProperties from "./pages/admin/AdminProperties";
+import AdminBookings from "./pages/admin/AdminBookings";
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
@@ -275,7 +276,7 @@ export default function App() {
       />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
-<Route path="analytics" element={<AdminAnalytics />} />
+
 <Route
   path="/admin"
   element={
@@ -284,13 +285,13 @@ export default function App() {
     </AdminProtectedRoute>
   }
 >
-  <Route index element={<AdminDashboard />} />
-  <Route path="dashboard" element={<AdminDashboard />} />
-  <Route path="analytics" element={<Analytics />} />
-  <Route path="users" element={<AdminDashboard />} />
-  <Route path="properties" element={<AdminDashboard />} />
-  <Route path="bookings" element={<AdminDashboard />} />
-  <Route path="payments" element={<PaymentHistory />} />
+<Route index element={<AdminDashboard />} />
+<Route path="dashboard" element={<AdminDashboard />} />
+<Route path="analytics" element={<Analytics />} />
+<Route path="users" element={<AdminUsers />} />
+<Route path="properties" element={<AdminProperties />} />
+<Route path="bookings" element={<AdminBookings />} />
+<Route path="payments" element={<PaymentHistory />} />
 </Route>
 
 <Route path="*" element={<NotFound />} />
