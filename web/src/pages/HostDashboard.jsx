@@ -8,6 +8,8 @@ export default function HostDashboard() {
 
   const [listings, setListings] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     loadDashboard();
@@ -18,6 +20,9 @@ export default function HostDashboard() {
 
   const loadDashboard = async () => {
     try {
+      setLoading(true);
+      setLoadError("");
+
       const user = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token");
 
@@ -26,18 +31,59 @@ export default function HostDashboard() {
         return;
       }
 
-      const listingsRes = await api.get(`/my-properties/${user.id}`);
-      const bookingsRes = await api.get(`/bookings/${user.id}`);
+      const [listingsRes, bookingsRes] = await Promise.allSettled([
+        api.get(`/my-properties/${user.id}`),
+        api.get(`/bookings/${user.id}`),
+      ]);
 
-      setListings(listingsRes.data || []);
-      setBookings(bookingsRes.data || []);
+      if (listingsRes.status === "fulfilled") {
+        setListings(listingsRes.value.data || []);
+      } else {
+        console.log("Listings load failed:", listingsRes.reason);
+        setListings([]);
+      }
+
+      if (bookingsRes.status === "fulfilled") {
+        setBookings(bookingsRes.value.data || []);
+      } else {
+        console.log("Bookings load failed:", bookingsRes.reason);
+        setBookings([]);
+      }
+
+      const authFailed =
+        listingsRes.reason?.response?.status === 401 ||
+        listingsRes.reason?.response?.status === 403 ||
+        bookingsRes.reason?.response?.status === 401 ||
+        bookingsRes.reason?.response?.status === 403;
+
+      if (authFailed) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        navigate("/");
+        return;
+      }
+
+      if (
+        listingsRes.status === "rejected" ||
+        bookingsRes.status === "rejected"
+      ) {
+        setLoadError("Some dashboard data could not be loaded.");
+      }
     } catch (err) {
       console.log("Dashboard load failed:", err);
 
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      const status = err.response?.status;
 
-      navigate("/");
+      if (status === 401 || status === 403) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        navigate("/");
+        return;
+      }
+
+      setLoadError(err.response?.data?.message || "Dashboard data load failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,150 +120,169 @@ export default function HostDashboard() {
           </button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <StatCard
-            title="Total Earnings"
-            value={formatINR(totalEarnings)}
-            subtitle="Total confirmed revenue"
-            highlight
-          />
-
-          <StatCard
-            title="Active Listings"
-            value={listings.length}
-            subtitle="Properties you host"
-          />
-
-          <StatCard
-            title="Bookings"
-            value={bookings.length}
-            subtitle="Guest reservations"
-          />
-        </div>
-
-        <div className="mt-10 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-6 border-b flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Your Listings</h2>
-
-            <button
-              onClick={() => navigate("/host-listings")}
-              className="text-[#8363F5] font-semibold hover:underline"
-            >
-              View all
-            </button>
+        {loadError && (
+          <div className="mb-6 rounded-2xl border border-yellow-200 bg-yellow-50 px-5 py-4 text-sm font-semibold text-yellow-800">
+            {loadError}
           </div>
+        )}
 
-          {listings.length === 0 ? (
-            <div className="p-8 text-center">
-              <h3 className="text-xl font-bold">No listings yet</h3>
-              <p className="text-gray-500 mt-2">
-                Add your first property to start hosting.
-              </p>
+        {loading ? (
+          <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
+            <p className="font-semibold text-gray-700">
+              Loading host dashboard...
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-3">
+              <StatCard
+                title="Total Earnings"
+                value={formatINR(totalEarnings)}
+                subtitle="Total confirmed revenue"
+                highlight
+              />
 
-              <button
-                onClick={() => navigate("/become-a-host")}
-                className="mt-5 px-6 py-3 rounded-xl bg-[#8363F5] text-white font-semibold"
-              >
-                Add Listing
-              </button>
+              <StatCard
+                title="Active Listings"
+                value={listings.length}
+                subtitle="Properties you host"
+              />
+
+              <StatCard
+                title="Bookings"
+                value={bookings.length}
+                subtitle="Guest reservations"
+              />
             </div>
-          ) : (
-            <div className="divide-y">
-              {listings.slice(0, 3).map((listing) => (
-                <div
-                  key={listing.id}
-                  className="flex flex-col md:flex-row justify-between items-center gap-5 p-6 hover:bg-gray-50 transition"
+
+            <div className="mt-10 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h2 className="text-2xl font-semibold">Your Listings</h2>
+
+                <button
+                  onClick={() => navigate("/host-listings")}
+                  className="text-[#8363F5] font-semibold hover:underline"
                 >
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={
-                        listing.image ||
-                        "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
-                      }
-                      alt={listing.title}
-                      className="w-20 h-20 rounded-2xl object-cover"
-                    />
+                  View all
+                </button>
+              </div>
 
-                    <div>
-                      <h3 className="font-semibold text-lg">
-                        {listing.title}
-                      </h3>
+              {listings.length === 0 ? (
+                <div className="p-8 text-center">
+                  <h3 className="text-xl font-bold">No listings yet</h3>
+                  <p className="text-gray-500 mt-2">
+                    Add your first property to start hosting.
+                  </p>
 
-                      <p className="text-gray-500 mt-1">
-                        📍 {listing.location}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 mt-4 md:mt-0">
-                    <span className="font-bold text-[#8363F5]">
-                      {formatINR(listing.price)} / night
-                    </span>
-
-                    <span className="px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
-                      Active
-                    </span>
-
-                    <button
-                      onClick={() => navigate(`/edit-listing/${listing.id}`)}
-                      className="px-5 py-2 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white transition"
-                    >
-                      Edit
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => navigate("/become-a-host")}
+                    className="mt-5 px-6 py-3 rounded-xl bg-[#8363F5] text-white font-semibold"
+                  >
+                    Add Listing
+                  </button>
                 </div>
-              ))}
+              ) : (
+                <div className="divide-y">
+                  {listings.slice(0, 3).map((listing) => (
+                    <div
+                      key={listing.id}
+                      className="flex flex-col md:flex-row justify-between items-center gap-5 p-6 hover:bg-gray-50 transition"
+                    >
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={
+                            listing.image ||
+                            "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+                          }
+                          alt={listing.title}
+                          className="w-20 h-20 rounded-2xl object-cover"
+                        />
+
+                        <div>
+                          <h3 className="font-semibold text-lg">
+                            {listing.title}
+                          </h3>
+
+                          <p className="text-gray-500 mt-1">
+                            📍 {listing.location}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-6 mt-4 md:mt-0">
+                        <span className="font-bold text-[#8363F5]">
+                          {formatINR(listing.price)} / night
+                        </span>
+
+                        <span className="px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
+                          Active
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            navigate(`/edit-listing/${listing.id}`)
+                          }
+                          className="px-5 py-2 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white transition"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-      <div className="mt-10 grid gap-6 md:grid-cols-5">
-  <QuickAction
-    icon="🏠"
-    title="Listings"
-    desc="Manage properties"
-    onClick={() => navigate("/host-listings")}
-  />
+            <div className="mt-10 grid gap-6 md:grid-cols-5">
+              <QuickAction
+                icon="🏠"
+                title="Listings"
+                desc="Manage properties"
+                onClick={() => navigate("/host-listings")}
+              />
 
-  <QuickAction
-    icon="📋"
-    title="Reservations"
-    desc="Manage bookings"
-    onClick={() => navigate("/host-reservations")}
-  />
+              <QuickAction
+                icon="📋"
+                title="Reservations"
+                desc="Manage bookings"
+                onClick={() => navigate("/host-reservations")}
+              />
 
-  <QuickAction
-    icon="📅"
-    title="Calendar"
-    desc="Manage availability"
-    onClick={() => navigate("/host-calendar")}
-  />
+              <QuickAction
+                icon="📅"
+                title="Calendar"
+                desc="Manage availability"
+                onClick={() => navigate("/host-calendar")}
+              />
 
-  <QuickAction
-    icon="💰"
-    title="Earnings"
-    desc="View payouts"
-    onClick={() => navigate("/earnings")}
-  />
+              <QuickAction
+                icon="💰"
+                title="Earnings"
+                desc="View payouts"
+                onClick={() => navigate("/earnings")}
+              />
 
- <QuickAction
-  icon="⭐"
-  title="Reviews"
-  desc="Guest feedback"
-  onClick={() => navigate("/host-reviews")}
-/>
-</div>
+              <QuickAction
+                icon="⭐"
+                title="Reviews"
+                desc="Guest feedback"
+                onClick={() => navigate("/host-reviews")}
+              />
+            </div>
 
-        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#8363F5] to-[#6D4EEB] p-8 text-white shadow-xl">
-          <h2 className="text-2xl font-bold">
-            You're doing great! 🎉
-          </h2>
+            <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#8363F5] to-[#6D4EEB] p-8 text-white shadow-xl">
+              <h2 className="text-2xl font-bold">
+                You're doing great! 🎉
+              </h2>
 
-          <p className="mt-3 text-white/90 max-w-2xl">
-            Keep your listings updated with quality photos, competitive pricing,
-            and quick responses to maximize your bookings and earnings.
-          </p>
-        </div>
+              <p className="mt-3 text-white/90 max-w-2xl">
+                Keep your listings updated with quality photos, competitive
+                pricing, and quick responses to maximize your bookings and
+                earnings.
+              </p>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
