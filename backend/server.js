@@ -2610,7 +2610,135 @@ app.post("/api/admin/signup", async (req, res) => {
     }
   );
 });
+app.get("/api/admin/analytics", verifyToken, (req, res) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Admin access only" });
+  }
 
+  const queries = {
+    revenue: `
+      SELECT
+        COALESCE(SUM(total), 0) AS totalRevenue,
+        COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN total ELSE 0 END), 0) AS todayRevenue,
+        COALESCE(SUM(CASE WHEN MONTH(created_at) = MONTH(CURDATE())
+          AND YEAR(created_at) = YEAR(CURDATE()) THEN total ELSE 0 END), 0) AS monthlyRevenue
+      FROM servia_bookings
+      WHERE status != 'Cancelled'
+    `,
+
+    revenueTrend: `
+      SELECT
+        DATE(created_at) AS date,
+        COALESCE(SUM(total), 0) AS revenue
+      FROM servia_bookings
+      WHERE status != 'Cancelled'
+      GROUP BY DATE(created_at)
+      ORDER BY DATE(created_at) DESC
+      LIMIT 14
+    `,
+
+    userGrowth: `
+      SELECT
+        DATE(created_at) AS date,
+        COUNT(*) AS users
+      FROM servia_users
+      GROUP BY DATE(created_at)
+      ORDER BY DATE(created_at) DESC
+      LIMIT 14
+    `,
+
+    topCities: `
+      SELECT
+        p.location,
+        COUNT(b.id) AS total
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE b.status != 'Cancelled'
+      GROUP BY p.location
+      ORDER BY total DESC
+      LIMIT 5
+    `,
+
+    topProperties: `
+      SELECT
+        p.id,
+        p.title,
+        p.location,
+        p.image,
+        COUNT(b.id) AS bookings,
+        COALESCE(SUM(b.total), 0) AS revenue
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE b.status != 'Cancelled'
+      GROUP BY p.id, p.title, p.location, p.image
+      ORDER BY revenue DESC
+      LIMIT 5
+    `,
+
+    topHosts: `
+      SELECT
+        u.id,
+        u.fullname,
+        u.email,
+        COUNT(b.id) AS bookings,
+        COALESCE(SUM(b.total), 0) AS revenue
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      JOIN servia_users u ON u.id = p.user_id
+      WHERE b.status != 'Cancelled'
+      GROUP BY u.id, u.fullname, u.email
+      ORDER BY revenue DESC
+      LIMIT 5
+    `,
+  };
+
+  const runQuery = (sql) =>
+    new Promise((resolve, reject) => {
+      db.query(sql, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+  Promise.all([
+    runQuery(queries.revenue),
+    runQuery(queries.revenueTrend),
+    runQuery(queries.userGrowth),
+    runQuery(queries.topCities),
+    runQuery(queries.topProperties),
+    runQuery(queries.topHosts),
+  ])
+    .then(
+      ([
+        revenueRows,
+        revenueTrend,
+        userGrowth,
+        topCities,
+        topProperties,
+        topHosts,
+      ]) => {
+        res.json({
+          revenue: revenueRows[0] || {
+            totalRevenue: 0,
+            todayRevenue: 0,
+            monthlyRevenue: 0,
+          },
+          revenueTrend: revenueTrend.reverse(),
+          userGrowth: userGrowth.reverse(),
+          topCities,
+          topProperties,
+          topHosts,
+        });
+      }
+    )
+    .catch((err) => {
+      console.log("Admin analytics failed:", err);
+      res.status(500).json({
+        message: "Analytics failed to load",
+        error: err.message,
+      });
+    });
+});
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
