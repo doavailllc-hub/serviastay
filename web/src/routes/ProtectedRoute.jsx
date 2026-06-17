@@ -1,14 +1,24 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
+  const location = useLocation();
+
   const token =
     localStorage.getItem("token") || sessionStorage.getItem("token");
 
-  const user =
+  const userRaw =
     localStorage.getItem("user") || sessionStorage.getItem("user");
 
-  if (!token || !user) {
-    return <Navigate to="/" replace />;
+  let user = null;
+
+  try {
+    user = userRaw ? JSON.parse(userRaw) : null;
+  } catch {
+    user = null;
+  }
+
+  if (!token || !user?.id) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return children;

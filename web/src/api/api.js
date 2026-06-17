@@ -5,12 +5,14 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const adminToken = localStorage.getItem("adminToken");
-  const userToken =
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token");
+  const isAdminApi = config.url?.startsWith("/admin");
 
-  const token = adminToken || userToken;
+  const adminToken = localStorage.getItem("adminToken");
+
+  const userToken =
+    localStorage.getItem("token") || sessionStorage.getItem("token");
+
+  const token = isAdminApi ? adminToken : userToken;
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
