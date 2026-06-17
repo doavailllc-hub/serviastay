@@ -51,7 +51,7 @@ export default function Home() {
 
   const loadProperties = async () => {
     try {
-      const res = await axios.get("http://http://44.212.49.157:5000/api/properties");
+      const res = await axios.get("http://44.212.49.157:5000/api/properties");
       setProperties(res.data);
     } catch (err) {
       console.log("Properties load failed:", err);

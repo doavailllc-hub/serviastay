@@ -35,7 +35,7 @@ export default function BecomeHost() {
     const data = new FormData();
     data.append("image", file);
 
-    const res = await axios.post("http://http://44.212.49.157:5000/api/upload", data);
+    const res = await axios.post("http://44.212.49.157:5000/api/upload", data);
     updateForm("image", res.data.imageUrl);
   };
 
@@ -58,7 +58,7 @@ export default function BecomeHost() {
         return;
       }
 
-      await axios.post("http://http://44.212.49.157:5000/api/properties", {
+      await axios.post("http://44.212.49.157:5000/api/properties", {
         ...form,
         user_id: user.id,
       });

@@ -26,7 +26,7 @@ export default function Signup() {
         return;
       }
 
-      await axios.post("http://http://44.212.49.157:5000/api/register", {
+      await axios.post("http://44.212.49.157:5000/api/register", {
         fullname,
         email,
         password,
