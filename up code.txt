@@ -1,0 +1,24 @@
+ssh -i "D:\dovailapp\Admin\dovail-key.pem" ec2-user@44.212.49.157
+
+
+git add .
+git commit -m "admin design fix"
+git push origin main
+
+
+
+
+
+cd /home/ec2-user/servia
+
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+
+cd web
+npm install
+npm run build
+
+sudo rm -rf /usr/share/nginx/html/*
+sudo cp -r dist/* /usr/share/nginx/html/
+sudo systemctl restart nginx
