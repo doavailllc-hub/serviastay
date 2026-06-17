@@ -1,73 +1,155 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UploadCloud } from "lucide-react";
-import axios from "axios";
+import { UploadCloud, X } from "lucide-react";
+import { GoogleMap, Marker, Autocomplete, useLoadScript } from "@react-google-maps/api";
+import api from "../api/api";
 import Navbar from "../components/Navbar";
+
+const libraries = ["places"];
+
+const initialForm = {
+  title: "",
+  description: "",
+  location: "",
+  price: 150,
+  category: "Villa",
+  guests: 2,
+  bedrooms: 1,
+  bathrooms: 1,
+  images: [],
+  latitude: null,
+  longitude: null,
+};
 
 export default function BecomeHost() {
   const navigate = useNavigate();
+  const [form, setForm] = useState(initialForm);
+  const [previews, setPreviews] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [autocomplete, setAutocomplete] = useState(null);
 
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    location: "",
-    price: "150",
-    category: "Villa",
-    guests: 2,
-    bedrooms: 1,
-    bathrooms: 1,
-    image: "",
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries,
   });
 
-  const [preview, setPreview] = useState("");
-  const [loading, setLoading] = useState(false);
+  const mapCenter = useMemo(
+    () => ({
+      lat: form.latitude || 24.7136,
+      lng: form.longitude || 46.6753,
+    }),
+    [form.latitude, form.longitude]
+  );
 
   const updateForm = (key, value) => {
-    setForm({ ...form, [key]: value });
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImagesUpload = async (e) => {
+    const files = Array.from(e.target.files);
 
-    setPreview(URL.createObjectURL(file));
+    if (!files.length) return;
+
+    if (files.length + form.images.length > 8) {
+      alert("Maximum 8 images allowed");
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        alert("Only JPG, PNG, and WEBP images are allowed");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Each image must be less than 5MB");
+        return;
+      }
+    }
+
+    const previewUrls = files.map((file) => URL.createObjectURL(file));
+    setPreviews((prev) => [...prev, ...previewUrls]);
 
     const data = new FormData();
-    data.append("image", file);
+    files.forEach((file) => data.append("images", file));
 
-    const res = await axios.post("http://44.212.49.157:5000/api/upload", data);
-    updateForm("image", res.data.imageUrl);
+    try {
+      const res = await api.post(`${apiUrl}/api/upload/multiple`, data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      updateForm("images", [...form.images, ...res.data.imageUrls]);
+    } catch (err) {
+      alert("Image upload failed");
+    }
+  };
+
+  const removeImage = (index) => {
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+    updateForm(
+      "images",
+      form.images.filter((_, i) => i !== index)
+    );
+  };
+
+  const handlePlaceChanged = () => {
+    if (!autocomplete) return;
+
+    const place = autocomplete.getPlace();
+
+    if (!place.geometry) return;
+
+    updateForm("location", place.formatted_address || place.name);
+    updateForm("latitude", place.geometry.location.lat());
+    updateForm("longitude", place.geometry.location.lng());
+  };
+
+  const handleMapClick = (e) => {
+    updateForm("latitude", e.latLng.lat());
+    updateForm("longitude", e.latLng.lng());
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user) {
+      alert("Please login first");
+      navigate("/");
+      return;
+    }
+
+    if (form.images.length < 3) {
+      alert("Please upload at least 3 property images");
+      return;
+    }
+
+    if (!form.latitude || !form.longitude) {
+      alert("Please select property location on Google Map");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const user = JSON.parse(localStorage.getItem("user"));
-
-      if (!user) {
-        alert("Please login first");
-        navigate("/");
-        return;
-      }
-
-      if (!form.image) {
-        alert("Please upload property image");
-        return;
-      }
-
-      await axios.post("http://44.212.49.157:5000/api/properties", {
+      await api.post(`${apiUrl}/api/properties`, {
         ...form,
         user_id: user.id,
+        price: Number(form.price),
+        guests: Number(form.guests),
+        bedrooms: Number(form.bedrooms),
+        bathrooms: Number(form.bathrooms),
       });
 
       alert("Listing published successfully");
       navigate("/host-listings");
     } catch (err) {
-      console.log(err);
-      alert("Failed to publish listing");
+      alert(err.response?.data?.message || "Failed to publish listing");
     } finally {
       setLoading(false);
     }
@@ -92,23 +174,23 @@ export default function BecomeHost() {
               </h1>
 
               <p className="text-white/85 text-lg mt-6 max-w-xl leading-8">
-                Add your space, upload photos, set pricing, and start receiving
-                reservations from guests.
+                Add your property photos, exact map location, price, and guest
+                details to publish your listing.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mt-10">
               <div className="rounded-2xl bg-white/15 backdrop-blur p-5">
-                <h3 className="text-3xl font-bold">Top 1%</h3>
+                <h3 className="text-3xl font-bold">8 Photos</h3>
                 <p className="text-white/75 mt-2 text-sm">
-                  Earning security metrics
+                  Airbnb-style gallery
                 </p>
               </div>
 
               <div className="rounded-2xl bg-white/15 backdrop-blur p-5">
-                <h3 className="text-3xl font-bold">24/7</h3>
+                <h3 className="text-3xl font-bold">Map</h3>
                 <p className="text-white/75 mt-2 text-sm">
-                  Dedicated host support
+                  Google location picker
                 </p>
               </div>
             </div>
@@ -119,145 +201,146 @@ export default function BecomeHost() {
               Tell us about your space
             </h2>
 
-            <p className="text-gray-500 mt-3 leading-7">
-              Share details about your property to publish it on the marketplace.
-            </p>
-
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Property Title
-                </label>
-
-                <input
-                  type="text"
-                  placeholder="e.g., Luxury Sunset Premium Suite Villa"
-                  value={form.title}
-                  onChange={(e) => updateForm("title", e.target.value)}
-                  required
-                  className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
-                />
-              </div>
+              <Input
+                label="Property Title"
+                value={form.title}
+                onChange={(value) => updateForm("title", value)}
+                placeholder="Luxury Sunset Premium Suite Villa"
+              />
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Description
                 </label>
-
                 <textarea
-                  placeholder="Describe your property..."
                   value={form.description}
                   onChange={(e) => updateForm("description", e.target.value)}
                   required
+                  placeholder="Describe your property..."
                   className="w-full h-28 p-4 rounded-xl border border-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Physical Location
+                  Location
                 </label>
 
-                <input
-                  type="text"
-                  placeholder="e.g., Riyadh, Saudi Arabia"
-                  value={form.location}
-                  onChange={(e) => updateForm("location", e.target.value)}
-                  required
-                  className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
-                />
+                {isLoaded && (
+                  <Autocomplete
+                    onLoad={setAutocomplete}
+                    onPlaceChanged={handlePlaceChanged}
+                  >
+                    <input
+                      type="text"
+                      value={form.location}
+                      onChange={(e) => updateForm("location", e.target.value)}
+                      placeholder="Search property location"
+                      required
+                      className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
+                    />
+                  </Autocomplete>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Property Category
-                </label>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <CategoryButton
-                    active={form.category === "Villa"}
-                    icon="🏡"
-                    label="Entire Villa"
-                    onClick={() => updateForm("category", "Villa")}
-                  />
-
-                  <CategoryButton
-                    active={form.category === "Apartment"}
-                    icon="🏢"
-                    label="Apartment"
-                    onClick={() => updateForm("category", "Apartment")}
-                  />
+              {isLoaded && (
+                <div className="h-72 rounded-3xl overflow-hidden border">
+                  <GoogleMap
+                    center={mapCenter}
+                    zoom={13}
+                    mapContainerStyle={{ width: "100%", height: "100%" }}
+                    onClick={handleMapClick}
+                    options={{
+                      streetViewControl: false,
+                      mapTypeControl: false,
+                      fullscreenControl: false,
+                    }}
+                  >
+                    {form.latitude && form.longitude && (
+                      <Marker
+                        position={{
+                          lat: form.latitude,
+                          lng: form.longitude,
+                        }}
+                      />
+                    )}
+                  </GoogleMap>
                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <CategoryButton
+                  active={form.category === "Villa"}
+                  icon="🏡"
+                  label="Villa"
+                  onClick={() => updateForm("category", "Villa")}
+                />
+
+                <CategoryButton
+                  active={form.category === "Apartment"}
+                  icon="🏢"
+                  label="Apartment"
+                  onClick={() => updateForm("category", "Apartment")}
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <NumberInput
-                  label="Guests"
-                  value={form.guests}
-                  onChange={(value) => updateForm("guests", value)}
-                />
-
-                <NumberInput
-                  label="Bedrooms"
-                  value={form.bedrooms}
-                  onChange={(value) => updateForm("bedrooms", value)}
-                />
-
-                <NumberInput
-                  label="Bathrooms"
-                  value={form.bathrooms}
-                  onChange={(value) => updateForm("bathrooms", value)}
-                />
+                <NumberInput label="Guests" value={form.guests} onChange={(v) => updateForm("guests", v)} />
+                <NumberInput label="Bedrooms" value={form.bedrooms} onChange={(v) => updateForm("bedrooms", v)} />
+                <NumberInput label="Bathrooms" value={form.bathrooms} onChange={(v) => updateForm("bathrooms", v)} />
               </div>
+
+              <NumberInput
+                label="Price Per Night"
+                value={form.price}
+                onChange={(v) => updateForm("price", v)}
+              />
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Set Your Price Per Night
-                </label>
-
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-500">
-                    $
-                  </span>
-
-                  <input
-                    type="number"
-                    min="10"
-                    value={form.price}
-                    onChange={(e) => updateForm("price", e.target.value)}
-                    required
-                    className="w-full h-16 pl-10 pr-4 rounded-xl border border-gray-300 text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Property Image
+                  Property Images
                 </label>
 
                 <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-3xl p-6 cursor-pointer hover:border-[#8363F5] transition">
                   <UploadCloud size={36} className="text-[#8363F5]" />
-                  <p className="font-semibold mt-3">Upload property photo</p>
+                  <p className="font-semibold mt-3">
+                    Upload multiple property photos
+                  </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    JPG, PNG or WEBP
+                    Minimum 3, maximum 8 images
                   </p>
 
                   <input
                     type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={handleImagesUpload}
                     className="hidden"
                   />
-
-                  {preview && (
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      className="mt-5 h-52 w-full object-cover rounded-2xl"
-                    />
-                  )}
                 </label>
+
+                {previews.length > 0 && (
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    {previews.map((src, index) => (
+                      <div key={src} className="relative group">
+                        <img
+                          src={src}
+                          alt={`Property ${index + 1}`}
+                          className="h-36 w-full object-cover rounded-2xl"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button
@@ -271,6 +354,25 @@ export default function BecomeHost() {
           </section>
         </div>
       </main>
+    </div>
+  );
+}
+
+function Input({ label, value, onChange, placeholder }) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-2">
+        {label}
+      </label>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required
+        className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
+      />
     </div>
   );
 }
