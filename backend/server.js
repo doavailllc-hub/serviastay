@@ -198,7 +198,52 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ message: "Login failed", error: err.message });
   }
 });
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
+    db.query(
+      "SELECT * FROM servia_users WHERE email=? AND role='admin' LIMIT 1",
+      [email],
+      async (err, rows) => {
+        if (err) {
+          return res.status(500).json({ message: "Admin login failed" });
+        }
+
+        if (!rows.length) {
+          return res.status(401).json({ message: "Invalid admin credentials" });
+        }
+
+        const admin = rows[0];
+        const isMatch = await bcrypt.compare(password, admin.password);
+
+        if (!isMatch) {
+          return res.status(401).json({ message: "Invalid admin credentials" });
+        }
+
+        const token = jwt.sign(
+          { id: admin.id, role: "admin" },
+          JWT_SECRET,
+          { expiresIn: "7d" }
+        );
+
+        res.json({
+          success: true,
+          message: "Admin login successful",
+          token,
+          admin: {
+            id: admin.id,
+            fullname: admin.fullname,
+            email: admin.email,
+            role: admin.role,
+          },
+        });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ message: "Admin login failed" });
+  }
+});
 /* USER */
 
 app.get("/api/user/:id", verifyToken, async (req, res) => {
