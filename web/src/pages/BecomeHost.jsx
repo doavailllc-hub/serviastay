@@ -200,7 +200,7 @@ export default function BecomeHost() {
         data.append("images", file);
       });
 
-      await api.post("/api/properties/host-create", data, {
+  await api.post("/properties/host-create", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
