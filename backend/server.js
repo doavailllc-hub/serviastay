@@ -47,22 +47,27 @@ if (!fs.existsSync("uploads")) {
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 3306,
+  port: Number(process.env.DB_PORT || 3306),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
 });
-
-db.connect((err) => {
+db.getConnection((err, connection) => {
   if (err) {
     console.error("DB Connection Failed:", err.message);
     process.exit(1);
   }
+
+  connection.release();
   console.log("Connected to serviadb ✅");
 });
-
 const buildFileUrl = (filename) => `${API_BASE_URL}/uploads/${filename}`;
 
 function query(sql, values = []) {
