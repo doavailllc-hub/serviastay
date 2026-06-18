@@ -1064,7 +1064,30 @@ app.get("/api/admin/bookings", verifyToken, verifyAdmin, async (req, res) => {
 });
 
 /* ERROR HANDLER */
+/* ADMIN PROPERTY DELETE */
 
+app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const propertyId = req.params.id;
+
+    await query("DELETE FROM servia_property_images WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_wishlist WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_bookings WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_properties WHERE id=?", [propertyId]);
+
+    res.json({
+      success: true,
+      message: "Property deleted successfully",
+    });
+  } catch (err) {
+    console.log("ADMIN PROPERTY DELETE ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Property delete failed",
+      error: err.message,
+    });
+  }
+});
 app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err.message);
 
@@ -1078,6 +1101,37 @@ app.use((err, req, res, next) => {
     message: err.message || "Internal server error",
   });
 });
+app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    await query("DELETE FROM servia_property_images WHERE property_id=?", [
+      req.params.id,
+    ]);
+
+    await query("DELETE FROM servia_wishlist WHERE property_id=?", [
+      req.params.id,
+    ]);
+
+    await query("DELETE FROM servia_bookings WHERE property_id=?", [
+      req.params.id,
+    ]);
+
+    await query("DELETE FROM servia_properties WHERE id=?", [req.params.id]);
+
+    res.json({
+      success: true,
+      message: "Property deleted successfully",
+    });
+  } catch (err) {
+    console.log("ADMIN PROPERTY DELETE ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Property delete failed",
+      error: err.message,
+    });
+  }
+});
+
+
 
 /* START */
 
