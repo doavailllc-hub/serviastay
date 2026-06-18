@@ -16,11 +16,15 @@ import {
   Waves,
   Wifi,
   X,
+  Images,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
+
+const fallbackImage =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
 export default function ResortDetails() {
   const { id } = useParams();
@@ -29,6 +33,7 @@ export default function ResortDetails() {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const [checkin, setCheckin] = useState("2026-06-12");
   const [checkout, setCheckout] = useState("2026-06-14");
@@ -52,7 +57,19 @@ export default function ResortDetails() {
     }
   };
 
+  const galleryImages = useMemo(() => {
+    if (!property) return [fallbackImage];
+
+    const images = [
+      property.image,
+      ...(property.images || []).map((item) => item.image_url),
+    ].filter(Boolean);
+
+    return [...new Set(images)].length ? [...new Set(images)] : [fallbackImage];
+  }, [property]);
+
   const price = Number(property?.price || 0);
+
   const nights = useMemo(() => {
     const start = new Date(checkin);
     const end = new Date(checkout);
@@ -69,14 +86,18 @@ export default function ResortDetails() {
     `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
   const isLoggedIn = () => {
-    const user =
-      JSON.parse(localStorage.getItem("user")) ||
-      JSON.parse(sessionStorage.getItem("user"));
+    try {
+      const user =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
 
-    const token =
-      localStorage.getItem("token") || sessionStorage.getItem("token");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
 
-    return Boolean(user && token);
+      return Boolean(user && token);
+    } catch {
+      return false;
+    }
   };
 
   const handleReserve = () => {
@@ -113,8 +134,8 @@ export default function ResortDetails() {
 
     try {
       const user =
-        JSON.parse(localStorage.getItem("user")) ||
-        JSON.parse(sessionStorage.getItem("user"));
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
 
       await api.post("/wishlist", {
         user_id: user.id,
@@ -148,7 +169,6 @@ export default function ResortDetails() {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
-
         <main className="mx-auto max-w-7xl px-4 py-20 md:px-8">
           Loading property...
         </main>
@@ -171,9 +191,7 @@ export default function ResortDetails() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Star size={16} fill="black" />
-              <span className="font-semibold">
-                {property.rating || "5.0"}
-              </span>
+              <span className="font-semibold">{property.rating || "5.0"}</span>
               <span>·</span>
               <span className="font-semibold underline">Guest favorite</span>
               <span>·</span>
@@ -203,13 +221,11 @@ export default function ResortDetails() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[32px]">
-          <img
-            src={property.image}
-            alt={property.title}
-            className="h-[420px] w-full object-cover"
-          />
-        </div>
+        <PropertyGallery
+          images={galleryImages}
+          title={property.title}
+          onShowAll={() => setGalleryOpen(true)}
+        />
 
         <section className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]">
           <div>
@@ -286,9 +302,7 @@ export default function ResortDetails() {
             <div className="sticky top-24 rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <span className="text-2xl font-bold">
-                    {formatINR(price)}
-                  </span>
+                  <span className="text-2xl font-bold">{formatINR(price)}</span>
                   <span className="text-gray-500"> / night</span>
                 </div>
 
@@ -377,6 +391,14 @@ export default function ResortDetails() {
 
       <Footer />
 
+      {galleryOpen && (
+        <GalleryModal
+          images={galleryImages}
+          title={property.title}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
+
       {loginModalOpen && (
         <LoginRequiredModal
           onClose={() => setLoginModalOpen(false)}
@@ -384,6 +406,92 @@ export default function ResortDetails() {
           onSignup={() => navigate("/signup")}
         />
       )}
+    </div>
+  );
+}
+
+function PropertyGallery({ images, title, onShowAll }) {
+  const photos = images.length ? images : [fallbackImage];
+
+  return (
+    <div className="relative overflow-hidden rounded-[28px]">
+      <div className="grid h-[430px] grid-cols-1 gap-2 md:grid-cols-4">
+        <button
+          type="button"
+          onClick={onShowAll}
+          className="group col-span-1 overflow-hidden md:col-span-2 md:row-span-2"
+        >
+          <img
+            src={photos[0]}
+            alt={title}
+            className="h-full w-full object-cover transition duration-300 group-hover:brightness-90"
+          />
+        </button>
+
+        {photos.slice(1, 5).map((src, index) => (
+          <button
+            type="button"
+            key={src + index}
+            onClick={onShowAll}
+            className="group hidden overflow-hidden md:block"
+          >
+            <img
+              src={src}
+              alt={`${title} ${index + 2}`}
+              className="h-full w-full object-cover transition duration-300 group-hover:brightness-90"
+            />
+          </button>
+        ))}
+
+        {Array.from({ length: Math.max(0, 5 - photos.length) }).map(
+          (_, index) => (
+            <div
+              key={`placeholder-${index}`}
+              className="hidden bg-gray-100 md:block"
+            />
+          )
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onShowAll}
+        className="absolute bottom-5 right-5 flex items-center gap-2 rounded-xl border border-black bg-white px-5 py-3 text-sm font-bold shadow-lg hover:bg-gray-100"
+      >
+        <Images size={18} />
+        Show all photos
+      </button>
+    </div>
+  );
+}
+
+function GalleryModal({ images, title, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-white">
+      <div className="sticky top-0 z-10 flex h-20 items-center justify-between border-b bg-white px-6">
+        <button onClick={onClose} className="rounded-full p-3 hover:bg-gray-100">
+          <X size={22} />
+        </button>
+
+        <h2 className="text-lg font-bold">{title}</h2>
+
+        <div className="w-10" />
+      </div>
+
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <div className="grid gap-4 md:grid-cols-2">
+          {images.map((src, index) => (
+            <img
+              key={src + index}
+              src={src}
+              alt={`${title} ${index + 1}`}
+              className={`w-full rounded-2xl object-cover ${
+                index === 0 ? "md:col-span-2 max-h-[650px]" : "h-[360px]"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

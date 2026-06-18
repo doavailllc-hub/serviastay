@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-4">
           <div>
             <h2 className="text-2xl font-black text-[#8363F5]">
-              Servia Stay
+              Dovail Stay
             </h2>
 
             <p className="mt-4 text-sm leading-6 text-gray-500">
@@ -51,7 +51,7 @@ export default function Footer() {
             <div className="mt-4 space-y-3 text-sm text-gray-500">
               <p className="flex items-center gap-2">
                 <Mail size={16} />
-                support@serviastay.com
+                support@dovail.com
               </p>
 
               <p className="flex items-center gap-2">
@@ -66,14 +66,14 @@ export default function Footer() {
 
               <p className="flex items-center gap-2">
                 <Globe size={16} />
-                www.serviastay.com
+                www.dovail.com
               </p>
             </div>
           </div>
         </div>
 
         <div className="mt-10 flex flex-col justify-between gap-4 border-t pt-6 text-sm text-gray-500 md:flex-row">
-          <p>© {new Date().getFullYear()} Servia Stay. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Dovail Stay. All rights reserved.</p>
 
           <div className="flex flex-wrap gap-5">
             <Link to="/help" className="hover:text-[#8363F5]">
