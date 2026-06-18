@@ -393,6 +393,8 @@ app.post(
   verifyToken,
   upload.array("images", 10),
   async (req, res) => {
+    const connection = await db.promise().getConnection();
+
     try {
       const {
         user_id,
@@ -416,27 +418,28 @@ app.post(
       } = req.body;
 
       if (!user_id || !location || !latitude || !longitude) {
+        connection.release();
         return res.status(400).json({
           message: "Location, latitude and longitude are required",
         });
       }
 
       if (!req.files || req.files.length < 5) {
+        connection.release();
         return res.status(400).json({
           message: "Please upload at least 5 photos",
         });
       }
 
-      const userCheck = await query("SELECT id FROM servia_users WHERE id=? LIMIT 1", [user_id]);
+      const [userCheck] = await connection.query(
+        "SELECT id FROM servia_users WHERE id=? LIMIT 1",
+        [user_id]
+      );
 
       if (!userCheck.length) {
+        connection.release();
         return res.status(404).json({ message: "User not found" });
       }
-
-      const totalBathrooms =
-        Number(privateAttachedBath || 0) +
-        Number(dedicatedBath || 0) +
-        Number(sharedBath || 0);
 
       let parsedAmenities = [];
 
@@ -446,6 +449,11 @@ app.post(
         parsedAmenities = [];
       }
 
+      const totalBathrooms =
+        Number(privateAttachedBath || 0) +
+        Number(dedicatedBath || 0) +
+        Number(sharedBath || 0);
+
       const mainImage = buildFileUrl(req.files[0].filename);
 
       const propertyTitle =
@@ -454,139 +462,100 @@ app.post(
       const propertyDescription =
         description || "A beautiful and comfortable stay with modern amenities.";
 
-      db.beginTransaction(async (transactionErr) => {
-        if (transactionErr) {
-          return res.status(500).json({
-            message: "Transaction start failed",
-            error: transactionErr.message,
-          });
-        }
+      await connection.beginTransaction();
 
-        try {
-          const propertySql = `
-            INSERT INTO servia_properties
-            (
-              user_id,
-              title,
-              description,
-              category,
-              location,
-              price,
-              guests,
-              bedrooms,
-              bathrooms,
-              image,
-              host_whatsapp,
-              latitude,
-              longitude,
-              beds,
-              bedroom_lock,
-              private_attached_bath,
-              dedicated_bath,
-              shared_bath,
-              amenities,
-              weekday_price,
-              weekend_price,
-              status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `;
+      const [propertyResult] = await connection.query(
+        `
+        INSERT INTO servia_properties
+        (
+          user_id,
+          title,
+          description,
+          category,
+          location,
+          price,
+          guests,
+          bedrooms,
+          bathrooms,
+          image,
+          host_whatsapp,
+          latitude,
+          longitude,
+          beds,
+          bedroom_lock,
+          private_attached_bath,
+          dedicated_bath,
+          shared_bath,
+          amenities,
+          weekday_price,
+          weekend_price,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user_id,
+          propertyTitle,
+          propertyDescription,
+          category || "Home",
+          location,
+          Number(weekdayPrice || 150),
+          Number(guests || 1),
+          Number(bedrooms || 1),
+          totalBathrooms || 1,
+          mainImage,
+          host_whatsapp || null,
+          latitude,
+          longitude,
+          Number(beds || 1),
+          bedroomLock || null,
+          Number(privateAttachedBath || 0),
+          Number(dedicatedBath || 0),
+          Number(sharedBath || 0),
+          JSON.stringify(parsedAmenities),
+          Number(weekdayPrice || 150),
+          Number(weekendPrice || weekdayPrice || 150),
+          "Published",
+        ]
+      );
 
-          const propertyValues = [
-            user_id,
-            propertyTitle,
-            propertyDescription,
-            category || "Home",
-            location,
-            Number(weekdayPrice || 150),
-            Number(guests || 1),
-            Number(bedrooms || 1),
-            totalBathrooms || 1,
-            mainImage,
-            host_whatsapp || null,
-            latitude,
-            longitude,
-            Number(beds || 1),
-            bedroomLock || null,
-            Number(privateAttachedBath || 0),
-            Number(dedicatedBath || 0),
-            Number(sharedBath || 0),
-            JSON.stringify(parsedAmenities),
-            Number(weekdayPrice || 150),
-            Number(weekendPrice || weekdayPrice || 150),
-            "Published",
-          ];
+      const propertyId = propertyResult.insertId;
 
-          db.query(propertySql, propertyValues, (propertyErr, propertyResult) => {
-            if (propertyErr) {
-              return db.rollback(() => {
-                res.status(500).json({
-                  message: "Property create failed",
-                  error: propertyErr.message,
-                });
-              });
-            }
+      const imageValues = req.files.map((file, index) => [
+        propertyId,
+        buildFileUrl(file.filename),
+        index === 0 ? 1 : 0,
+        index,
+      ]);
 
-            const propertyId = propertyResult.insertId;
+      await connection.query(
+        `
+        INSERT INTO servia_property_images
+        (property_id, image_url, is_cover, sort_order)
+        VALUES ?
+        `,
+        [imageValues]
+      );
 
-            const imageValues = req.files.map((file, index) => [
-              propertyId,
-              buildFileUrl(file.filename),
-              index === 0 ? 1 : 0,
-              index,
-            ]);
+      await connection.commit();
 
-            db.query(
-              `
-              INSERT INTO servia_property_images
-              (property_id, image_url, is_cover, sort_order)
-              VALUES ?
-              `,
-              [imageValues],
-              (imageErr) => {
-                if (imageErr) {
-                  return db.rollback(() => {
-                    res.status(500).json({
-                      message: "Property images save failed",
-                      error: imageErr.message,
-                    });
-                  });
-                }
-
-                db.commit((commitErr) => {
-                  if (commitErr) {
-                    return db.rollback(() => {
-                      res.status(500).json({
-                        message: "Property publish failed",
-                        error: commitErr.message,
-                      });
-                    });
-                  }
-
-                  res.json({
-                    success: true,
-                    message: "Listing published successfully",
-                    propertyId,
-                    image: mainImage,
-                  });
-                });
-              }
-            );
-          });
-        } catch (err) {
-          db.rollback(() => {
-            res.status(500).json({
-              message: "Property publish failed",
-              error: err.message,
-            });
-          });
-        }
+      return res.json({
+        success: true,
+        message: "Listing published successfully",
+        propertyId,
+        image: mainImage,
       });
     } catch (err) {
-      res.status(500).json({
+      await connection.rollback();
+
+      console.log("HOST CREATE ERROR:", err.message);
+
+      return res.status(500).json({
         message: "Host create failed",
         error: err.message,
       });
+    } finally {
+      connection.release();
     }
   }
 );
