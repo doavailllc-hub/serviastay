@@ -20,6 +20,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://44.212.49.157",
   "http://44.212.49.157:5173",
+  "http://stay.dovail.com",
+"https://stay.dovail.com",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
