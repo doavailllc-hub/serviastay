@@ -1199,7 +1199,47 @@ app.post("/api/payments/verify", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Payment verification failed" });
   }
 });
+app.get("/api/trip/:id", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        p.title,
+        p.location,
+        p.image,
+        p.price,
+        p.rating,
+        p.description,
+        p.guests AS property_guests,
+        p.bedrooms,
+        p.bathrooms,
+        host.fullname AS host_name,
+        guest.fullname AS guest_name,
+        guest.email AS guest_email
+      FROM servia_bookings b
+      JOIN servia_properties p ON b.property_id = p.id
+      LEFT JOIN servia_users host ON p.user_id = host.id
+      LEFT JOIN servia_users guest ON b.user_id = guest.id
+      WHERE b.id = ?
+      LIMIT 1
+      `,
+      [req.params.id]
+    );
 
+    if (!rows.length) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.log("TRIP DETAILS ERROR:", err.message);
+    res.status(500).json({
+      message: "Trip fetch failed",
+      error: err.message,
+    });
+  }
+});
 /* START */
 
 server.listen(PORT, "0.0.0.0", () => {
