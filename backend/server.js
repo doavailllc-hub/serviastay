@@ -4,17 +4,12 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
-const Razorpay = require("razorpay");
-const crypto = require("crypto");
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+
 require("dotenv").config();
 
 const app = express();
@@ -24,15 +19,20 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://44.212.49.157",
   "http://44.212.49.157:5173",
   "http://stay.dovail.com",
-"https://stay.dovail.com",
+  "https://stay.dovail.com",
   process.env.CLIENT_URL,
 ].filter(Boolean);
-
 app.use(
   cors({
     origin(origin, callback) {
