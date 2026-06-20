@@ -130,7 +130,14 @@ export default function App() {
           </ProtectedPage>
         }
       />
-
+<Route
+  path="/trip/:id"
+  element={
+    <ProtectedPage>
+      <TripDetails />
+    </ProtectedPage>
+  }
+/>
       <Route
         path="/messages"
         element={
