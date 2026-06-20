@@ -670,7 +670,7 @@ function PriceBox({ label, value, onChange }) {
     <label className="block border rounded-xl p-6">
       <span className="text-sm">{label}</span>
       <div className="flex items-center gap-2 mt-2">
-        <span className="text-3xl font-semibold">SR</span>
+        <span className="text-3xl font-semibold">₹</span>
         <input
           type="number"
           min="1"
