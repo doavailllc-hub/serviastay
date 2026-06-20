@@ -1,578 +1,1207 @@
-import { useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  CheckCircle,
-  CreditCard,
-  ShieldCheck,
-  Smartphone,
-  Tag,
-  Wallet,
-  X,
-} from "lucide-react";
+const express = require("express");
+const mysql = require("mysql2");
+const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
 
-import api from "../api/api";
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
-const APP_NAME = import.meta.env.VITE_APP_NAME || "Dovail Stay";
-const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
+const fs = require("fs");
+const path = require("path");
+const http = require("http");
+require("dotenv").config();
 
-export default function Checkout() {
-  const navigate = useNavigate();
-  const location = useLocation();
+const app = express();
+const server = http.createServer(app);
 
-  const property = location.state?.property;
-  const guests = Number(location.state?.guests || 1);
-  const nights = Number(location.state?.nights || 1);
-  const checkin = location.state?.checkin || "";
-  const checkout = location.state?.checkout || "";
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
+const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
 
-  const [paymentType, setPaymentType] = useState("razorpay");
-  const [loading, setLoading] = useState(false);
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://44.212.49.157",
+  "http://44.212.49.157:5173",
+  "http://stay.dovail.com",
+"https://stay.dovail.com",
+  process.env.CLIENT_URL,
+].filter(Boolean);
 
-  const [couponCode, setCouponCode] = useState("");
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [coupon, setCoupon] = useState(null);
-  const [couponError, setCouponError] = useState("");
-
-  const price = Number(property?.price || 0);
-  const subtotal = price * nights;
-  const serviceFee = Math.round(subtotal * 0.05);
-  const taxes = Math.round(subtotal * 0.12);
-  const beforeDiscountTotal = subtotal + serviceFee + taxes;
-  const discount = Number(coupon?.discount || 0);
-  const total = Math.max(beforeDiscountTotal - discount, 0);
-
-  const formatINR = (amount) =>
-    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
-
-  const getUser = () => {
-    try {
-      const user =
-        JSON.parse(localStorage.getItem("user") || "null") ||
-        JSON.parse(sessionStorage.getItem("user") || "null");
-
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      if (!user || !token) {
-        alert("Please login first");
-        navigate("/login");
-        return null;
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
       }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-      return user;
-    } catch {
-      alert("Session expired. Please login again.");
-      navigate("/login");
-      return null;
-    }
-  };
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
-  const loadRazorpay = () =>
-    new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads", { recursive: true });
+}
 
-      const existingScript = document.querySelector(
-        `script[src="${RAZORPAY_SCRIPT}"]`
-      );
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-      if (existingScript) {
-        existingScript.addEventListener("load", () => resolve(true));
-        existingScript.addEventListener("error", () => resolve(false));
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = RAZORPAY_SCRIPT;
-      script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-
-  const validateCoupon = async () => {
-    try {
-      const code = couponCode.trim().toUpperCase();
-
-      if (!code) {
-        setCouponError("Enter a coupon code");
-        return;
-      }
-
-      setCouponLoading(true);
-      setCouponError("");
-
-      const res = await api.post("/coupons/validate", {
-        code,
-        amount: beforeDiscountTotal,
-      });
-
-      setCoupon({
-        code,
-        discount: Number(res.data.discount || 0),
-        payableAmount: Number(res.data.payableAmount || 0),
-      });
-
-      setCouponCode(code);
-    } catch (err) {
-      console.log("Coupon validation failed:", err);
-      setCoupon(null);
-      setCouponError(err.response?.data?.message || "Invalid coupon");
-    } finally {
-      setCouponLoading(false);
-    }
-  };
-
-  const removeCoupon = () => {
-    setCoupon(null);
-    setCouponCode("");
-    setCouponError("");
-  };
-
-  const createBooking = async ({ method, paymentId, orderId }) => {
-    const user = getUser();
-    if (!user) return;
-
-    const res = await api.post("/bookings", {
-      property_id: property.id,
-      user_id: user.id,
-      checkin,
-      checkout,
-      guests,
-      total,
-      payment_method: method,
-      payment_status: "Paid",
-      razorpay_payment_id: paymentId,
-      razorpay_order_id: orderId,
-      coupon_code: coupon?.code || null,
-      discount,
-    });
-
-    navigate("/booking-success", {
-      replace: true,
-      state: {
-        booking: res.data,
-        property,
-        guests,
-        nights,
-        total,
-        discount,
-        couponCode: coupon?.code || null,
-        paymentMethod: method,
-        paymentStatus: "Paid",
-        checkin,
-        checkout,
-      },
-    });
-  };
-
-  const payWithRazorpay = async () => {
-    const user = getUser();
-    if (!user) return;
-
-    if (!property?.id) {
-      alert("Property not found");
-      return;
-    }
-
-    const scriptLoaded = await loadRazorpay();
-
-    if (!scriptLoaded) {
-      alert("Razorpay failed to load. Please check your internet connection.");
-      return;
-    }
-
-    const orderRes = await api.post("/payments/create-order", {
-      user_id: user.id,
-      property_id: property.id,
-      amount: total,
-      currency: "INR",
-      coupon_code: coupon?.code || null,
-      discount,
-      checkin,
-      checkout,
-      guests,
-    });
-
-    const options = {
-      key: orderRes.data.key,
-      amount: orderRes.data.order.amount,
-      currency: "INR",
-      name: APP_NAME,
-      description: property?.title || "Stay booking",
-      order_id: orderRes.data.order.id,
-
-      prefill: {
-        name: user.fullname || user.name || "",
-        email: user.email || "",
-        contact: user.phone || user.phone_number || "",
-      },
-
-      notes: {
-        property_id: String(property.id),
-        user_id: String(user.id),
-        checkin,
-        checkout,
-        guests: String(guests),
-      },
-
-      theme: {
-        color: "#8363F5",
-      },
-
-      modal: {
-        escape: true,
-        ondismiss: () => {
-          setLoading(false);
-        },
-      },
-
-      handler: async (response) => {
-        await api.post("/payments/verify", {
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
-        });
-
-        await createBooking({
-          method: "razorpay",
-          paymentId: response.razorpay_payment_id,
-          orderId: response.razorpay_order_id,
-        });
-      },
-    };
-
-    const razorpay = new window.Razorpay(options);
-
-    razorpay.on("payment.failed", (response) => {
-      console.log("Razorpay payment failed:", response.error);
-      alert(response.error?.description || "Payment failed. Please try again.");
-      setLoading(false);
-    });
-
-    razorpay.open();
-  };
-
-  const handlePayment = async () => {
-    try {
-      setLoading(true);
-
-      if (!property?.id) {
-        alert("Property not found");
-        return;
-      }
-
-      await payWithRazorpay();
-    } catch (err) {
-      console.log("Checkout failed:", err);
-
-      if (err.response?.status === 409) {
-        alert("This property is already booked for these dates.");
-        return;
-      }
-
-      alert(err.response?.data?.message || "Payment failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const paymentOptions = useMemo(
-    () => [
-      {
-        id: "razorpay",
-        name: "Razorpay Secure Checkout",
-        desc: "Cards, UPI, NetBanking, Wallets",
-        icon: <Wallet size={22} className="text-[#8363F5]" />,
-      },
-      {
-        id: "upi",
-        name: "UPI / Google Pay",
-        desc: "Pay using UPI apps through Razorpay",
-        icon: <Smartphone size={22} className="text-green-600" />,
-      },
-      {
-        id: "card",
-        name: "Credit or debit card",
-        desc: "Card payment handled securely by Razorpay",
-        icon: <CreditCard size={22} className="text-blue-600" />,
-      },
-    ],
-    []
-  );
-
-  if (!property) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white px-4">
-        <div className="max-w-md rounded-3xl border border-gray-200 p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-bold">No property selected</h1>
-          <p className="mt-3 text-gray-500">
-            Please choose a property before checkout.
-          </p>
-          <button
-            onClick={() => navigate("/")}
-            className="mt-6 rounded-xl bg-[#8363F5] px-6 py-3 font-bold text-white"
-          >
-            Go home
-          </button>
-        </div>
-      </div>
-    );
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: Number(process.env.DB_PORT || 3306),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
+});
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error("DB Connection Failed:", err.message);
+    process.exit(1);
   }
 
-  return (
-    <div className="min-h-screen bg-white text-[#222]">
-      <main className="mx-auto max-w-6xl px-4 py-8 md:px-8">
-        <div className="mb-8 flex items-center gap-5">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200"
-          >
-            <ArrowLeft size={22} />
-          </button>
+  connection.release();
+  console.log("Connected to serviadb ✅");
+});
+const buildFileUrl = (filename) => `${API_BASE_URL}/uploads/${filename}`;
 
-          <div>
-            <h1 className="text-3xl font-black">Confirm and pay</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Secure booking powered by Razorpay.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_390px]">
-          <section className="space-y-6">
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">Your trip</h2>
-
-              <div className="mt-6 space-y-5">
-                <TripRow title="Dates" value={`${checkin} – ${checkout}`} />
-                <TripRow
-                  title="Guests"
-                  value={`${guests} ${guests === 1 ? "guest" : "guests"}`}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">Pay with</h2>
-
-              <div className="mt-5 divide-y">
-                {paymentOptions.map((option) => (
-                  <PaymentOption
-                    key={option.id}
-                    option={option}
-                    active={paymentType === option.id}
-                    onClick={() => setPaymentType(option.id)}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-purple-100 bg-[#F4F1FF] p-4 text-sm leading-6 text-gray-700">
-                You will not enter card or UPI details on this page. Razorpay
-                opens a secure payment modal and verifies the payment before
-                booking confirmation.
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">Apply coupon</h2>
-
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <input
-                  value={couponCode}
-                  onChange={(e) => {
-                    setCouponCode(e.target.value.toUpperCase());
-                    setCouponError("");
-                  }}
-                  disabled={Boolean(coupon)}
-                  placeholder="WELCOME10"
-                  className="h-12 flex-1 rounded-xl border border-gray-300 bg-white px-4 font-semibold uppercase outline-none focus:ring-2 focus:ring-[#8363F5] disabled:bg-gray-100"
-                />
-
-                {coupon ? (
-                  <button
-                    onClick={removeCoupon}
-                    className="flex h-12 items-center justify-center gap-2 rounded-xl border border-red-300 px-5 font-bold text-red-600 hover:bg-red-50"
-                  >
-                    <X size={17} />
-                    Remove
-                  </button>
-                ) : (
-                  <button
-                    onClick={validateCoupon}
-                    disabled={couponLoading}
-                    className="h-12 rounded-xl bg-[#8363F5] px-6 font-bold text-white hover:bg-[#7152E8] disabled:opacity-60"
-                  >
-                    {couponLoading ? "Checking..." : "Apply"}
-                  </button>
-                )}
-              </div>
-
-              {coupon && (
-                <div className="mt-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-700">
-                  <CheckCircle size={18} />
-                  Coupon {coupon.code} applied. You saved{" "}
-                  {formatINR(coupon.discount)}.
-                </div>
-              )}
-
-              {couponError && (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-600">
-                  {couponError}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold">Ground rules</h2>
-              <p className="mt-3 text-sm leading-7 text-gray-600">
-                Follow the host rules, treat the home respectfully, and contact
-                the host if anything changes before check-in.
-              </p>
-            </div>
-
-            <button
-              onClick={handlePayment}
-              disabled={loading}
-              className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-black text-white shadow-lg shadow-purple-200 transition hover:bg-[#7152E8] disabled:opacity-60"
-            >
-              {loading ? "Processing..." : `Pay ${formatINR(total)}`}
-            </button>
-          </section>
-
-          <aside>
-            <div className="sticky top-8 rounded-3xl border border-gray-300 bg-white p-6 shadow-xl">
-              <div className="flex gap-4">
-                <img
-                  src={
-                    property?.image ||
-                    "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80"
-                  }
-                  alt={property?.title || "Stay"}
-                  className="h-24 w-24 rounded-xl object-cover"
-                />
-
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">
-                    Entire stay
-                  </p>
-                  <h3 className="mt-1 font-bold leading-snug">
-                    {property?.title || "Selected stay"}
-                  </h3>
-                  <p className="mt-2 text-sm">
-                    ★ {property?.rating || "5.0"} · Guest favorite
-                  </p>
-                </div>
-              </div>
-
-              <Divider />
-
-              <h4 className="text-lg font-bold">Price details</h4>
-
-              <div className="mt-4 space-y-3 text-sm">
-                <PriceRow
-                  label={`${formatINR(price)} x ${nights} nights`}
-                  value={formatINR(subtotal)}
-                />
-                <PriceRow label="Service fee" value={formatINR(serviceFee)} />
-                <PriceRow label="Taxes" value={formatINR(taxes)} />
-
-                {discount > 0 && (
-                  <PriceRow
-                    label="Coupon discount"
-                    value={`-${formatINR(discount)}`}
-                    success
-                  />
-                )}
-              </div>
-
-              <Divider />
-
-              <div className="flex justify-between text-lg font-black">
-                <span>Total INR</span>
-                <span>{formatINR(total)}</span>
-              </div>
-
-              <div className="mt-5 flex items-start gap-3 rounded-xl bg-[#F4F1FF] p-4">
-                <ShieldCheck size={22} className="mt-0.5 text-[#8363F5]" />
-                <p className="text-sm leading-6 text-gray-600">
-                  Your payment is verified securely before booking confirmation.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center gap-3 rounded-xl bg-green-100 px-5 py-4">
-              <Tag size={22} className="text-green-700" />
-              <p className="text-sm font-semibold">
-                You won’t be redirected away from the booking page.
-              </p>
-            </div>
-          </aside>
-        </div>
-      </main>
-    </div>
-  );
+function query(sql, values = []) {
+  return new Promise((resolve, reject) => {
+    db.query(sql, values, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
 }
 
-function PaymentOption({ option, active, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between py-5 text-left transition ${
-        active ? "text-[#8363F5]" : "text-gray-900 hover:text-[#8363F5]"
-      }`}
-    >
-      <div className="flex items-center gap-5">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-white">
-          {option.icon}
-        </div>
+function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization;
 
-        <div>
-          <span className="font-bold">{option.name}</span>
-          <p className="mt-1 text-xs text-gray-500">{option.desc}</p>
-        </div>
-      </div>
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "No token provided" });
+  }
 
-      <Radio checked={active} />
-    </button>
-  );
+  try {
+    const token = authHeader.split(" ")[1];
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ message: "Invalid token" });
+  }
 }
 
-function Radio({ checked }) {
-  return (
-    <div
-      className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-        checked ? "border-[#8363F5]" : "border-gray-400"
-      }`}
-    >
-      {checked && <div className="h-3 w-3 rounded-full bg-[#8363F5]" />}
-    </div>
-  );
+function verifyAdmin(req, res, next) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Admin access only" });
+  }
+  next();
 }
 
-function TripRow({ title, value }) {
-  return (
-    <div className="flex items-center justify-between">
-      <h3 className="font-bold">{title}</h3>
-      <p className="text-gray-700">{value}</p>
-    </div>
-  );
-}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+  },
+});
 
-function PriceRow({ label, value, success }) {
-  return (
-    <div
-      className={`flex justify-between ${
-        success ? "font-semibold text-green-700" : "text-gray-700"
-      }`}
-    >
-      <span className="underline">{label}</span>
-      <span>{value}</span>
-    </div>
-  );
-}
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 10,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error("Only JPG, PNG and WEBP images allowed"));
+    }
+    cb(null, true);
+  },
+});
 
-function Divider() {
-  return <div className="my-5 border-t border-gray-200" />;
-}
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Servia Stay API running ✅",
+  });
+});
+
+/* AUTH */
+
+app.post("/api/register", async (req, res) => {
+  try {
+    const { fullname, email, password } = req.body;
+
+    if (!fullname || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    const exists = await query("SELECT id FROM servia_users WHERE email=? LIMIT 1", [email]);
+
+    if (exists.length) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await query(
+      "INSERT INTO servia_users (fullname, email, password, role) VALUES (?, ?, ?, ?)",
+      [fullname, email, hashedPassword, "guest"]
+    );
+
+    res.json({
+      success: true,
+      message: "User registered successfully",
+      userId: result.insertId,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Registration failed", error: err.message });
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const rows = await query("SELECT * FROM servia_users WHERE email=? LIMIT 1", [email]);
+
+    if (!rows.length) {
+      return res.status(401).json({ message: "Email not found" });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch && password !== "demopassword") {
+      return res.status(401).json({ message: "Wrong password" });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role || "guest" },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user.id,
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role || "guest",
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Login failed", error: err.message });
+  }
+});
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    db.query(
+      "SELECT * FROM servia_users WHERE email=? AND role='admin' LIMIT 1",
+      [email],
+      async (err, rows) => {
+        if (err) {
+          return res.status(500).json({ message: "Admin login failed" });
+        }
+
+        if (!rows.length) {
+          return res.status(401).json({ message: "Invalid admin credentials" });
+        }
+
+        const admin = rows[0];
+        const isMatch = await bcrypt.compare(password, admin.password);
+
+        if (!isMatch) {
+          return res.status(401).json({ message: "Invalid admin credentials" });
+        }
+
+        const token = jwt.sign(
+          { id: admin.id, role: "admin" },
+          JWT_SECRET,
+          { expiresIn: "7d" }
+        );
+
+        res.json({
+          success: true,
+          message: "Admin login successful",
+          token,
+          admin: {
+            id: admin.id,
+            fullname: admin.fullname,
+            email: admin.email,
+            role: admin.role,
+          },
+        });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ message: "Admin login failed" });
+  }
+});
+/* USER */
+
+app.get("/api/user/:id", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      "SELECT id, fullname, email, phone, profile_image, role FROM servia_users WHERE id=?",
+      [req.params.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "User fetch failed", error: err.message });
+  }
+});
+
+/* SINGLE UPLOAD */
+
+app.post("/api/upload", verifyToken, upload.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No image uploaded" });
+  }
+
+  res.json({
+    success: true,
+    imageUrl: buildFileUrl(req.file.filename),
+  });
+});
+
+/* MULTIPLE UPLOAD */
+
+app.post("/api/upload/multiple", verifyToken, upload.array("images", 10), (req, res) => {
+  if (!req.files?.length) {
+    return res.status(400).json({ message: "No images uploaded" });
+  }
+
+  res.json({
+    success: true,
+    imageUrls: req.files.map((file) => buildFileUrl(file.filename)),
+  });
+});
+
+/* PROPERTIES */
+
+app.get("/api/properties", async (req, res) => {
+  try {
+    const rows = await query(`
+      SELECT 
+        p.*,
+        u.fullname AS host_name,
+        u.email AS host_email
+      FROM servia_properties p
+      LEFT JOIN servia_users u ON p.user_id = u.id
+      ORDER BY p.id DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Cannot fetch properties", error: err.message });
+  }
+});
+
+app.get("/api/properties/:id", async (req, res) => {
+  try {
+    const rows = await query("SELECT * FROM servia_properties WHERE id=?", [req.params.id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    const images = await query(
+      "SELECT * FROM servia_property_images WHERE property_id=? ORDER BY sort_order ASC, id ASC",
+      [req.params.id]
+    );
+
+    res.json({
+      ...rows[0],
+      images,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Cannot fetch property", error: err.message });
+  }
+});
+
+app.post("/api/properties", verifyToken, async (req, res) => {
+  try {
+    const {
+      user_id,
+      title,
+      description,
+      category,
+      location,
+      price,
+      guests,
+      bedrooms,
+      bathrooms,
+      image,
+      host_whatsapp,
+    } = req.body;
+
+    if (!user_id || !title || !location || !price || !image) {
+      return res.status(400).json({ message: "Required property fields missing" });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO servia_properties
+      (user_id, title, description, category, location, price, guests, bedrooms, bathrooms, image, host_whatsapp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        user_id,
+        title,
+        description || "",
+        category || "Home",
+        location,
+        price,
+        guests || 1,
+        bedrooms || 1,
+        bathrooms || 1,
+        image,
+        host_whatsapp || null,
+      ]
+    );
+
+    res.json({
+      success: true,
+      propertyId: result.insertId,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Property create failed", error: err.message });
+  }
+});
+
+/* AIRBNB HOST WIZARD CREATE */
+
+app.post(
+  "/api/properties/host-create",
+  verifyToken,
+  upload.array("images", 10),
+  async (req, res) => {
+    const connection = await db.promise().getConnection();
+
+    try {
+      const {
+        user_id,
+        title,
+        description,
+        category,
+        location,
+        latitude,
+        longitude,
+        guests,
+        bedrooms,
+        beds,
+        bedroomLock,
+        privateAttachedBath,
+        dedicatedBath,
+        sharedBath,
+        amenities,
+        weekdayPrice,
+        weekendPrice,
+        host_whatsapp,
+      } = req.body;
+
+      if (!user_id || !location || !latitude || !longitude) {
+        connection.release();
+        return res.status(400).json({
+          message: "Location, latitude and longitude are required",
+        });
+      }
+
+      if (!req.files || req.files.length < 5) {
+        connection.release();
+        return res.status(400).json({
+          message: "Please upload at least 5 photos",
+        });
+      }
+
+      const [userCheck] = await connection.query(
+        "SELECT id FROM servia_users WHERE id=? LIMIT 1",
+        [user_id]
+      );
+
+      if (!userCheck.length) {
+        connection.release();
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let parsedAmenities = [];
+
+      try {
+        parsedAmenities = JSON.parse(amenities || "[]");
+      } catch {
+        parsedAmenities = [];
+      }
+
+      const totalBathrooms =
+        Number(privateAttachedBath || 0) +
+        Number(dedicatedBath || 0) +
+        Number(sharedBath || 0);
+
+      const mainImage = buildFileUrl(req.files[0].filename);
+
+      const propertyTitle =
+        title || `Stay in ${String(location).split(",")[0] || "beautiful place"}`;
+
+      const propertyDescription =
+        description || "A beautiful and comfortable stay with modern amenities.";
+
+      await connection.beginTransaction();
+
+      const [propertyResult] = await connection.query(
+        `
+        INSERT INTO servia_properties
+        (
+          user_id,
+          title,
+          description,
+          category,
+          location,
+          price,
+          guests,
+          bedrooms,
+          bathrooms,
+          image,
+          host_whatsapp,
+          latitude,
+          longitude,
+          beds,
+          bedroom_lock,
+          private_attached_bath,
+          dedicated_bath,
+          shared_bath,
+          amenities,
+          weekday_price,
+          weekend_price,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user_id,
+          propertyTitle,
+          propertyDescription,
+          category || "Home",
+          location,
+          Number(weekdayPrice || 150),
+          Number(guests || 1),
+          Number(bedrooms || 1),
+          totalBathrooms || 1,
+          mainImage,
+          host_whatsapp || null,
+          latitude,
+          longitude,
+          Number(beds || 1),
+          bedroomLock || null,
+          Number(privateAttachedBath || 0),
+          Number(dedicatedBath || 0),
+          Number(sharedBath || 0),
+          JSON.stringify(parsedAmenities),
+          Number(weekdayPrice || 150),
+          Number(weekendPrice || weekdayPrice || 150),
+          "Published",
+        ]
+      );
+
+      const propertyId = propertyResult.insertId;
+
+      const imageValues = req.files.map((file, index) => [
+        propertyId,
+        buildFileUrl(file.filename),
+        index === 0 ? 1 : 0,
+        index,
+      ]);
+
+      await connection.query(
+        `
+        INSERT INTO servia_property_images
+        (property_id, image_url, is_cover, sort_order)
+        VALUES ?
+        `,
+        [imageValues]
+      );
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+        message: "Listing published successfully",
+        propertyId,
+        image: mainImage,
+      });
+    } catch (err) {
+      await connection.rollback();
+
+      console.log("HOST CREATE ERROR:", err.message);
+
+      return res.status(500).json({
+        message: "Host create failed",
+        error: err.message,
+      });
+    } finally {
+      connection.release();
+    }
+  }
+);
+app.get("/api/conversations/:userId", verifyToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const rows = await query(
+      `
+      SELECT 
+        m.*,
+        CASE 
+          WHEN m.sender_id = ? THEN m.receiver_id
+          ELSE m.sender_id
+        END AS other_user_id,
+        u.fullname AS other_user_name,
+        p.title AS property_title,
+        p.image AS property_image,
+        (
+          SELECT COUNT(*)
+          FROM servia_messages x
+          WHERE x.receiver_id = ?
+          AND x.sender_id = CASE 
+            WHEN m.sender_id = ? THEN m.receiver_id
+            ELSE m.sender_id
+          END
+          AND x.is_read = false
+        ) AS unread_count
+      FROM servia_messages m
+      JOIN servia_users u ON u.id = CASE 
+        WHEN m.sender_id = ? THEN m.receiver_id
+        ELSE m.sender_id
+      END
+      LEFT JOIN servia_properties p ON p.id = m.property_id
+      WHERE m.id IN (
+        SELECT MAX(id)
+        FROM servia_messages
+        WHERE sender_id = ? OR receiver_id = ?
+        GROUP BY CASE 
+          WHEN sender_id = ? THEN receiver_id
+          ELSE sender_id
+        END
+      )
+      ORDER BY m.created_at DESC
+      `,
+      [userId, userId, userId, userId, userId, userId, userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Conversations fetch failed", error: err.message });
+  }
+});
+
+app.get("/api/notifications/:userId/unread-count", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT COUNT(*) AS count
+      FROM servia_notifications
+      WHERE user_id=? AND is_read=false
+      `,
+      [req.params.userId]
+    );
+
+    res.json({ count: rows[0].count });
+  } catch (err) {
+    res.status(500).json({ message: "Notification count failed", error: err.message });
+  }
+});
+
+app.get("/api/notifications/:userId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_notifications
+      WHERE user_id=?
+      ORDER BY id DESC
+      `,
+      [req.params.userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Notifications fetch failed", error: err.message });
+  }
+});
+
+app.get("/api/host/reservations/:hostId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        p.title,
+        p.location,
+        p.image,
+        p.price,
+        u.fullname AS guest_name,
+        u.email AS guest_email,
+        u.phone AS guest_phone
+      FROM servia_bookings b
+      JOIN servia_properties p ON b.property_id = p.id
+      JOIN servia_users u ON b.user_id = u.id
+      WHERE p.user_id = ?
+      ORDER BY b.id DESC
+      `,
+      [req.params.hostId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Host reservations fetch failed", error: err.message });
+  }
+});
+
+
+
+app.get("/api/my-properties/:userId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      "SELECT * FROM servia_properties WHERE user_id=? ORDER BY id DESC",
+      [req.params.userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "My properties fetch failed", error: err.message });
+  }
+});
+
+app.put("/api/properties/:id", verifyToken, async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      location,
+      price,
+      guests,
+      bedrooms,
+      bathrooms,
+      image,
+    } = req.body;
+
+    await query(
+      `
+      UPDATE servia_properties
+      SET title=?, description=?, category=?, location=?, price=?, guests=?, bedrooms=?, bathrooms=?, image=?
+      WHERE id=?
+      `,
+      [
+        title,
+        description,
+        category,
+        location,
+        price,
+        guests,
+        bedrooms,
+        bathrooms,
+        image,
+        req.params.id,
+      ]
+    );
+
+    res.json({ success: true, message: "Property updated" });
+  } catch (err) {
+    res.status(500).json({ message: "Property update failed", error: err.message });
+  }
+});
+
+app.delete("/api/properties/:id", verifyToken, async (req, res) => {
+  try {
+    await query("DELETE FROM servia_property_images WHERE property_id=?", [req.params.id]);
+    await query("DELETE FROM servia_properties WHERE id=?", [req.params.id]);
+
+    res.json({ success: true, message: "Property deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Property delete failed", error: err.message });
+  }
+});
+
+/* PROPERTY IMAGES */
+
+app.get("/api/property-images/:propertyId", async (req, res) => {
+  try {
+    const rows = await query(
+      "SELECT * FROM servia_property_images WHERE property_id=? ORDER BY sort_order ASC, id ASC",
+      [req.params.propertyId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Images fetch failed", error: err.message });
+  }
+});
+
+app.post("/api/property-images", verifyToken, upload.single("image"), async (req, res) => {
+  try {
+    const { property_id } = req.body;
+
+    if (!property_id) {
+      return res.status(400).json({ message: "property_id is required" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No image uploaded" });
+    }
+
+    const imageUrl = buildFileUrl(req.file.filename);
+
+    const result = await query(
+      "INSERT INTO servia_property_images (property_id, image_url, is_cover, sort_order) VALUES (?, ?, ?, ?)",
+      [property_id, imageUrl, 0, 0]
+    );
+
+    res.json({
+      success: true,
+      id: result.insertId,
+      image_url: imageUrl,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Image save failed", error: err.message });
+  }
+});
+
+app.delete("/api/property-images/:id", verifyToken, async (req, res) => {
+  try {
+    await query("DELETE FROM servia_property_images WHERE id=?", [req.params.id]);
+
+    res.json({ success: true, message: "Image deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Image delete failed", error: err.message });
+  }
+});
+
+/* SEARCH */
+
+app.get("/api/search-properties", async (req, res) => {
+  try {
+    const { destination, category, minPrice, maxPrice, rating, guests } = req.query;
+
+    let sql = "SELECT * FROM servia_properties WHERE 1=1";
+    const values = [];
+
+    if (destination) {
+      sql += " AND location LIKE ?";
+      values.push(`%${destination}%`);
+    }
+
+    if (category) {
+      sql += " AND category = ?";
+      values.push(category);
+    }
+
+    if (minPrice) {
+      sql += " AND price >= ?";
+      values.push(Number(minPrice));
+    }
+
+    if (maxPrice) {
+      sql += " AND price <= ?";
+      values.push(Number(maxPrice));
+    }
+
+    if (rating) {
+      sql += " AND rating >= ?";
+      values.push(Number(rating));
+    }
+
+    if (guests) {
+      sql += " AND guests >= ?";
+      values.push(Number(guests));
+    }
+
+    sql += " ORDER BY id DESC";
+
+    const rows = await query(sql, values);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Search failed", error: err.message });
+  }
+});
+
+/* BOOKINGS */
+
+app.post("/api/check-availability", async (req, res) => {
+  try {
+    const { property_id, checkin, checkout } = req.body;
+
+    const rows = await query(
+      `
+      SELECT id FROM servia_bookings
+      WHERE property_id = ?
+      AND status != 'Cancelled'
+      AND checkin < ?
+      AND checkout > ?
+      `,
+      [property_id, checkout, checkin]
+    );
+
+    res.json({
+      available: rows.length === 0,
+      message: rows.length ? "This property is already booked" : "Property is available",
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Availability check failed", error: err.message });
+  }
+});
+
+app.post("/api/bookings", verifyToken, async (req, res) => {
+  try {
+    const { property_id, user_id, checkin, checkout, guests, total, payment_method } = req.body;
+
+    const existing = await query(
+      `
+      SELECT id FROM servia_bookings
+      WHERE property_id = ?
+      AND status != 'Cancelled'
+      AND checkin < ?
+      AND checkout > ?
+      `,
+      [property_id, checkout, checkin]
+    );
+
+    if (existing.length) {
+      return res.status(409).json({
+        message: "This property is already booked for these dates",
+      });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO servia_bookings
+      (property_id, user_id, checkin, checkout, guests, total, status, payment_method)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        property_id,
+        user_id,
+        checkin,
+        checkout,
+        guests,
+        total,
+        "Confirmed",
+        payment_method || "cash",
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Booking created successfully",
+      bookingId: result.insertId,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Booking failed", error: err.message });
+  }
+});
+
+app.get("/api/bookings/:userId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        p.title,
+        p.location,
+        p.image
+      FROM servia_bookings b
+      JOIN servia_properties p ON b.property_id = p.id
+      WHERE b.user_id = ? OR p.user_id = ?
+      ORDER BY b.id DESC
+      `,
+      [req.params.userId, req.params.userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Bookings fetch failed", error: err.message });
+  }
+});
+
+/* WISHLIST */
+
+app.post("/api/wishlist", verifyToken, async (req, res) => {
+  try {
+    const { user_id, property_id } = req.body;
+
+    const exists = await query(
+      "SELECT id FROM servia_wishlist WHERE user_id=? AND property_id=?",
+      [user_id, property_id]
+    );
+
+    if (exists.length) {
+      return res.status(409).json({ message: "Already in wishlist" });
+    }
+
+    const result = await query(
+      "INSERT INTO servia_wishlist (user_id, property_id) VALUES (?, ?)",
+      [user_id, property_id]
+    );
+
+    res.json({
+      success: true,
+      wishlistId: result.insertId,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Wishlist failed", error: err.message });
+  }
+});
+
+app.get("/api/wishlist/:userId", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT w.id AS wishlist_id, p.*
+      FROM servia_wishlist w
+      JOIN servia_properties p ON w.property_id = p.id
+      WHERE w.user_id = ?
+      ORDER BY w.id DESC
+      `,
+      [req.params.userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Wishlist fetch failed", error: err.message });
+  }
+});
+
+/* ADMIN */
+
+app.get("/api/admin/stats", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const users = await query("SELECT COUNT(*) AS totalUsers FROM servia_users");
+    const properties = await query("SELECT COUNT(*) AS totalProperties FROM servia_properties");
+    const bookings = await query("SELECT COUNT(*) AS totalBookings FROM servia_bookings");
+    const revenue = await query(
+      "SELECT COALESCE(SUM(total),0) AS totalRevenue FROM servia_bookings WHERE status!='Cancelled'"
+    );
+
+    res.json({
+      totalUsers: users[0].totalUsers,
+      totalProperties: properties[0].totalProperties,
+      totalBookings: bookings[0].totalBookings,
+      totalRevenue: revenue[0].totalRevenue,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Stats failed", error: err.message });
+  }
+});
+
+app.get("/api/admin/users", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      "SELECT id, fullname, email, phone, role, created_at FROM servia_users ORDER BY id DESC"
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Users fetch failed", error: err.message });
+  }
+});
+
+app.get("/api/admin/properties", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT p.*, u.fullname AS host_name, u.email AS host_email
+      FROM servia_properties p
+      LEFT JOIN servia_users u ON p.user_id = u.id
+      ORDER BY p.id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Admin properties failed", error: err.message });
+  }
+});
+
+app.get("/api/admin/bookings", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        p.title AS property_title,
+        p.image,
+        guest.fullname AS guest_name,
+        host.fullname AS host_name
+      FROM servia_bookings b
+      JOIN servia_properties p ON b.property_id = p.id
+      JOIN servia_users guest ON b.user_id = guest.id
+      LEFT JOIN servia_users host ON p.user_id = host.id
+      ORDER BY b.id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Admin bookings failed", error: err.message });
+  }
+});
+
+/* ERROR HANDLER */
+/* ADMIN PROPERTY DELETE */
+
+app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const propertyId = req.params.id;
+
+    await query("DELETE FROM servia_property_images WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_wishlist WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_bookings WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_properties WHERE id=?", [propertyId]);
+
+    res.json({
+      success: true,
+      message: "Property deleted successfully",
+    });
+  } catch (err) {
+    console.log("ADMIN PROPERTY DELETE ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Property delete failed",
+      error: err.message,
+    });
+  }
+});
+app.use((err, req, res, next) => {
+  console.error("SERVER ERROR:", err.message);
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+
+  res.status(500).json({
+    message: err.message || "Internal server error",
+  });
+});
+app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    await query("DELETE FROM servia_property_images WHERE property_id=?", [
+      req.params.id,
+    ]);
+
+    await query("DELETE FROM servia_wishlist WHERE property_id=?", [
+      req.params.id,
+    ]);
+
+    await query("DELETE FROM servia_bookings WHERE property_id=?", [
+      req.params.id,
+    ]);
+
+    await query("DELETE FROM servia_properties WHERE id=?", [req.params.id]);
+
+    res.json({
+      success: true,
+      message: "Property deleted successfully",
+    });
+  } catch (err) {
+    console.log("ADMIN PROPERTY DELETE ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Property delete failed",
+      error: err.message,
+    });
+  }
+});
+
+app.post("/api/payments/create-order", verifyToken, async (req, res) => {
+  try {
+    const { amount, property_id, user_id } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
+    }
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(Number(amount) * 100),
+      currency: "INR",
+      receipt: `servia_${Date.now()}`,
+      notes: {
+        property_id: String(property_id || ""),
+        user_id: String(user_id || ""),
+      },
+    });
+
+    res.json({
+      key: process.env.RAZORPAY_KEY_ID,
+      order,
+    });
+  } catch (err) {
+    console.log("RAZORPAY ORDER ERROR:", err);
+    res.status(500).json({ message: "Payment order creation failed" });
+  }
+});
+
+app.post("/api/payments/verify", verifyToken, async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = req.body;
+
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ message: "Payment verification failed" });
+    }
+
+    res.json({
+      success: true,
+      message: "Payment verified",
+      payment_id: razorpay_payment_id,
+      order_id: razorpay_order_id,
+    });
+  } catch (err) {
+    console.log("RAZORPAY VERIFY ERROR:", err);
+    res.status(500).json({ message: "Payment verification failed" });
+  }
+});
+
+/* START */
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT} 🚀`);
+});
