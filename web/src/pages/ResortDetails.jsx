@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AirVent,
   CalendarDays,
   Car,
+  Check,
   ChevronDown,
   Heart,
   Lock,
   MapPin,
   MessageCircle,
+  Minus,
+  Plus,
   Share,
   Star,
   Tv,
@@ -26,22 +29,74 @@ import api from "../api/api";
 const fallbackImage =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
+const todayISO = () => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().split("T")[0];
+};
+
+const addDaysISO = (dateString, days) => {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().split("T")[0];
+};
+
+const formatDateLabel = (dateString) => {
+  if (!dateString) return "Add date";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(dateString));
+};
+
+const formatINR = (amount) =>
+  `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+
 export default function ResortDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const today = useMemo(() => todayISO(), []);
+  const tomorrow = useMemo(() => addDaysISO(today, 1), [today]);
+
+  const guestDropdownRef = useRef(null);
 
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [guestDropdownOpen, setGuestDropdownOpen] = useState(false);
 
-  const [checkin, setCheckin] = useState("2026-06-12");
-  const [checkout, setCheckout] = useState("2026-06-14");
+  const [checkin, setCheckin] = useState(today);
+  const [checkout, setCheckout] = useState(tomorrow);
   const [guests, setGuests] = useState(1);
 
   useEffect(() => {
     loadProperty();
   }, [id]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        guestDropdownRef.current &&
+        !guestDropdownRef.current.contains(event.target)
+      ) {
+        setGuestDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    if (checkout <= checkin) {
+      setCheckout(addDaysISO(checkin, 1));
+    }
+  }, [checkin, checkout]);
 
   const loadProperty = async () => {
     try {
@@ -65,10 +120,13 @@ export default function ResortDetails() {
       ...(property.images || []).map((item) => item.image_url),
     ].filter(Boolean);
 
-    return [...new Set(images)].length ? [...new Set(images)] : [fallbackImage];
+    const uniqueImages = [...new Set(images)];
+
+    return uniqueImages.length ? uniqueImages : [fallbackImage];
   }, [property]);
 
   const price = Number(property?.price || 0);
+  const maxGuests = Number(property?.guests || 10);
 
   const nights = useMemo(() => {
     const start = new Date(checkin);
@@ -82,8 +140,7 @@ export default function ResortDetails() {
   const taxes = Math.round(subtotal * 0.12);
   const total = subtotal + serviceFee + taxes;
 
-  const formatINR = (amount) =>
-    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+  const dateError = !checkin || !checkout || checkout <= checkin;
 
   const isLoggedIn = () => {
     try {
@@ -101,6 +158,11 @@ export default function ResortDetails() {
   };
 
   const handleReserve = () => {
+    if (dateError) {
+      alert("Please select valid check-in and checkout dates.");
+      return;
+    }
+
     if (!isLoggedIn()) {
       setLoginModalOpen(true);
       return;
@@ -152,17 +214,21 @@ export default function ResortDetails() {
   const shareProperty = async () => {
     const url = window.location.href;
 
-    if (navigator.share) {
-      await navigator.share({
-        title: property?.title || "Servia Stay",
-        text: property?.description || "Check this stay",
-        url,
-      });
-      return;
-    }
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: property?.title || "Dovail Stay",
+          text: property?.description || "Check this stay",
+          url,
+        });
+        return;
+      }
 
-    await navigator.clipboard.writeText(url);
-    alert("Link copied");
+      await navigator.clipboard.writeText(url);
+      alert("Link copied");
+    } catch (err) {
+      console.log("Share failed:", err);
+    }
   };
 
   if (loading) {
@@ -170,7 +236,8 @@ export default function ResortDetails() {
       <div className="min-h-screen bg-white">
         <Navbar />
         <main className="mx-auto max-w-7xl px-4 py-20 md:px-8">
-          Loading property...
+          <div className="h-8 w-64 animate-pulse rounded-xl bg-gray-100" />
+          <div className="mt-8 h-[430px] animate-pulse rounded-[28px] bg-gray-100" />
         </main>
       </div>
     );
@@ -185,7 +252,7 @@ export default function ResortDetails() {
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h1 className="text-3xl font-bold md:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
               {property.title}
             </h1>
 
@@ -202,8 +269,9 @@ export default function ResortDetails() {
             </div>
           </div>
 
-          <div className="flex gap-4 text-sm font-semibold">
+          <div className="flex gap-2 text-sm font-semibold">
             <button
+              type="button"
               onClick={shareProperty}
               className="flex items-center gap-2 rounded-xl px-4 py-2 hover:bg-gray-100"
             >
@@ -212,6 +280,7 @@ export default function ResortDetails() {
             </button>
 
             <button
+              type="button"
               onClick={handleWishlist}
               className="flex items-center gap-2 rounded-xl px-4 py-2 hover:bg-gray-100"
             >
@@ -227,16 +296,16 @@ export default function ResortDetails() {
           onShowAll={() => setGalleryOpen(true)}
         />
 
-        <section className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]">
+        <section className="mt-10 grid gap-12 lg:grid-cols-[1fr_390px]">
           <div>
             <div className="border-b pb-8">
               <h2 className="text-2xl font-bold">
-                Entire place in {property.location}
+                Entire place in {String(property.location || "").split(",")[0]}
               </h2>
 
               <p className="mt-2 text-gray-600">
-                {property.guests || 1} guests · {property.bedrooms || 1} bedroom ·{" "}
-                {property.bathrooms || 1} bath
+                {property.guests || 1} guests · {property.bedrooms || 1} bedroom
+                · {property.bathrooms || 1} bath
               </p>
             </div>
 
@@ -256,7 +325,7 @@ export default function ResortDetails() {
               <Feature
                 icon="🔐"
                 title="Secure booking"
-                text="Your booking is protected by Servia Stay secure reservation system."
+                text="Your booking is protected by Dovail Stay secure reservation system."
               />
             </div>
 
@@ -299,7 +368,7 @@ export default function ResortDetails() {
           </div>
 
           <aside>
-            <div className="sticky top-24 rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
+            <div className="sticky top-24 rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_6px_24px_rgba(0,0,0,0.14)]">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <span className="text-2xl font-bold">{formatINR(price)}</span>
@@ -312,53 +381,51 @@ export default function ResortDetails() {
                 </span>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-gray-300">
+              <div className="rounded-2xl border border-[#b0b0b0] bg-white">
                 <div className="grid grid-cols-2">
-                  <DateInput
+                  <DateField
                     label="CHECK-IN"
                     value={checkin}
-                    onChange={setCheckin}
+                    min={today}
+                    onChange={(value) => setCheckin(value)}
                   />
 
-                  <DateInput
+                  <DateField
                     label="CHECKOUT"
                     value={checkout}
-                    onChange={setCheckout}
+                    min={addDaysISO(checkin, 1)}
+                    onChange={(value) => setCheckout(value)}
                     borderLeft
                   />
                 </div>
 
-                <div className="border-t p-4">
-                  <label className="block text-xs font-bold uppercase">
-                    Guests
-                  </label>
-
-                  <div className="mt-2 flex items-center justify-between">
-                    <select
-                      value={guests}
-                      onChange={(e) => setGuests(Number(e.target.value))}
-                      className="w-full bg-white outline-none"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
-                        <option key={item} value={item}>
-                          {item} {item === 1 ? "guest" : "guests"}
-                        </option>
-                      ))}
-                    </select>
-
-                    <ChevronDown size={18} />
-                  </div>
-                </div>
+                <GuestDropdown
+                  refEl={guestDropdownRef}
+                  open={guestDropdownOpen}
+                  setOpen={setGuestDropdownOpen}
+                  guests={guests}
+                  setGuests={setGuests}
+                  maxGuests={maxGuests}
+                />
               </div>
 
+              {dateError && (
+                <p className="mt-3 text-sm font-semibold text-red-600">
+                  Checkout date must be after check-in date.
+                </p>
+              )}
+
               <button
+                type="button"
                 onClick={handleReserve}
-                className="mt-5 h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8]"
+                disabled={dateError}
+                className="mt-5 h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 Reserve
               </button>
 
               <button
+                type="button"
                 onClick={handleMessageHost}
                 className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
               >
@@ -372,7 +439,9 @@ export default function ResortDetails() {
 
               <div className="mt-6 space-y-3 text-sm">
                 <PriceRow
-                  label={`${formatINR(price)} x ${nights} nights`}
+                  label={`${formatINR(price)} x ${nights} ${
+                    nights === 1 ? "night" : "nights"
+                  }`}
                   value={formatINR(subtotal)}
                 />
 
@@ -405,6 +474,113 @@ export default function ResortDetails() {
           onLogin={() => navigate("/login")}
           onSignup={() => navigate("/signup")}
         />
+      )}
+    </div>
+  );
+}
+
+function DateField({ label, value, min, onChange, borderLeft }) {
+  return (
+    <label
+      className={`group block cursor-pointer px-4 py-3 hover:bg-gray-50 ${
+        borderLeft ? "border-l border-[#b0b0b0]" : ""
+      }`}
+    >
+      <span className="block text-[10px] font-black uppercase tracking-wide">
+        {label}
+      </span>
+
+      <div className="mt-1 flex items-center gap-2">
+        <CalendarDays size={16} className="text-gray-600" />
+
+        <input
+          type="date"
+          value={value}
+          min={min}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full cursor-pointer bg-transparent text-sm font-semibold outline-none"
+        />
+      </div>
+
+      <p className="mt-1 text-xs text-gray-500">{formatDateLabel(value)}</p>
+    </label>
+  );
+}
+
+function GuestDropdown({
+  refEl,
+  open,
+  setOpen,
+  guests,
+  setGuests,
+  maxGuests,
+}) {
+  const decreaseGuests = () => setGuests((prev) => Math.max(1, prev - 1));
+  const increaseGuests = () =>
+    setGuests((prev) => Math.min(Number(maxGuests || 10), prev + 1));
+
+  return (
+    <div ref={refEl} className="relative border-t border-[#b0b0b0]">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+      >
+        <div>
+          <span className="block text-[10px] font-black uppercase tracking-wide">
+            Guests
+          </span>
+          <span className="mt-1 block text-sm font-semibold">
+            {guests} {guests === 1 ? "guest" : "guests"}
+          </span>
+        </div>
+
+        <ChevronDown
+          size={20}
+          className={`transition ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[72px] z-50 rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-bold">Guests</p>
+              <p className="text-sm text-gray-500">Ages 13 or above</p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={decreaseGuests}
+                disabled={guests <= 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Minus size={16} />
+              </button>
+
+              <span className="w-5 text-center font-semibold">{guests}</span>
+
+              <button
+                type="button"
+                onClick={increaseGuests}
+                disabled={guests >= Number(maxGuests || 10)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#8363F5] py-3 font-bold text-white hover:bg-[#7152E8]"
+          >
+            <Check size={18} />
+            Done
+          </button>
+        </div>
       )}
     </div>
   );
@@ -501,6 +677,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
       <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
         <button
+          type="button"
           onClick={onClose}
           className="absolute right-5 top-5 rounded-full p-2 hover:bg-gray-100"
         >
@@ -522,6 +699,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
 
         <div className="mt-6 space-y-3">
           <button
+            type="button"
             onClick={onLogin}
             className="h-12 w-full rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8]"
           >
@@ -529,6 +707,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           </button>
 
           <button
+            type="button"
             onClick={onSignup}
             className="h-12 w-full rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
           >
@@ -536,6 +715,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           </button>
 
           <button
+            type="button"
             onClick={onClose}
             className="h-12 w-full rounded-xl text-gray-500 hover:bg-gray-50"
           >
@@ -544,25 +724,6 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function DateInput({ label, value, onChange, borderLeft }) {
-  return (
-    <label className={`block p-4 ${borderLeft ? "border-l" : ""}`}>
-      <span className="block text-xs font-bold uppercase">{label}</span>
-
-      <div className="mt-2 flex items-center gap-2">
-        <CalendarDays size={16} />
-
-        <input
-          type="date"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-white text-sm outline-none"
-        />
-      </div>
-    </label>
   );
 }
 
