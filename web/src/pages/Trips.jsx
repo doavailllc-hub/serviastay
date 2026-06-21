@@ -55,127 +55,241 @@ export default function Trips() {
 
   const downloadInvoice = (trip) => {
     const invoiceWindow = window.open("", "_blank");
+invoiceWindow.document.write(`
+<html>
+<head>
+<title>Invoice #${trip.id}</title>
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:Inter,Arial,sans-serif;
+}
 
-    invoiceWindow.document.write(`
-      <html>
-        <head>
-          <title>Invoice #${trip.id}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 40px;
-              color: #222;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              border-bottom: 2px solid #eee;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .brand {
-              font-size: 28px;
-              font-weight: bold;
-              color: #8363F5;
-            }
-            .box {
-              border: 1px solid #eee;
-              border-radius: 14px;
-              padding: 20px;
-              margin-bottom: 20px;
-            }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              margin: 10px 0;
-            }
-            .total {
-              font-size: 22px;
-              font-weight: bold;
-              color: #8363F5;
-              border-top: 1px solid #eee;
-              padding-top: 15px;
-              margin-top: 15px;
-            }
-            .status {
-              display: inline-block;
-              background: #ecfdf5;
-              color: #047857;
-              padding: 6px 12px;
-              border-radius: 999px;
-              font-weight: bold;
-              font-size: 12px;
-            }
-            @media print {
-              button {
-                display: none;
-              }
-            }
-          </style>
-        </head>
+body{
+  background:#f8fafc;
+  padding:40px;
+  color:#111827;
+}
 
-        <body>
-          <div class="header">
-            <div>
-              <div class="brand">Servia Stay</div>
-              <p>Booking Invoice</p>
-            </div>
+.invoice{
+  max-width:1000px;
+  margin:auto;
+  background:#fff;
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+}
 
-            <div>
-              <p><strong>Invoice:</strong> #${trip.id}</p>
-              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            </div>
-          </div>
+.header{
+  background:linear-gradient(135deg,#8762f3,#6d4df0);
+  color:#fff;
+  padding:35px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
 
-          <div class="box">
-            <h2>${trip.title || "Property Booking"}</h2>
-            <p>${trip.location || ""}</p>
-            <span class="status">${trip.status || "Confirmed"}</span>
-          </div>
+.logo{
+  font-size:38px;
+  font-weight:800;
+}
 
-          <div class="box">
-            <h3>Reservation Details</h3>
-            <div class="row">
-              <span>Check-in</span>
-              <strong>${trip.checkin}</strong>
-            </div>
-            <div class="row">
-              <span>Check-out</span>
-              <strong>${trip.checkout}</strong>
-            </div>
-            <div class="row">
-              <span>Guests</span>
-              <strong>${trip.guests || 1}</strong>
-            </div>
-            <div class="row">
-              <span>Payment Method</span>
-              <strong>${trip.payment_method || "cash"}</strong>
-            </div>
-          </div>
+.subtitle{
+  margin-top:6px;
+  opacity:.9;
+}
 
-          <div class="box">
-            <h3>Payment Summary</h3>
-            <div class="row">
-              <span>Booking Amount</span>
-              <strong>${formatINR(trip.total)}</strong>
-            </div>
+.invoiceNo{
+  text-align:right;
+}
 
-            <div class="row total">
-              <span>Total Paid</span>
-              <span>${formatINR(trip.total)}</span>
-            </div>
-          </div>
+.section{
+  padding:30px;
+}
 
-          <p>
-            Thank you for booking with Servia Stay.
-          </p>
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:30px;
+}
 
-          <button onclick="window.print()">
-            Download / Print Invoice
-          </button>
-        </body>
-      </html>
-    `);
+.card{
+  border:1px solid #eee;
+  border-radius:16px;
+  padding:20px;
+}
+
+.title{
+  font-size:14px;
+  color:#8762f3;
+  font-weight:700;
+  margin-bottom:15px;
+  text-transform:uppercase;
+}
+
+.property{
+  display:flex;
+  gap:20px;
+  align-items:center;
+}
+
+.property img{
+  width:180px;
+  height:120px;
+  object-fit:cover;
+  border-radius:12px;
+}
+
+.propertyName{
+  font-size:28px;
+  font-weight:700;
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  padding:12px 0;
+  border-bottom:1px solid #eee;
+}
+
+.total{
+  font-size:34px;
+  font-weight:800;
+  color:#8762f3;
+}
+
+.footer{
+  background:#faf5ff;
+  padding:25px;
+  text-align:center;
+}
+
+.badge{
+  display:inline-block;
+  background:#dcfce7;
+  color:#166534;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:600;
+}
+</style>
+</head>
+
+<body>
+
+<div class="invoice">
+
+<div class="header">
+  <div>
+    <div class="logo">Servia Stay</div>
+    <div class="subtitle">Stay Comfortable, Live Beautiful</div>
+  </div>
+
+  <div class="invoiceNo">
+    <h1>INVOICE</h1>
+    <p>#${trip.id}</p>
+  </div>
+</div>
+
+<div class="section">
+
+<div class="grid">
+
+<div class="card">
+  <div class="title">Guest Details</div>
+  <p><strong>${trip.guest_name || "Guest"}</strong></p>
+</div>
+
+<div class="card">
+  <div class="title">Booking Info</div>
+  <p>Invoice #${trip.id}</p>
+  <p>${new Date().toLocaleDateString()}</p>
+</div>
+
+</div>
+
+<br>
+
+<div class="card property">
+
+<img src="${trip.image}" />
+
+<div>
+  <div class="propertyName">${trip.property_title}</div>
+  <p>${trip.location}</p>
+  <br>
+  <span class="badge">Confirmed</span>
+</div>
+
+</div>
+
+<br>
+
+<div class="card">
+
+<div class="title">Reservation Details</div>
+
+<div class="row">
+  <span>Check In</span>
+  <strong>${trip.check_in}</strong>
+</div>
+
+<div class="row">
+  <span>Check Out</span>
+  <strong>${trip.check_out}</strong>
+</div>
+
+<div class="row">
+  <span>Guests</span>
+  <strong>${trip.guests}</strong>
+</div>
+
+<div class="row">
+  <span>Payment Method</span>
+  <strong>${trip.payment_method}</strong>
+</div>
+
+</div>
+
+<br>
+
+<div class="card">
+
+<div class="title">Payment Summary</div>
+
+<div class="row">
+  <span>Booking Amount</span>
+  <strong>₹${trip.total_amount}</strong>
+</div>
+
+<br>
+
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <span style="font-size:22px;font-weight:700">Total Paid</span>
+  <span class="total">₹${trip.total_amount}</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="footer">
+  <h3>Thank you for booking with Servia Stay</h3>
+  <p>We hope you have a comfortable and memorable stay.</p>
+</div>
+
+</div>
+
+<script>
+setTimeout(()=>window.print(),500);
+</script>
+
+</body>
+</html>
+`);
 
     invoiceWindow.document.close();
   };
