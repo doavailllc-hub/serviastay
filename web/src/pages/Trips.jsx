@@ -335,7 +335,7 @@ function TripCard({ trip, navigate, formatINR, downloadInvoice }) {
             </button>
 
             <button
-               onClick={() => navigate(`/receipt/${trip.id}`)}
+          onClick={() => downloadInvoice(trip)}
               className="flex items-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition hover:bg-gray-50"
             >
               <Download size={18} />

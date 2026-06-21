@@ -182,7 +182,14 @@ export default function App() {
           </ProtectedPage>
         }
       />
-
+<Route
+  path="/receipt/:id"
+  element={
+    <ProtectedPage>
+      <Receipt />
+    </ProtectedPage>
+  }
+/>
       <Route
         path="/add-property"
         element={
