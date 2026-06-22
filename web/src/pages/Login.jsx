@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Apple, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Apple, ArrowLeft, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
 import logo from "../assets/logo.png";
@@ -8,33 +8,41 @@ import logo from "../assets/logo.png";
 export default function Login() {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("demopassword");
   const [step, setStep] = useState("email");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [error, setError] = useState("");
+  const [timer, setTimer] = useState(30);
 
-  const handleContinue = (e) => {
-    e.preventDefault();
+  const otpRefs = useRef([]);
 
-    const cleanEmail = email.trim().toLowerCase();
+  useEffect(() => {
+    if (step !== "otp") return;
+
+    setTimer(30);
+    const interval = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [step]);
+
+  const cleanEmail = email.trim().toLowerCase();
+
+  const sendOtp = async (e) => {
+    e?.preventDefault();
 
     if (!cleanEmail) {
-      setError("Please enter your email");
-      return;
-    }
-
-    setError("");
-    setStep("password");
-  };
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail || !password.trim()) {
-      setError("Email and password are required");
+      setError("Please enter your email address.");
       return;
     }
 
@@ -42,13 +50,61 @@ export default function Login() {
       setLoading(true);
       setError("");
 
-      const res = await api.post("/login", {
+      await api.post("/auth/send-otp", {
         email: cleanEmail,
-        password,
+      });
+
+      setStep("otp");
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch (err) {
+      console.log("Send OTP failed:", err);
+      setError(err.response?.data?.message || "Failed to send OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendOtp = async () => {
+    if (timer > 0) return;
+
+    try {
+      setResending(true);
+      setError("");
+
+      await api.post("/auth/send-otp", {
+        email: cleanEmail,
+      });
+
+      setOtp(["", "", "", "", "", ""]);
+      setTimer(30);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch (err) {
+      console.log("Resend OTP failed:", err);
+      setError(err.response?.data?.message || "Failed to resend OTP.");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const verifyOtp = async (finalOtp) => {
+    const code = finalOtp || otp.join("");
+
+    if (code.length !== 6) {
+      setError("Please enter the 6-digit code.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await api.post("/auth/verify-otp", {
+        email: cleanEmail,
+        otp: code,
       });
 
       if (!res.data?.token || !res.data?.user) {
-        setError("Login failed. Please try again.");
+        setError("Verification failed. Please try again.");
         return;
       }
 
@@ -62,13 +118,58 @@ export default function Login() {
 
       navigate("/home", { replace: true });
     } catch (err) {
-      console.log("Login failed:", err);
-      setError(
-        err.response?.data?.message ||
-          "Invalid email or password. Please check your details."
-      );
+      console.log("Verify OTP failed:", err);
+      setError(err.response?.data?.message || "Invalid or expired code.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOtpChange = (index, value) => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+
+    const nextOtp = [...otp];
+    nextOtp[index] = digit;
+    setOtp(nextOtp);
+    setError("");
+
+    if (digit && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+
+    const finalCode = nextOtp.join("");
+    if (finalCode.length === 6) {
+      verifyOtp(finalCode);
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePasteOtp = (e) => {
+    e.preventDefault();
+
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+
+    if (!pasted) return;
+
+    const nextOtp = ["", "", "", "", "", ""];
+    pasted.split("").forEach((digit, index) => {
+      nextOtp[index] = digit;
+    });
+
+    setOtp(nextOtp);
+
+    if (pasted.length === 6) {
+      verifyOtp(pasted);
+    } else {
+      otpRefs.current[pasted.length]?.focus();
     }
   };
 
@@ -86,6 +187,20 @@ export default function Login() {
             <X size={20} />
           </button>
 
+          {step === "otp" && (
+            <button
+              type="button"
+              onClick={() => {
+                setStep("email");
+                setOtp(["", "", "", "", "", ""]);
+                setError("");
+              }}
+              className="absolute left-5 top-5 rounded-full p-2 hover:bg-gray-100"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
+
           <div className="px-8 pt-14 text-center">
             <img
               src={logo}
@@ -94,86 +209,158 @@ export default function Login() {
             />
 
             <h1 className="mt-6 text-2xl font-bold text-gray-900">
-              Log in or sign up
+              {step === "email" ? "Log in or sign up" : "Confirm it’s you"}
             </h1>
+
+            {step === "otp" && (
+              <p className="mt-3 text-gray-500">
+                We sent a code to{" "}
+                <span className="font-semibold uppercase text-gray-700">
+                  {cleanEmail}
+                </span>
+                .
+              </p>
+            )}
           </div>
 
-          <form
-            onSubmit={step === "email" ? handleContinue : handleLogin}
-            className="px-8 pb-8 pt-7"
-          >
-            <input
-              type="email"
-              placeholder="Phone number or email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-14 w-full rounded-xl border border-gray-400 px-4 text-base outline-none focus:border-black focus:ring-1 focus:ring-black"
-            />
-
-            {step === "password" && (
+          {step === "email" ? (
+            <form onSubmit={sendOtp} className="px-8 pb-8 pt-7">
               <input
-                type="password"
-                placeholder="Password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-3 h-14 w-full rounded-xl border border-gray-400 px-4 text-base outline-none focus:border-black focus:ring-1 focus:ring-black"
+                type="email"
+                placeholder="Phone number or email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError("");
+                }}
+                className="h-14 w-full rounded-xl border border-gray-400 px-4 text-base outline-none focus:border-black focus:ring-1 focus:ring-black"
               />
-            )}
 
-            {error && (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-                {error}
+              {error && <ErrorBox error={error} />}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-4 h-14 w-full rounded-xl bg-gradient-to-r from-[#7e4ff5] to-[#d62976] font-bold text-white transition hover:opacity-95 disabled:opacity-60"
+              >
+                {loading ? "Sending code..." : "Continue"}
+              </button>
+
+              <Divider />
+
+              <SocialButtons />
+
+              <p className="mt-7 text-center text-xs leading-5 text-gray-500">
+                We’ll email you a one-time code. New users are automatically
+                signed up after verification.
+              </p>
+            </form>
+          ) : (
+            <div className="px-8 pb-8 pt-7">
+              <div
+                onPaste={handlePasteOtp}
+                className="mx-auto flex max-w-[330px] items-center justify-center gap-2 rounded-xl border-2 border-gray-900 px-4 py-4"
+              >
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => (otpRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    className="h-8 w-8 border-none text-center text-xl font-bold outline-none"
+                  />
+                ))}
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-4 h-14 w-full rounded-xl bg-gradient-to-r from-[#7e4ff5] to-[#d62976] font-bold text-white transition hover:opacity-95 disabled:opacity-60"
-            >
-              {loading ? "Please wait..." : step === "email" ? "Continue" : "Log in"}
-            </button>
+              {error && <ErrorBox error={error} />}
 
-            <div className="my-6 flex items-center gap-4">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span className="text-sm text-gray-600">or</span>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
+              <div className="mt-7 text-center text-sm">
+                <span className="text-gray-600">Didn’t get it? </span>
+                <button
+                  type="button"
+                  onClick={resendOtp}
+                  disabled={timer > 0 || resending}
+                  className="font-semibold underline disabled:cursor-not-allowed disabled:text-gray-400"
+                >
+                  {timer > 0
+                    ? `Send a new code in ${timer}s`
+                    : resending
+                    ? "Sending..."
+                    : "Send a new code"}
+                </button>
+              </div>
 
-            <div className="flex justify-center gap-4">
               <button
                 type="button"
-                className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 hover:bg-gray-50"
+                onClick={() => verifyOtp()}
+                disabled={loading}
+                className="mt-8 h-14 w-full rounded-xl bg-[#222] font-bold text-white transition hover:bg-black disabled:opacity-60"
               >
-                <img
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google"
-                  className="h-6 w-6"
-                />
+                {loading ? "Verifying..." : "Verify and continue"}
               </button>
 
               <button
                 type="button"
-                className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 hover:bg-gray-50"
+                onClick={() => {
+                  setStep("email");
+                  setOtp(["", "", "", "", "", ""]);
+                  setError("");
+                }}
+                className="mt-4 h-14 w-full rounded-xl bg-gray-100 font-bold text-gray-800 hover:bg-gray-200"
               >
-                <Apple size={24} />
+                Try another way
               </button>
             </div>
-
-            <p className="mt-6 text-center text-sm text-gray-500">
-              Don&apos;t have an account?{" "}
-              <Link
-                to="/signup"
-                className="font-bold text-[#7e4ff5] hover:underline"
-              >
-                Sign up
-              </Link>
-            </p>
-          </form>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ErrorBox({ error }) {
+  return (
+    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+      {error}
+    </div>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="my-6 flex items-center gap-4">
+      <div className="h-px flex-1 bg-gray-200" />
+      <span className="text-sm text-gray-600">or</span>
+      <div className="h-px flex-1 bg-gray-200" />
+    </div>
+  );
+}
+
+function SocialButtons() {
+  return (
+    <div className="flex justify-center gap-4">
+      <button
+        type="button"
+        className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 hover:bg-gray-50"
+      >
+        <img
+          src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+          alt="Google"
+          className="h-6 w-6"
+        />
+      </button>
+
+      <button
+        type="button"
+        className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 hover:bg-gray-50"
+      >
+        <Apple size={24} />
+      </button>
     </div>
   );
 }

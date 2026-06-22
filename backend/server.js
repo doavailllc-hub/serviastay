@@ -1241,7 +1241,102 @@ app.get("/api/trip/:id", verifyToken, async (req, res) => {
   }
 });
 /* START */
+app.post("/api/auth/send-otp", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
 
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await query("DELETE FROM servia_otps WHERE email=?", [email]);
+
+    await query(
+      "INSERT INTO servia_otps (email, otp, expires_at) VALUES (?, ?, ?)",
+      [email, otp, expiresAt]
+    );
+
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to: email,
+      subject: "Your Dovail Stay verification code",
+      html: `
+        <h2>Dovail Stay</h2>
+        <p>Your verification code is:</p>
+        <h1>${otp}</h1>
+        <p>This code expires in 10 minutes.</p>
+      `,
+    });
+
+    res.json({ success: true, message: "OTP sent successfully" });
+  } catch (err) {
+    console.log("SEND OTP ERROR:", err.message);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+});
+
+app.post("/api/auth/verify-otp", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const otp = String(req.body.otp || "").trim();
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    const rows = await query(
+      "SELECT * FROM servia_otps WHERE email=? AND otp=? AND expires_at > NOW() LIMIT 1",
+      [email, otp]
+    );
+
+    if (!rows.length) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    let users = await query("SELECT * FROM servia_users WHERE email=? LIMIT 1", [
+      email,
+    ]);
+
+    let user;
+
+    if (!users.length) {
+      const result = await query(
+        "INSERT INTO servia_users (fullname, email, role) VALUES (?, ?, ?)",
+        ["Dovail Guest", email, "guest"]
+      );
+
+      users = await query("SELECT * FROM servia_users WHERE id=? LIMIT 1", [
+        result.insertId,
+      ]);
+    }
+
+    user = users[0];
+
+    await query("DELETE FROM servia_otps WHERE email=?", [email]);
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role || "guest",
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user,
+    });
+  } catch (err) {
+    console.log("VERIFY OTP ERROR:", err.message);
+    res.status(500).json({ message: "OTP verification failed" });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
