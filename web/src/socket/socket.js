@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "https://44.212.49.157:5000";
+const SOCKET_URL = "https://stay.dovail.com";
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,

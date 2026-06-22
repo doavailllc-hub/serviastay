@@ -13,7 +13,7 @@ export default function PropertyCard({ property }) {
         return;
       }
 
-      await axios.post("http://44.212.49.157:5000/api/wishlist", {
+      await axios.post("https://stay.dovail.com/api/wishlist", {
         user_id: user.id,
         property_id: property.id,
       });
