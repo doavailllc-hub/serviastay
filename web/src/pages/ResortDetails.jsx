@@ -22,6 +22,9 @@ import {
   Waves,
   Wifi,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Keyboard,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -439,10 +442,13 @@ function ReservationCard({
       </div>
 
       <div className="overflow-visible rounded-2xl border border-[#b0b0b0] bg-white">
-        <div className="grid grid-cols-2">
-          <DateField label="CHECK-IN" value={checkin} min={today} onChange={setCheckin} />
-          <DateField label="CHECKOUT" value={checkout} min={addDaysISO(checkin, 1)} onChange={setCheckout} borderLeft />
-        </div>
+     <AirbnbDatePicker
+  checkin={checkin}
+  checkout={checkout}
+  setCheckin={setCheckin}
+  setCheckout={setCheckout}
+  today={today}
+/>
 
         <GuestDropdown
           refEl={guestDropdownRef}
@@ -495,7 +501,302 @@ function ReservationCard({
     </div>
   );
 }
+function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today }) {
+  const [open, setOpen] = useState(false);
+  const [selecting, setSelecting] = useState("checkin");
+  const [viewDate, setViewDate] = useState(new Date(`${checkin || today}T00:00:00`));
+  const pickerRef = useRef(null);
 
+  useEffect(() => {
+    const close = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const nights = Math.max(
+    1,
+    Math.round(
+      (new Date(`${checkout}T00:00:00`) - new Date(`${checkin}T00:00:00`)) /
+        MS_PER_DAY
+    )
+  );
+
+  const handleDateClick = (date) => {
+    const iso = toLocalISO(date);
+
+    if (selecting === "checkin") {
+      setCheckin(iso);
+
+      if (!checkout || checkout <= iso) {
+        setCheckout(addDaysISO(iso, 1));
+      }
+
+      setSelecting("checkout");
+      return;
+    }
+
+    if (iso <= checkin) {
+      setCheckin(iso);
+      setCheckout(addDaysISO(iso, 1));
+      setSelecting("checkout");
+      return;
+    }
+
+    setCheckout(iso);
+    setOpen(false);
+    setSelecting("checkin");
+  };
+
+  const clearDates = () => {
+    setCheckin(today);
+    setCheckout(addDaysISO(today, 1));
+    setSelecting("checkin");
+  };
+
+  return (
+    <div ref={pickerRef} className="relative">
+      <div className="grid grid-cols-2 border-b border-[#b0b0b0]">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            setSelecting("checkin");
+          }}
+          className={`px-4 py-3 text-left ${
+            selecting === "checkin" && open ? "rounded-xl ring-2 ring-black" : ""
+          }`}
+        >
+          <span className="block text-[10px] font-black uppercase">Check-in</span>
+          <span className="mt-1 block text-sm font-semibold">
+            {formatCalendarInput(checkin)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            setSelecting("checkout");
+          }}
+          className={`border-l border-[#b0b0b0] px-4 py-3 text-left ${
+            selecting === "checkout" && open ? "rounded-xl ring-2 ring-black" : ""
+          }`}
+        >
+          <span className="block text-[10px] font-black uppercase">Checkout</span>
+          <span className="mt-1 block text-sm font-semibold">
+            {formatCalendarInput(checkout)}
+          </span>
+        </button>
+      </div>
+
+      {open && (
+        <div className="absolute right-[-8px] top-[68px] z-[999] w-[660px] rounded-[22px] border border-gray-200 bg-white p-7 shadow-[0_18px_55px_rgba(0,0,0,0.22)]">
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <h3 className="text-2xl font-bold">{nights} nights</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {formatCalendarHeader(checkin)} - {formatCalendarHeader(checkout)}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <CalendarTopBox
+                label="CHECK-IN"
+                value={formatShortInput(checkin)}
+                active={selecting === "checkin"}
+                onClick={() => setSelecting("checkin")}
+              />
+              <CalendarTopBox
+                label="CHECKOUT"
+                value={formatShortInput(checkout)}
+                active={selecting === "checkout"}
+                onClick={() => setSelecting("checkout")}
+              />
+            </div>
+          </div>
+
+          <div className="mb-5 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() =>
+                setViewDate(
+                  new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)
+                )
+              }
+              className="rounded-full p-2 hover:bg-gray-100"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setViewDate(
+                  new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
+                )
+              }
+              className="rounded-full p-2 hover:bg-gray-100"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-10">
+            <CalendarMonth
+              date={viewDate}
+              checkin={checkin}
+              checkout={checkout}
+              today={today}
+              onDateClick={handleDateClick}
+            />
+
+            <CalendarMonth
+              date={new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)}
+              checkin={checkin}
+              checkout={checkout}
+              today={today}
+              onDateClick={handleDateClick}
+            />
+          </div>
+
+          <div className="mt-7 flex items-center justify-between">
+            <button type="button" className="rounded-lg p-2 hover:bg-gray-100">
+              <Keyboard size={20} />
+            </button>
+
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={clearDates}
+                className="text-sm font-semibold underline"
+              >
+                Clear dates
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-lg bg-[#222] px-6 py-3 text-sm font-bold text-white hover:bg-black"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function CalendarTopBox({ label, value, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-36 rounded-xl border px-4 py-3 text-left ${
+        active ? "border-black ring-1 ring-black" : "border-gray-300"
+      }`}
+    >
+      <span className="block text-[10px] font-black uppercase">{label}</span>
+      <span className="mt-1 block text-sm">{value}</span>
+    </button>
+  );
+}
+
+function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  const monthName = new Intl.DateTimeFormat("en-IN", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+
+  const firstDay = new Date(year, month, 1);
+  const startDay = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const blanks = Array.from({ length: startDay });
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  return (
+    <div>
+      <h4 className="mb-5 text-center font-bold">{monthName}</h4>
+
+      <div className="mb-3 grid grid-cols-7 text-center text-xs font-semibold text-gray-500">
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          <div key={d + i}>{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-y-1 text-center">
+        {blanks.map((_, i) => (
+          <div key={`blank-${i}`} className="h-11" />
+        ))}
+
+        {days.map((day) => {
+          const currentDate = new Date(year, month, day);
+          const iso = toLocalISO(currentDate);
+
+          const disabled = iso < today;
+          const isStart = iso === checkin;
+          const isEnd = iso === checkout;
+          const inRange = iso > checkin && iso < checkout;
+          const isToday = iso === today;
+
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={disabled}
+              onClick={() => onDateClick(currentDate)}
+              className={`relative h-11 text-sm font-semibold transition ${
+                disabled ? "cursor-not-allowed text-gray-300" : "hover:bg-gray-100"
+              } ${inRange ? "bg-gray-100" : ""}`}
+            >
+              <span
+                className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full ${
+                  isStart || isEnd ? "bg-[#222] text-white" : ""
+                } ${isToday && !isStart && !isEnd ? "border border-black" : ""}`}
+              >
+                {day}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}function formatCalendarInput(dateString) {
+  if (!dateString) return "Add date";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${dateString}T00:00:00`));
+}
+
+function formatShortInput(dateString) {
+  if (!dateString) return "Add date";
+
+  const date = new Date(`${dateString}T00:00:00`);
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+}
+
+function formatCalendarHeader(dateString) {
+  if (!dateString) return "Add date";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${dateString}T00:00:00`));
+}
 function DateField({
   label,
   value,
