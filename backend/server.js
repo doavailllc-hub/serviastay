@@ -10,16 +10,17 @@ const http = require("http");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const { Server } = require("socket.io");
+
 require("dotenv").config();
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+
+const app = express();
+const server = http.createServer(app);
+
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
+const API_BASE_URL = process.env.API_BASE_URL || "https://stay.dovail.com";
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -29,6 +30,7 @@ const allowedOrigins = [
   "https://stay.dovail.com",
   process.env.CLIENT_URL,
 ].filter(Boolean);
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -44,9 +46,8 @@ app.use(
   })
 );
 
-const app = express();
-const server = http.createServer(app);
-const { Server } = require("socket.io");
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
 const io = new Server(server, {
   cors: {
@@ -57,6 +58,61 @@ const io = new Server(server, {
 });
 
 const onlineUsers = new Map();
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads", { recursive: true });
+}
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: Number(process.env.DB_PORT || 3306),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
+});
+
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error("DB Connection Failed:", err.message);
+    process.exit(1);
+  }
+
+  connection.release();
+  console.log("Connected to serviadb ✅");
+});
+
+const buildFileUrl = (filename) => `${API_BASE_URL}/uploads/${filename}`;
+
+function query(sql, values = []) {
+  return new Promise((resolve, reject) => {
+    db.query(sql, values, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
 
 io.on("connection", (socket) => {
   socket.on("join", (userId) => {
@@ -157,57 +213,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
-const API_BASE_URL = process.env.API_BASE_URL || "https://stay.dovail.com";
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
-
-
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-
-if (!fs.existsSync("uploads")) {
-  fs.mkdirSync("uploads", { recursive: true });
-}
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT || 3306),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
-});
-db.getConnection((err, connection) => {
-  if (err) {
-    console.error("DB Connection Failed:", err.message);
-    process.exit(1);
-  }
-
-  connection.release();
-  console.log("Connected to serviadb ✅");
-});
-const buildFileUrl = (filename) => `${API_BASE_URL}/uploads/${filename}`;
-
-function query(sql, values = []) {
-  return new Promise((resolve, reject) => {
-    db.query(sql, values, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-}
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -229,6 +234,7 @@ function verifyAdmin(req, res, next) {
   if (req.user?.role !== "admin") {
     return res.status(403).json({ message: "Admin access only" });
   }
+
   next();
 }
 
@@ -261,7 +267,6 @@ app.get("/", (req, res) => {
     message: "Servia Stay API running ✅",
   });
 });
-
 /* AUTH */
 
 app.post("/api/register", async (req, res) => {
