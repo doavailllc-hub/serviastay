@@ -1,27 +1,34 @@
 import { useEffect, useRef, useState } from "react";
-import { Apple, ArrowLeft, X } from "lucide-react";
+import { Apple, ArrowLeft, CheckCircle2, Loader2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
 import logo from "../assets/logo.png";
 
+const BRAND = "#7e4ff5";
+const BRAND_DARK = "#6f43e4";
+
 export default function Login() {
   const navigate = useNavigate();
+  const otpRefs = useRef([]);
 
   const [step, setStep] = useState("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [timer, setTimer] = useState(45);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-  const [timer, setTimer] = useState(30);
 
-  const otpRefs = useRef([]);
+  const cleanEmail = email.trim().toLowerCase();
+  const otpCode = otp.join("");
 
   useEffect(() => {
     if (step !== "otp") return;
 
-    setTimer(30);
+    setTimer(45);
+
     const interval = setInterval(() => {
       setTimer((prev) => {
         if (prev <= 1) {
@@ -36,7 +43,10 @@ export default function Login() {
     return () => clearInterval(interval);
   }, [step]);
 
-  const cleanEmail = email.trim().toLowerCase();
+  const resetMessages = () => {
+    setError("");
+    setSuccess("");
+  };
 
   const sendOtp = async (e) => {
     e?.preventDefault();
@@ -46,16 +56,22 @@ export default function Login() {
       return;
     }
 
+    if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     try {
       setLoading(true);
-      setError("");
+      resetMessages();
 
       await api.post("/auth/send-otp", {
         email: cleanEmail,
       });
 
       setStep("otp");
-      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      setSuccess("Verification code sent.");
+      setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } catch (err) {
       console.log("Send OTP failed:", err);
       setError(err.response?.data?.message || "Failed to send OTP.");
@@ -69,15 +85,16 @@ export default function Login() {
 
     try {
       setResending(true);
-      setError("");
+      resetMessages();
 
       await api.post("/auth/send-otp", {
         email: cleanEmail,
       });
 
       setOtp(["", "", "", "", "", ""]);
-      setTimer(30);
-      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      setTimer(45);
+      setSuccess("New verification code sent.");
+      setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } catch (err) {
       console.log("Resend OTP failed:", err);
       setError(err.response?.data?.message || "Failed to resend OTP.");
@@ -86,9 +103,7 @@ export default function Login() {
     }
   };
 
-  const verifyOtp = async (finalOtp) => {
-    const code = finalOtp || otp.join("");
-
+  const verifyOtp = async (code = otpCode) => {
     if (code.length !== 6) {
       setError("Please enter the 6-digit code.");
       return;
@@ -96,7 +111,7 @@ export default function Login() {
 
     try {
       setLoading(true);
-      setError("");
+      resetMessages();
 
       const res = await api.post("/auth/verify-otp", {
         email: cleanEmail,
@@ -127,11 +142,11 @@ export default function Login() {
 
   const handleOtpChange = (index, value) => {
     const digit = value.replace(/\D/g, "").slice(-1);
-
     const nextOtp = [...otp];
+
     nextOtp[index] = digit;
     setOtp(nextOtp);
-    setError("");
+    resetMessages();
 
     if (digit && index < 5) {
       otpRefs.current[index + 1]?.focus();
@@ -144,8 +159,25 @@ export default function Login() {
   };
 
   const handleOtpKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
+    if (e.key === "Backspace") {
+      if (otp[index]) {
+        const nextOtp = [...otp];
+        nextOtp[index] = "";
+        setOtp(nextOtp);
+        return;
+      }
+
+      if (index > 0) {
+        otpRefs.current[index - 1]?.focus();
+      }
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
       otpRefs.current[index - 1]?.focus();
+    }
+
+    if (e.key === "ArrowRight" && index < 5) {
+      otpRefs.current[index + 1]?.focus();
     }
   };
 
@@ -165,6 +197,7 @@ export default function Login() {
     });
 
     setOtp(nextOtp);
+    resetMessages();
 
     if (pasted.length === 6) {
       verifyOtp(pasted);
@@ -173,16 +206,23 @@ export default function Login() {
     }
   };
 
+  const goBackToEmail = () => {
+    setStep("email");
+    setOtp(["", "", "", "", "", ""]);
+    resetMessages();
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#f7f7f7]">
       <div className="fixed inset-0 bg-black/45" />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4">
-        <div className="relative w-full max-w-[520px] rounded-[32px] bg-white shadow-2xl">
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="relative w-full max-w-[520px] overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.30)]">
           <button
             type="button"
             onClick={() => navigate("/home")}
-            className="absolute right-5 top-5 rounded-full p-2 hover:bg-gray-100"
+            className="absolute right-5 top-5 z-10 rounded-full p-2 transition hover:bg-gray-100"
+            aria-label="Close"
           >
             <X size={20} />
           </button>
@@ -190,60 +230,60 @@ export default function Login() {
           {step === "otp" && (
             <button
               type="button"
-              onClick={() => {
-                setStep("email");
-                setOtp(["", "", "", "", "", ""]);
-                setError("");
-              }}
-              className="absolute left-5 top-5 rounded-full p-2 hover:bg-gray-100"
+              onClick={goBackToEmail}
+              className="absolute left-5 top-5 z-10 rounded-full p-2 transition hover:bg-gray-100"
+              aria-label="Back"
             >
               <ArrowLeft size={20} />
             </button>
           )}
 
-          <div className="px-8 pt-14 text-center">
+          <div className="border-b border-gray-100 px-8 pb-6 pt-14 text-center">
             <img
               src={logo}
               alt="Dovail Stay"
               className="mx-auto h-12 w-auto object-contain"
             />
 
-            <h1 className="mt-6 text-2xl font-bold text-gray-900">
+            <h1 className="mt-6 text-[26px] font-bold tracking-tight text-gray-900">
               {step === "email" ? "Log in or sign up" : "Confirm it’s you"}
             </h1>
 
             {step === "otp" && (
-              <p className="mt-3 text-gray-500">
-                We sent a code to{" "}
-                <span className="font-semibold uppercase text-gray-700">
-                  {cleanEmail}
-                </span>
-                .
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-gray-500">
+                We sent a verification code to{" "}
+                <span className="font-semibold text-gray-800">{cleanEmail}</span>.
               </p>
             )}
           </div>
 
           {step === "email" ? (
             <form onSubmit={sendOtp} className="px-8 pb-8 pt-7">
+              <label className="mb-2 block text-sm font-semibold text-gray-800">
+                Email address
+              </label>
+
               <input
                 type="email"
-                placeholder="Phone number or email"
+                placeholder="Enter your email"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  setError("");
+                  resetMessages();
                 }}
-                className="h-14 w-full rounded-xl border border-gray-400 px-4 text-base outline-none focus:border-black focus:ring-1 focus:ring-black"
+                className="h-14 w-full rounded-xl border border-gray-400 bg-white px-4 text-base outline-none transition focus:border-black focus:ring-1 focus:ring-black"
               />
 
-              {error && <ErrorBox error={error} />}
+              {error && <Alert type="error" message={error} />}
+              {success && <Alert type="success" message={success} />}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-4 h-14 w-full rounded-xl bg-gradient-to-r from-[#7e4ff5] to-[#d62976] font-bold text-white transition hover:opacity-95 disabled:opacity-60"
+                className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#7e4ff5] to-[#d62976] font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
+                {loading && <Loader2 size={18} className="animate-spin" />}
                 {loading ? "Sending code..." : "Continue"}
               </button>
 
@@ -252,35 +292,40 @@ export default function Login() {
               <SocialButtons />
 
               <p className="mt-7 text-center text-xs leading-5 text-gray-500">
-                We’ll email you a one-time code. New users are automatically
-                signed up after verification.
+                New users are automatically signed up after email verification.
+                By continuing, you agree to Dovail Stay&apos;s terms and privacy
+                policy.
               </p>
             </form>
           ) : (
             <div className="px-8 pb-8 pt-7">
               <div
                 onPaste={handlePasteOtp}
-                className="mx-auto flex max-w-[330px] items-center justify-center gap-2 rounded-xl border-2 border-gray-900 px-4 py-4"
+                className="mx-auto flex max-w-[350px] items-center justify-center gap-2 rounded-2xl border-2 border-gray-900 px-4 py-4"
               >
                 {otp.map((digit, index) => (
                   <input
                     key={index}
-                    ref={(el) => (otpRefs.current[index] = el)}
+                    ref={(el) => {
+                      otpRefs.current[index] = el;
+                    }}
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(index, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    className="h-8 w-8 border-none text-center text-xl font-bold outline-none"
+                    className="h-9 w-9 border-none bg-transparent text-center text-xl font-bold outline-none"
+                    aria-label={`OTP digit ${index + 1}`}
                   />
                 ))}
               </div>
 
-              {error && <ErrorBox error={error} />}
+              {error && <Alert type="error" message={error} />}
+              {success && <Alert type="success" message={success} />}
 
               <div className="mt-7 text-center text-sm">
-                <span className="text-gray-600">Didn’t get it? </span>
+                <span className="text-gray-600">Didn&apos;t get it? </span>
                 <button
                   type="button"
                   onClick={resendOtp}
@@ -298,20 +343,17 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => verifyOtp()}
-                disabled={loading}
-                className="mt-8 h-14 w-full rounded-xl bg-[#222] font-bold text-white transition hover:bg-black disabled:opacity-60"
+                disabled={loading || otpCode.length !== 6}
+                className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#222] font-bold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-300"
               >
+                {loading && <Loader2 size={18} className="animate-spin" />}
                 {loading ? "Verifying..." : "Verify and continue"}
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  setStep("email");
-                  setOtp(["", "", "", "", "", ""]);
-                  setError("");
-                }}
-                className="mt-4 h-14 w-full rounded-xl bg-gray-100 font-bold text-gray-800 hover:bg-gray-200"
+                onClick={goBackToEmail}
+                className="mt-4 h-14 w-full rounded-xl bg-gray-100 font-bold text-gray-800 transition hover:bg-gray-200"
               >
                 Try another way
               </button>
@@ -323,10 +365,19 @@ export default function Login() {
   );
 }
 
-function ErrorBox({ error }) {
+function Alert({ type, message }) {
+  const isSuccess = type === "success";
+
   return (
-    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-      {error}
+    <div
+      className={`mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
+        isSuccess
+          ? "border-green-200 bg-green-50 text-green-700"
+          : "border-red-200 bg-red-50 text-red-600"
+      }`}
+    >
+      {isSuccess && <CheckCircle2 size={17} />}
+      {message}
     </div>
   );
 }
@@ -335,7 +386,7 @@ function Divider() {
   return (
     <div className="my-6 flex items-center gap-4">
       <div className="h-px flex-1 bg-gray-200" />
-      <span className="text-sm text-gray-600">or</span>
+      <span className="text-sm text-gray-500">or</span>
       <div className="h-px flex-1 bg-gray-200" />
     </div>
   );
@@ -346,18 +397,20 @@ function SocialButtons() {
     <div className="flex justify-center gap-4">
       <button
         type="button"
-        className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 hover:bg-gray-50"
+        className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 transition hover:bg-gray-50"
+        aria-label="Continue with Google"
       >
         <img
           src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-          alt="Google"
+          alt=""
           className="h-6 w-6"
         />
       </button>
 
       <button
         type="button"
-        className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 hover:bg-gray-50"
+        className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 transition hover:bg-gray-50"
+        aria-label="Continue with Apple"
       >
         <Apple size={24} />
       </button>
