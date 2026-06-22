@@ -496,70 +496,167 @@ function ReservationCard({
   );
 }
 
-function DateField({ label, value, min, onChange, borderLeft = false }) {
+function DateField({
+  label,
+  value,
+  min,
+  onChange,
+  borderLeft = false,
+}) {
   return (
-    <label className={`group block cursor-pointer px-4 py-3 transition hover:bg-gray-50 ${borderLeft ? "border-l border-[#b0b0b0]" : ""}`}>
-      <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#222]">{label}</span>
-      <div className="mt-1 flex items-center gap-2">
-        <CalendarDays size={16} className="shrink-0 text-gray-500" />
-        <input
-          type="date"
-          value={value}
-          min={min}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full cursor-pointer bg-transparent text-sm font-semibold text-[#222] outline-none [color-scheme:light]"
-          aria-label={label}
-        />
-      </div>
-      <p className="mt-1 text-xs text-gray-500">{formatDateLabel(value)}</p>
+    <label
+      className={`block px-4 py-3 hover:bg-gray-50 cursor-pointer ${
+        borderLeft ? "border-l border-gray-300" : ""
+      }`}
+    >
+      <span className="text-[10px] font-bold uppercase">
+        {label}
+      </span>
+
+      <input
+        type="date"
+        value={value}
+        min={min}
+        onChange={(e) => onChange(e.target.value)}
+        className="
+          mt-1
+          w-full
+          bg-transparent
+          text-sm
+          font-semibold
+          outline-none
+          appearance-none
+        "
+      />
     </label>
   );
 }
 
+
 function GuestDropdown({ refEl, open, setOpen, guests, setGuests, maxGuests }) {
-  const canDecrease = guests > 1;
-  const canIncrease = guests < maxGuests;
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+  const [pets, setPets] = useState(0);
+
+  const totalGuests = guests + children;
+
+  const updateGuestTotal = (nextAdults, nextChildren) => {
+    setGuests(Math.max(1, Math.min(maxGuests, nextAdults)));
+    setChildren(Math.max(0, Math.min(maxGuests - nextAdults, nextChildren)));
+  };
 
   return (
     <div ref={refEl} className="relative border-t border-[#b0b0b0]">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
-        aria-expanded={open}
+        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
       >
         <div>
-          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">Guests</span>
+          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
+            Guests
+          </span>
           <span className="mt-1 block text-sm font-semibold">
-            {guests} {guests === 1 ? "guest" : "guests"}
+            {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
+            {infants > 0 ? `, ${infants} infant${infants > 1 ? "s" : ""}` : ""}
+            {pets > 0 ? `, ${pets} pet${pets > 1 ? "s" : ""}` : ""}
           </span>
         </div>
-        <ChevronDown size={20} className={`transition ${open ? "rotate-180" : ""}`} />
+
+        <ChevronDown
+          size={20}
+          className={`transition ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[72px] z-50 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_16px_48px_rgba(0,0,0,0.18)]">
-          <GuestCounter
-            title="Guests"
-            subtitle={`Maximum ${maxGuests} guests`}
+        <div className="absolute left-0 right-0 top-[72px] z-50 rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.20)]">
+          <GuestRow
+            title="Adults"
+            subtitle="Ages 13 or above"
             value={guests}
-            canDecrease={canDecrease}
-            canIncrease={canIncrease}
-            onDecrease={() => setGuests((prev) => Math.max(1, prev - 1))}
-            onIncrease={() => setGuests((prev) => Math.min(maxGuests, prev + 1))}
+            min={1}
+            max={maxGuests - children}
+            onChange={(value) => updateGuestTotal(value, children)}
+          />
+
+          <GuestRow
+            title="Children"
+            subtitle="Ages 2–12"
+            value={children}
+            min={0}
+            max={maxGuests - guests}
+            onChange={(value) => updateGuestTotal(guests, value)}
+          />
+
+          <GuestRow
+            title="Infants"
+            subtitle="Under 2"
+            value={infants}
+            min={0}
+            max={5}
+            onChange={setInfants}
+          />
+
+          <GuestRow
+            title="Pets"
+            subtitle="Bringing a service animal?"
+            value={pets}
+            min={0}
+            max={3}
+            onChange={setPets}
+            last
           />
 
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-white transition"
-            style={{ backgroundColor: BRAND_COLOR }}
+            className="mt-5 w-full rounded-xl bg-[#7e4ff5] py-3 font-bold text-white hover:bg-[#6f43e4]"
           >
-            <Check size={18} />
             Done
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function GuestRow({ title, subtitle, value, min, max, onChange, last }) {
+  const decrease = () => onChange(Math.max(min, value - 1));
+  const increase = () => onChange(Math.min(max, value + 1));
+
+  return (
+    <div
+      className={`flex items-center justify-between py-4 ${
+        last ? "" : "border-b border-gray-200"
+      }`}
+    >
+      <div>
+        <p className="font-semibold text-gray-900">{title}</p>
+        <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={decrease}
+          disabled={value <= min}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Minus size={16} />
+        </button>
+
+        <span className="w-5 text-center font-semibold">{value}</span>
+
+        <button
+          type="button"
+          onClick={increase}
+          disabled={value >= max}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
     </div>
   );
 }
