@@ -1,19 +1,58 @@
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../api/api";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
+
+function getImageUrl(property) {
+  const image =
+    property?.image ||
+    property?.image_url ||
+    property?.cover_image ||
+    property?.thumbnail ||
+    "";
+
+  if (!image) return FALLBACK_IMAGE;
+
+  if (image.startsWith("https://")) return image;
+
+  if (image.startsWith("http://44.212.49.157:5000")) {
+    return image.replace("http://44.212.49.157:5000", "https://stay.dovail.com");
+  }
+
+  if (image.startsWith("https://44.212.49.157:5000")) {
+    return image.replace("https://44.212.49.157:5000", "https://stay.dovail.com");
+  }
+
+  if (image.startsWith("/uploads/")) {
+    return `https://stay.dovail.com${image}`;
+  }
+
+  if (image.startsWith("uploads/")) {
+    return `https://stay.dovail.com/${image}`;
+  }
+
+  return image;
+}
 
 export default function PropertyCard({ property }) {
+  const imageUrl = getImageUrl(property);
+
   const addToWishlist = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
 
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
+      const user =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
 
       if (!user) {
         alert("Please login first");
         return;
       }
 
-      await axios.post("https://stay.dovail.com/api/wishlist", {
+      await api.post("/wishlist", {
         user_id: user.id,
         property_id: property.id,
       });
@@ -21,7 +60,7 @@ export default function PropertyCard({ property }) {
       alert("Added to wishlist ❤️");
     } catch (err) {
       console.log(err);
-      alert("Already added or failed");
+      alert(err?.response?.data?.message || "Already added or failed");
     }
   };
 
@@ -33,37 +72,42 @@ export default function PropertyCard({ property }) {
       <div className="group cursor-pointer">
         <div className="relative aspect-square overflow-hidden rounded-3xl bg-gray-100">
           <img
-            src={property.image}
-            alt={property.title}
-            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+            src={imageUrl}
+            alt={property.title || "Stay"}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.src = FALLBACK_IMAGE;
+            }}
           />
 
           <button
+            type="button"
             onClick={addToWishlist}
-            className="absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-md text-xl hover:scale-110 transition"
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xl shadow-md transition hover:scale-110"
           >
             ♡
           </button>
         </div>
 
         <div className="pt-3">
-          <div className="flex items-start justify-between">
-            <h3 className="text-[16px] font-semibold text-[#222] line-clamp-1">
-              {property.title}
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="line-clamp-1 text-[16px] font-semibold text-[#222]">
+              {property.title || "Untitled stay"}
             </h3>
 
-            <span className="text-sm font-medium whitespace-nowrap">
-              ⭐ {property.rating}
+            <span className="whitespace-nowrap text-sm font-medium">
+              ⭐ {property.rating || "5.0"}
             </span>
           </div>
 
-          <p className="mt-1 text-sm text-[#717171] line-clamp-1">
-            {property.location}
+          <p className="mt-1 line-clamp-1 text-sm text-[#717171]">
+            {property.location || "Location not specified"}
           </p>
 
           <p className="mt-2 text-[15px]">
             <span className="font-bold">
-              ₹{Number(property.price).toLocaleString("en-IN")}
+              ₹{Number(property.price || 0).toLocaleString("en-IN")}
             </span>
             <span className="text-[#717171]"> / night</span>
           </p>
