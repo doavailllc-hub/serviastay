@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AirVent,
@@ -7,131 +7,152 @@ import {
   Check,
   ChevronDown,
   Heart,
+  Images,
   Lock,
   MapPin,
   MessageCircle,
   Minus,
   Plus,
   Share,
+  ShieldCheck,
+  Sparkles,
   Star,
   Tv,
   Utensils,
   Waves,
   Wifi,
   X,
-  Images,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const fallbackImage =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
+const BRAND_COLOR = "#7e4ff5";
+const BRAND_HOVER = "#6f43e4";
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=85";
 
-const todayISO = () => {
-  const date = new Date();
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().split("T")[0];
-};
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-const addDaysISO = (dateString, days) => {
-  const date = new Date(dateString);
+function toLocalISO(date = new Date()) {
+  const local = new Date(date);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+  return local.toISOString().slice(0, 10);
+}
+
+function addDaysISO(dateString, days) {
+  const date = dateString ? new Date(`${dateString}T00:00:00`) : new Date();
   date.setDate(date.getDate() + days);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().split("T")[0];
-};
+  return toLocalISO(date);
+}
 
-const formatDateLabel = (dateString) => {
+function formatDateLabel(dateString) {
   if (!dateString) return "Add date";
 
   return new Intl.DateTimeFormat("en-IN", {
+    weekday: "short",
     day: "2-digit",
     month: "short",
-    year: "numeric",
-  }).format(new Date(dateString));
-};
+  }).format(new Date(`${dateString}T00:00:00`));
+}
 
-const formatINR = (amount) =>
-  `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+function formatINR(amount) {
+  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+}
+
+function safeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function getStoredUser() {
+  try {
+    const user =
+      JSON.parse(localStorage.getItem("user") || "null") ||
+      JSON.parse(sessionStorage.getItem("user") || "null");
+
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+    return user && token ? user : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function ResortDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const today = useMemo(() => todayISO(), []);
-  const tomorrow = useMemo(() => addDaysISO(today, 1), [today]);
-
   const guestDropdownRef = useRef(null);
+
+  const today = useMemo(() => toLocalISO(), []);
+  const tomorrow = useMemo(() => addDaysISO(today, 1), [today]);
 
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [error, setError] = useState("");
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [guestDropdownOpen, setGuestDropdownOpen] = useState(false);
 
   const [checkin, setCheckin] = useState(today);
   const [checkout, setCheckout] = useState(tomorrow);
   const [guests, setGuests] = useState(1);
 
-  useEffect(() => {
-    loadProperty();
+  const loadProperty = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const { data } = await api.get(`/properties/${id}`);
+      setProperty(data);
+    } catch (err) {
+      console.error("Property load failed:", err);
+      setError(err?.response?.data?.message || "This stay could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
   useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (
-        guestDropdownRef.current &&
-        !guestDropdownRef.current.contains(event.target)
-      ) {
+    loadProperty();
+  }, [loadProperty]);
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (guestDropdownRef.current && !guestDropdownRef.current.contains(event.target)) {
         setGuestDropdownOpen(false);
       }
-    };
+    }
 
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   useEffect(() => {
-    if (checkout <= checkin) {
+    if (!checkin) return;
+    if (!checkout || checkout <= checkin) {
       setCheckout(addDaysISO(checkin, 1));
     }
   }, [checkin, checkout]);
 
-  const loadProperty = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/properties/${id}`);
-      setProperty(res.data);
-    } catch (err) {
-      console.log("Property load failed:", err);
-      alert("Property failed to load");
-      navigate("/");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const galleryImages = useMemo(() => {
-    if (!property) return [fallbackImage];
-
     const images = [
-      property.image,
-      ...(property.images || []).map((item) => item.image_url),
+      property?.image,
+      ...(property?.images || []).map((item) => item?.image_url || item?.url || item),
     ].filter(Boolean);
 
     const uniqueImages = [...new Set(images)];
-
-    return uniqueImages.length ? uniqueImages : [fallbackImage];
+    return uniqueImages.length ? uniqueImages : [FALLBACK_IMAGE];
   }, [property]);
 
-  const price = Number(property?.price || 0);
-  const maxGuests = Number(property?.guests || 10);
+  const price = safeNumber(property?.price, 0);
+  const rating = property?.rating || "5.0";
+  const maxGuests = Math.max(1, safeNumber(property?.guests, 10));
 
   const nights = useMemo(() => {
-    const start = new Date(checkin);
-    const end = new Date(checkout);
-    const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    const start = new Date(`${checkin}T00:00:00`);
+    const end = new Date(`${checkout}T00:00:00`);
+    const diff = Math.round((end - start) / MS_PER_DAY);
     return diff > 0 ? diff : 1;
   }, [checkin, checkout]);
 
@@ -139,75 +160,58 @@ export default function ResortDetails() {
   const serviceFee = Math.round(subtotal * 0.05);
   const taxes = Math.round(subtotal * 0.12);
   const total = subtotal + serviceFee + taxes;
-
   const dateError = !checkin || !checkout || checkout <= checkin;
 
-  const isLoggedIn = () => {
-    try {
-      const user =
-        JSON.parse(localStorage.getItem("user") || "null") ||
-        JSON.parse(sessionStorage.getItem("user") || "null");
-
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      return Boolean(user && token);
-    } catch {
-      return false;
-    }
-  };
+  const openLoginModal = () => setLoginModalOpen(true);
 
   const handleReserve = () => {
-    if (dateError) {
-      alert("Please select valid check-in and checkout dates.");
-      return;
-    }
+    if (dateError) return;
 
-    if (!isLoggedIn()) {
-      setLoginModalOpen(true);
+    if (!getStoredUser()) {
+      openLoginModal();
       return;
     }
 
     navigate("/checkout", {
       state: {
         property,
-        guests,
-        nights,
         checkin,
         checkout,
+        guests,
+        nights,
+        subtotal,
+        serviceFee,
+        taxes,
+        total,
       },
     });
   };
 
   const handleMessageHost = () => {
-    if (!isLoggedIn()) {
-      setLoginModalOpen(true);
+    if (!getStoredUser()) {
+      openLoginModal();
       return;
     }
 
-    navigate("/messages");
+    navigate("/messages", { state: { property } });
   };
 
   const handleWishlist = async () => {
-    if (!isLoggedIn()) {
-      setLoginModalOpen(true);
+    const user = getStoredUser();
+    if (!user) {
+      openLoginModal();
       return;
     }
 
     try {
-      const user =
-        JSON.parse(localStorage.getItem("user") || "null") ||
-        JSON.parse(sessionStorage.getItem("user") || "null");
-
       await api.post("/wishlist", {
         user_id: user.id,
         property_id: property.id,
       });
-
       alert("Added to wishlist");
     } catch (err) {
-      console.log("Wishlist failed:", err);
-      alert(err.response?.data?.message || "Wishlist failed");
+      console.error("Wishlist failed:", err);
+      alert(err?.response?.data?.message || "Wishlist failed");
     }
   };
 
@@ -227,17 +231,29 @@ export default function ResortDetails() {
       await navigator.clipboard.writeText(url);
       alert("Link copied");
     } catch (err) {
-      console.log("Share failed:", err);
+      console.error("Share failed:", err);
     }
   };
 
-  if (loading) {
+  if (loading) return <ReservePageSkeleton />;
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white text-[#222]">
         <Navbar />
-        <main className="mx-auto max-w-7xl px-4 py-20 md:px-8">
-          <div className="h-8 w-64 animate-pulse rounded-xl bg-gray-100" />
-          <div className="mt-8 h-[430px] animate-pulse rounded-[28px] bg-gray-100" />
+        <main className="mx-auto flex min-h-[60vh] max-w-7xl items-center justify-center px-4 md:px-8">
+          <div className="max-w-md rounded-[28px] border border-gray-200 p-8 text-center shadow-sm">
+            <h1 className="text-2xl font-bold">Stay not available</h1>
+            <p className="mt-3 text-gray-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="mt-6 rounded-xl px-6 py-3 font-bold text-white"
+              style={{ backgroundColor: BRAND_COLOR }}
+            >
+              Back to home
+            </button>
+          </div>
         </main>
       </div>
     );
@@ -245,104 +261,81 @@ export default function ResortDetails() {
 
   if (!property) return null;
 
+  const city = String(property.location || "this location").split(",")[0];
+
   return (
     <div className="min-h-screen bg-white text-[#222]">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <main className="mx-auto max-w-7xl px-4 pb-14 pt-6 md:px-8 lg:pt-8">
+        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            <h1 className="max-w-4xl text-2xl font-semibold tracking-tight md:text-[32px] md:leading-tight">
               {property.title}
             </h1>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-              <Star size={16} fill="black" />
-              <span className="font-semibold">{property.rating || "5.0"}</span>
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className="inline-flex items-center gap-1 font-semibold">
+                <Star size={15} fill="currentColor" />
+                {rating}
+              </span>
               <span>·</span>
-              <span className="font-semibold underline">Guest favorite</span>
+              <button type="button" className="font-semibold underline underline-offset-2">
+                Guest favorite
+              </button>
               <span>·</span>
-              <span className="flex items-center gap-1 text-gray-600">
+              <span className="inline-flex items-center gap-1 text-gray-700">
                 <MapPin size={15} />
-                {property.location}
+                {property.location || "Location not specified"}
               </span>
             </div>
           </div>
 
-          <div className="flex gap-2 text-sm font-semibold">
-            <button
-              type="button"
-              onClick={shareProperty}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 hover:bg-gray-100"
-            >
-              <Share size={16} />
-              Share
-            </button>
-
-            <button
-              type="button"
-              onClick={handleWishlist}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 hover:bg-gray-100"
-            >
-              <Heart size={16} />
-              Save
-            </button>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ActionButton icon={<Share size={16} />} label="Share" onClick={shareProperty} />
+            <ActionButton icon={<Heart size={16} />} label="Save" onClick={handleWishlist} />
           </div>
-        </div>
+        </header>
 
-        <PropertyGallery
-          images={galleryImages}
-          title={property.title}
-          onShowAll={() => setGalleryOpen(true)}
-        />
+        <PropertyGallery images={galleryImages} title={property.title} onShowAll={() => setGalleryOpen(true)} />
 
-        <section className="mt-10 grid gap-12 lg:grid-cols-[1fr_390px]">
-          <div>
-            <div className="border-b pb-8">
-              <h2 className="text-2xl font-bold">
-                Entire place in {String(property.location || "").split(",")[0]}
-              </h2>
-
+        <section className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-16">
+          <article className="min-w-0">
+            <section className="border-b border-gray-200 pb-7">
+              <h2 className="text-[22px] font-semibold md:text-2xl">Entire place in {city}</h2>
               <p className="mt-2 text-gray-600">
-                {property.guests || 1} guests · {property.bedrooms || 1} bedroom
-                · {property.bathrooms || 1} bath
+                {maxGuests} guests · {property.bedrooms || 1} bedroom{Number(property.bedrooms || 1) > 1 ? "s" : ""} · {property.bathrooms || 1} bath{Number(property.bathrooms || 1) > 1 ? "s" : ""}
               </p>
-            </div>
+            </section>
 
-            <div className="space-y-6 border-b py-8">
+            <section className="space-y-7 border-b border-gray-200 py-8">
               <Feature
-                icon="🏆"
+                icon={<Sparkles size={24} />}
                 title="Guest favorite"
-                text="One of the most loved homes based on ratings, reviews, and reliability."
+                text="A highly loved stay with reliable service, clean spaces, and a smooth check-in experience."
               />
-
               <Feature
-                icon="🧾"
-                title="Free cancellation"
-                text="Cancel before check-in according to the host cancellation policy."
+                icon={<CalendarDays size={24} />}
+                title="Today’s date is selected"
+                text={`Check-in starts from ${formatDateLabel(today)}. Checkout is automatically set to the next day.`}
               />
-
               <Feature
-                icon="🔐"
-                title="Secure booking"
-                text="Your booking is protected by Dovail Stay secure reservation system."
+                icon={<ShieldCheck size={24} />}
+                title="Secure reservation"
+                text="Your reservation continues to checkout only after login, keeping booking details protected."
               />
-            </div>
+            </section>
 
-            <div className="border-b py-8">
-              <h2 className="mb-4 text-2xl font-bold">About this place</h2>
-
-              <p className="max-w-3xl whitespace-pre-line leading-8 text-gray-700">
-                {property.description}
+            <section className="border-b border-gray-200 py-8">
+              <h2 className="mb-4 text-[22px] font-semibold md:text-2xl">About this place</h2>
+              <p className="max-w-3xl whitespace-pre-line text-[16px] leading-8 text-gray-700">
+                {property.description || "A comfortable, professionally managed stay with essential amenities and a smooth booking experience."}
               </p>
-            </div>
+            </section>
 
-            <div className="border-b py-8">
-              <h2 className="mb-6 text-2xl font-bold">
-                What this place offers
-              </h2>
-
-              <div className="grid gap-5 md:grid-cols-2">
+            <section className="border-b border-gray-200 py-8">
+              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">What this place offers</h2>
+              <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
                 <Amenity icon={<Wifi />} text="Wifi" />
                 <Amenity icon={<Car />} text="Free parking" />
                 <Amenity icon={<Utensils />} text="Kitchen" />
@@ -350,123 +343,53 @@ export default function ResortDetails() {
                 <Amenity icon={<AirVent />} text="Air conditioning" />
                 <Amenity icon={<Tv />} text="TV" />
               </div>
-            </div>
+            </section>
 
-            <div className="border-b py-8">
-              <h2 className="mb-6 text-2xl font-bold">Where you'll be</h2>
-
-              <div className="flex h-80 items-center justify-center rounded-3xl bg-[#F4F1FF]">
-                <div className="text-center">
-                  <MapPin size={42} className="mx-auto mb-3 text-[#8363F5]" />
-                  <h3 className="text-xl font-bold">{property.location}</h3>
-                  <p className="mt-2 text-gray-500">
-                    Google Maps integration can be added here.
-                  </p>
+            <section className="py-8">
+              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">Where you’ll be</h2>
+              <div className="flex h-80 items-center justify-center rounded-[28px] border border-[#e8e2ff] bg-gradient-to-br from-[#f7f4ff] to-white">
+                <div className="px-6 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
+                    <MapPin size={34} style={{ color: BRAND_COLOR }} />
+                  </div>
+                  <h3 className="text-xl font-semibold">{property.location || "Location"}</h3>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">Map integration can be connected here when your backend has latitude and longitude.</p>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
+          </article>
 
-          <aside>
-            <div className="sticky top-24 rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_6px_24px_rgba(0,0,0,0.14)]">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <span className="text-2xl font-bold">{formatINR(price)}</span>
-                  <span className="text-gray-500"> / night</span>
-                </div>
-
-                <span className="flex items-center gap-1 text-sm font-semibold">
-                  <Star size={14} fill="black" />
-                  {property.rating || "5.0"}
-                </span>
-              </div>
-
-              <div className="rounded-2xl border border-[#b0b0b0] bg-white">
-                <div className="grid grid-cols-2">
-                  <DateField
-                    label="CHECK-IN"
-                    value={checkin}
-                    min={today}
-                    onChange={(value) => setCheckin(value)}
-                  />
-
-                  <DateField
-                    label="CHECKOUT"
-                    value={checkout}
-                    min={addDaysISO(checkin, 1)}
-                    onChange={(value) => setCheckout(value)}
-                    borderLeft
-                  />
-                </div>
-
-                <GuestDropdown
-                  refEl={guestDropdownRef}
-                  open={guestDropdownOpen}
-                  setOpen={setGuestDropdownOpen}
-                  guests={guests}
-                  setGuests={setGuests}
-                  maxGuests={maxGuests}
-                />
-              </div>
-
-              {dateError && (
-                <p className="mt-3 text-sm font-semibold text-red-600">
-                  Checkout date must be after check-in date.
-                </p>
-              )}
-
-              <button
-                type="button"
-                onClick={handleReserve}
-                disabled={dateError}
-                className="mt-5 h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-                Reserve
-              </button>
-
-              <button
-                type="button"
-                onClick={handleMessageHost}
-                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
-              >
-                <MessageCircle size={18} />
-                Message Host
-              </button>
-
-              <p className="mt-4 text-center text-sm text-gray-500">
-                You won’t be charged yet
-              </p>
-
-              <div className="mt-6 space-y-3 text-sm">
-                <PriceRow
-                  label={`${formatINR(price)} x ${nights} ${
-                    nights === 1 ? "night" : "nights"
-                  }`}
-                  value={formatINR(subtotal)}
-                />
-
-                <PriceRow label="Service fee" value={formatINR(serviceFee)} />
-                <PriceRow label="Taxes" value={formatINR(taxes)} />
-
-                <div className="flex justify-between border-t pt-4 text-base font-bold">
-                  <span>Total before payment</span>
-                  <span>{formatINR(total)}</span>
-                </div>
-              </div>
-            </div>
+          <aside className="lg:pt-1">
+            <ReservationCard
+              price={price}
+              rating={rating}
+              today={today}
+              checkin={checkin}
+              checkout={checkout}
+              setCheckin={setCheckin}
+              setCheckout={setCheckout}
+              guests={guests}
+              setGuests={setGuests}
+              maxGuests={maxGuests}
+              nights={nights}
+              subtotal={subtotal}
+              serviceFee={serviceFee}
+              taxes={taxes}
+              total={total}
+              dateError={dateError}
+              guestDropdownRef={guestDropdownRef}
+              guestDropdownOpen={guestDropdownOpen}
+              setGuestDropdownOpen={setGuestDropdownOpen}
+              onReserve={handleReserve}
+              onMessageHost={handleMessageHost}
+            />
           </aside>
         </section>
       </main>
 
       <Footer />
 
-      {galleryOpen && (
-        <GalleryModal
-          images={galleryImages}
-          title={property.title}
-          onClose={() => setGalleryOpen(false)}
-        />
-      )}
+      {galleryOpen && <GalleryModal images={galleryImages} title={property.title} onClose={() => setGalleryOpen(false)} />}
 
       {loginModalOpen && (
         <LoginRequiredModal
@@ -479,103 +402,158 @@ export default function ResortDetails() {
   );
 }
 
-function DateField({ label, value, min, onChange, borderLeft }) {
+function ReservationCard({
+  price,
+  rating,
+  today,
+  checkin,
+  checkout,
+  setCheckin,
+  setCheckout,
+  guests,
+  setGuests,
+  maxGuests,
+  nights,
+  subtotal,
+  serviceFee,
+  taxes,
+  total,
+  dateError,
+  guestDropdownRef,
+  guestDropdownOpen,
+  setGuestDropdownOpen,
+  onReserve,
+  onMessageHost,
+}) {
   return (
-    <label
-      className={`group block cursor-pointer px-4 py-3 hover:bg-gray-50 ${
-        borderLeft ? "border-l border-[#b0b0b0]" : ""
-      }`}
-    >
-      <span className="block text-[10px] font-black uppercase tracking-wide">
-        {label}
-      </span>
+    <div className="sticky top-24 rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] md:p-6">
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <span className="text-[22px] font-semibold">{formatINR(price)}</span>
+          <span className="text-gray-500"> night</span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-sm font-semibold">
+          <Star size={14} fill="currentColor" />
+          {rating}
+        </span>
+      </div>
 
+      <div className="overflow-visible rounded-2xl border border-[#b0b0b0] bg-white">
+        <div className="grid grid-cols-2">
+          <DateField label="CHECK-IN" value={checkin} min={today} onChange={setCheckin} />
+          <DateField label="CHECKOUT" value={checkout} min={addDaysISO(checkin, 1)} onChange={setCheckout} borderLeft />
+        </div>
+
+        <GuestDropdown
+          refEl={guestDropdownRef}
+          open={guestDropdownOpen}
+          setOpen={setGuestDropdownOpen}
+          guests={guests}
+          setGuests={setGuests}
+          maxGuests={maxGuests}
+        />
+      </div>
+
+      {dateError && <p className="mt-3 text-sm font-semibold text-red-600">Checkout date must be after check-in.</p>}
+
+      <button
+        type="button"
+        onClick={onReserve}
+        disabled={dateError}
+        className="mt-5 h-14 w-full rounded-xl text-base font-bold text-white shadow-lg transition disabled:cursor-not-allowed disabled:bg-gray-300"
+        style={{ backgroundColor: dateError ? undefined : BRAND_COLOR }}
+        onMouseEnter={(e) => {
+          if (!dateError) e.currentTarget.style.backgroundColor = BRAND_HOVER;
+        }}
+        onMouseLeave={(e) => {
+          if (!dateError) e.currentTarget.style.backgroundColor = BRAND_COLOR;
+        }}
+      >
+        Reserve
+      </button>
+
+      <button
+        type="button"
+        onClick={onMessageHost}
+        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold transition hover:bg-gray-50"
+      >
+        <MessageCircle size={18} />
+        Message Host
+      </button>
+
+      <p className="mt-4 text-center text-sm text-gray-500">You won’t be charged yet</p>
+
+      <div className="mt-6 space-y-3 text-sm">
+        <PriceRow label={`${formatINR(price)} × ${nights} ${nights === 1 ? "night" : "nights"}`} value={formatINR(subtotal)} />
+        <PriceRow label="Service fee" value={formatINR(serviceFee)} />
+        <PriceRow label="Taxes" value={formatINR(taxes)} />
+        <div className="flex items-center justify-between border-t border-gray-200 pt-4 text-base font-bold">
+          <span>Total before payment</span>
+          <span>{formatINR(total)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DateField({ label, value, min, onChange, borderLeft = false }) {
+  return (
+    <label className={`group block cursor-pointer px-4 py-3 transition hover:bg-gray-50 ${borderLeft ? "border-l border-[#b0b0b0]" : ""}`}>
+      <span className="block text-[10px] font-black uppercase tracking-[0.08em] text-[#222]">{label}</span>
       <div className="mt-1 flex items-center gap-2">
-        <CalendarDays size={16} className="text-gray-600" />
-
+        <CalendarDays size={16} className="shrink-0 text-gray-500" />
         <input
           type="date"
           value={value}
           min={min}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full cursor-pointer bg-transparent text-sm font-semibold outline-none"
+          className="w-full cursor-pointer bg-transparent text-sm font-semibold text-[#222] outline-none [color-scheme:light]"
+          aria-label={label}
         />
       </div>
-
       <p className="mt-1 text-xs text-gray-500">{formatDateLabel(value)}</p>
     </label>
   );
 }
 
-function GuestDropdown({
-  refEl,
-  open,
-  setOpen,
-  guests,
-  setGuests,
-  maxGuests,
-}) {
-  const decreaseGuests = () => setGuests((prev) => Math.max(1, prev - 1));
-  const increaseGuests = () =>
-    setGuests((prev) => Math.min(Number(maxGuests || 10), prev + 1));
+function GuestDropdown({ refEl, open, setOpen, guests, setGuests, maxGuests }) {
+  const canDecrease = guests > 1;
+  const canIncrease = guests < maxGuests;
 
   return (
     <div ref={refEl} className="relative border-t border-[#b0b0b0]">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
+        aria-expanded={open}
       >
         <div>
-          <span className="block text-[10px] font-black uppercase tracking-wide">
-            Guests
-          </span>
+          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">Guests</span>
           <span className="mt-1 block text-sm font-semibold">
             {guests} {guests === 1 ? "guest" : "guests"}
           </span>
         </div>
-
-        <ChevronDown
-          size={20}
-          className={`transition ${open ? "rotate-180" : ""}`}
-        />
+        <ChevronDown size={20} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[72px] z-50 rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-bold">Guests</p>
-              <p className="text-sm text-gray-500">Ages 13 or above</p>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={decreaseGuests}
-                disabled={guests <= 1}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <Minus size={16} />
-              </button>
-
-              <span className="w-5 text-center font-semibold">{guests}</span>
-
-              <button
-                type="button"
-                onClick={increaseGuests}
-                disabled={guests >= Number(maxGuests || 10)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          </div>
+        <div className="absolute left-0 right-0 top-[72px] z-50 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_16px_48px_rgba(0,0,0,0.18)]">
+          <GuestCounter
+            title="Guests"
+            subtitle={`Maximum ${maxGuests} guests`}
+            value={guests}
+            canDecrease={canDecrease}
+            canIncrease={canIncrease}
+            onDecrease={() => setGuests((prev) => Math.max(1, prev - 1))}
+            onIncrease={() => setGuests((prev) => Math.min(maxGuests, prev + 1))}
+          />
 
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#8363F5] py-3 font-bold text-white hover:bg-[#7152E8]"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-white transition"
+            style={{ backgroundColor: BRAND_COLOR }}
           >
             <Check size={18} />
             Done
@@ -586,53 +564,58 @@ function GuestDropdown({
   );
 }
 
+function GuestCounter({ title, subtitle, value, canDecrease, canIncrease, onDecrease, onIncrease }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="font-semibold">{title}</p>
+        <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <CounterButton label="Decrease guests" disabled={!canDecrease} onClick={onDecrease} icon={<Minus size={16} />} />
+        <span className="w-5 text-center font-semibold">{value}</span>
+        <CounterButton label="Increase guests" disabled={!canIncrease} onClick={onIncrease} icon={<Plus size={16} />} />
+      </div>
+    </div>
+  );
+}
+
+function CounterButton({ label, disabled, onClick, icon }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-gray-300"
+    >
+      {icon}
+    </button>
+  );
+}
+
 function PropertyGallery({ images, title, onShowAll }) {
-  const photos = images.length ? images : [fallbackImage];
+  const photos = images.length ? images : [FALLBACK_IMAGE];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px]">
-      <div className="grid h-[430px] grid-cols-1 gap-2 md:grid-cols-4">
-        <button
-          type="button"
-          onClick={onShowAll}
-          className="group col-span-1 overflow-hidden md:col-span-2 md:row-span-2"
-        >
-          <img
-            src={photos[0]}
-            alt={title}
-            className="h-full w-full object-cover transition duration-300 group-hover:brightness-90"
-          />
-        </button>
+    <div className="relative overflow-hidden rounded-[24px] md:rounded-[28px]">
+      <div className="grid h-[320px] grid-cols-1 gap-2 md:h-[430px] md:grid-cols-4">
+        <GalleryImage src={photos[0]} alt={title} onClick={onShowAll} className="md:col-span-2 md:row-span-2" />
 
         {photos.slice(1, 5).map((src, index) => (
-          <button
-            type="button"
-            key={src + index}
-            onClick={onShowAll}
-            className="group hidden overflow-hidden md:block"
-          >
-            <img
-              src={src}
-              alt={`${title} ${index + 2}`}
-              className="h-full w-full object-cover transition duration-300 group-hover:brightness-90"
-            />
-          </button>
+          <GalleryImage key={`${src}-${index}`} src={src} alt={`${title} ${index + 2}`} onClick={onShowAll} className="hidden md:block" />
         ))}
 
-        {Array.from({ length: Math.max(0, 5 - photos.length) }).map(
-          (_, index) => (
-            <div
-              key={`placeholder-${index}`}
-              className="hidden bg-gray-100 md:block"
-            />
-          )
-        )}
+        {Array.from({ length: Math.max(0, 5 - photos.length) }).map((_, index) => (
+          <div key={`placeholder-${index}`} className="hidden bg-gray-100 md:block" />
+        ))}
       </div>
 
       <button
         type="button"
         onClick={onShowAll}
-        className="absolute bottom-5 right-5 flex items-center gap-2 rounded-xl border border-black bg-white px-5 py-3 text-sm font-bold shadow-lg hover:bg-gray-100"
+        className="absolute bottom-4 right-4 flex items-center gap-2 rounded-xl border border-black bg-white px-4 py-2.5 text-sm font-bold shadow-lg transition hover:bg-gray-100 md:bottom-5 md:right-5"
       >
         <Images size={18} />
         Show all photos
@@ -641,16 +624,37 @@ function PropertyGallery({ images, title, onShowAll }) {
   );
 }
 
+function GalleryImage({ src, alt, onClick, className = "" }) {
+  return (
+    <button type="button" onClick={onClick} className={`group overflow-hidden bg-gray-100 ${className}`}>
+      <img src={src} alt={alt} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:brightness-90" loading="lazy" />
+    </button>
+  );
+}
+
 function GalleryModal({ images, title, onClose }) {
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-[99999] overflow-y-auto bg-white">
-      <div className="sticky top-0 z-10 flex h-20 items-center justify-between border-b bg-white px-6">
-        <button onClick={onClose} className="rounded-full p-3 hover:bg-gray-100">
+      <div className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-4 md:px-6">
+        <button type="button" onClick={onClose} className="rounded-full p-3 transition hover:bg-gray-100" aria-label="Close gallery">
           <X size={22} />
         </button>
-
-        <h2 className="text-lg font-bold">{title}</h2>
-
+        <h2 className="truncate px-4 text-center text-lg font-bold">{title}</h2>
         <div className="w-10" />
       </div>
 
@@ -658,12 +662,11 @@ function GalleryModal({ images, title, onClose }) {
         <div className="grid gap-4 md:grid-cols-2">
           {images.map((src, index) => (
             <img
-              key={src + index}
+              key={`${src}-${index}`}
               src={src}
               alt={`${title} ${index + 1}`}
-              className={`w-full rounded-2xl object-cover ${
-                index === 0 ? "md:col-span-2 max-h-[650px]" : "h-[360px]"
-              }`}
+              className={`w-full rounded-2xl object-cover ${index === 0 ? "max-h-[650px] md:col-span-2" : "h-[320px] md:h-[360px]"}`}
+              loading="lazy"
             />
           ))}
         </div>
@@ -674,51 +677,27 @@ function GalleryModal({ images, title, onClose }) {
 
 function LoginRequiredModal({ onClose, onLogin, onSignup }) {
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-5 top-5 rounded-full p-2 hover:bg-gray-100"
-        >
+        <button type="button" onClick={onClose} className="absolute right-5 top-5 rounded-full p-2 transition hover:bg-gray-100" aria-label="Close login modal">
           <X size={20} />
         </button>
 
-        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff]" style={{ color: BRAND_COLOR }}>
           <Lock size={26} />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900">
-          Log in to continue
-        </h2>
-
-        <p className="mt-3 leading-6 text-gray-500">
-          Please log in or create an account to reserve this stay, message the
-          host, or save it to your wishlist.
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">Log in to continue</h2>
+        <p className="mt-3 leading-6 text-gray-500">Please log in or create an account to reserve this stay, message the host, or save it to your wishlist.</p>
 
         <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={onLogin}
-            className="h-12 w-full rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8]"
-          >
+          <button type="button" onClick={onLogin} className="h-12 w-full rounded-xl font-semibold text-white transition" style={{ backgroundColor: BRAND_COLOR }}>
             Log in
           </button>
-
-          <button
-            type="button"
-            onClick={onSignup}
-            className="h-12 w-full rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
-          >
+          <button type="button" onClick={onSignup} className="h-12 w-full rounded-xl border border-gray-300 font-semibold transition hover:bg-gray-50">
             Create account
           </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-12 w-full rounded-xl text-gray-500 hover:bg-gray-50"
-          >
+          <button type="button" onClick={onClose} className="h-12 w-full rounded-xl text-gray-500 transition hover:bg-gray-50">
             Continue browsing
           </button>
         </div>
@@ -730,10 +709,9 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
 function Feature({ icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <div className="text-2xl">{icon}</div>
-
+      <div className="mt-0.5 text-[#222]">{icon}</div>
       <div>
-        <h4 className="font-bold">{title}</h4>
+        <h4 className="font-semibold">{title}</h4>
         <p className="mt-1 text-sm leading-6 text-gray-600">{text}</p>
       </div>
     </div>
@@ -743,17 +721,46 @@ function Feature({ icon, title, text }) {
 function Amenity({ icon, text }) {
   return (
     <div className="flex items-center gap-4 text-gray-800">
-      {icon}
+      <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
       <span className="font-medium">{text}</span>
     </div>
   );
 }
 
+function ActionButton({ icon, label, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className="flex items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-gray-100 md:px-4">
+      {icon}
+      {label}
+    </button>
+  );
+}
+
 function PriceRow({ label, value }) {
   return (
-    <div className="flex justify-between">
-      <span className="underline">{label}</span>
-      <span>{value}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-gray-700 underline underline-offset-2">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function ReservePageSkeleton() {
+  return (
+    <div className="min-h-screen bg-white">
+      <Navbar />
+      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
+        <div className="h-8 w-2/3 max-w-xl animate-pulse rounded-xl bg-gray-100" />
+        <div className="mt-5 h-[320px] animate-pulse rounded-[28px] bg-gray-100 md:h-[430px]" />
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_390px]">
+          <div className="space-y-5">
+            <div className="h-8 w-80 animate-pulse rounded-xl bg-gray-100" />
+            <div className="h-24 animate-pulse rounded-2xl bg-gray-100" />
+            <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
+          </div>
+          <div className="h-96 animate-pulse rounded-[28px] bg-gray-100" />
+        </div>
+      </main>
     </div>
   );
 }
