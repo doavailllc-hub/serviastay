@@ -281,8 +281,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#7e4ff5] to-[#d62976] font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#7e4ff5] font-bold text-white transition hover:bg-[#6d43e5] disabled:cursor-not-allowed disabled:opacity-60"              >
                 {loading && <Loader2 size={18} className="animate-spin" />}
                 {loading ? "Sending code..." : "Continue"}
               </button>
