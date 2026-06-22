@@ -1,24 +1,26 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "https://stay.dovail.com";
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || "https://stay.dovail.com";
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
+  withCredentials: true,
 });
 
-export const connectSocket = (userId) => {
+export function connectSocket(userId) {
   if (!userId) return;
 
   if (!socket.connected) {
     socket.connect();
   }
 
-  socket.emit("join_user", userId);
-};
+  socket.emit("join", userId);
+}
 
-export const disconnectSocket = () => {
+export function disconnectSocket() {
   if (socket.connected) {
     socket.disconnect();
   }
-};
+}
