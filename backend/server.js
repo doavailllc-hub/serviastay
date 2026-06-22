@@ -24,10 +24,120 @@ const transporter = nodemailer.createTransport({
 
 const app = express();
 const server = http.createServer(app);
+const { Server } = require("socket.io");
 
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+const onlineUsers = new Map();
+
+io.on("connection", (socket) => {
+  socket.on("join", (userId) => {
+    if (!userId) return;
+
+    const normalizedUserId = Number(userId);
+    socket.userId = normalizedUserId;
+    socket.join(`user_${normalizedUserId}`);
+    onlineUsers.set(normalizedUserId, socket.id);
+
+    socket.broadcast.emit("user_online", { userId: normalizedUserId });
+  });
+
+  socket.on("send_message", async (data) => {
+    try {
+      const senderId = Number(data.sender_id);
+      const receiverId = Number(data.receiver_id);
+      const propertyId = data.property_id ? Number(data.property_id) : null;
+      const message = String(data.message || "").trim();
+
+      if (!senderId || !receiverId || !message) return;
+
+      const result = await query(
+        `
+        INSERT INTO servia_messages
+        (sender_id, receiver_id, property_id, message, is_read)
+        VALUES (?, ?, ?, ?, 0)
+        `,
+        [senderId, receiverId, propertyId, message]
+      );
+
+      const rows = await query(
+        `
+        SELECT *
+        FROM servia_messages
+        WHERE id=?
+        LIMIT 1
+        `,
+        [result.insertId]
+      );
+
+      const savedMessage = rows[0];
+
+      io.to(`user_${senderId}`).emit("receive_message", savedMessage);
+      io.to(`user_${receiverId}`).emit("receive_message", savedMessage);
+    } catch (err) {
+      console.log("SOCKET SEND MESSAGE ERROR:", err.message);
+      socket.emit("message_error", {
+        message: "Message failed to send",
+      });
+    }
+  });
+
+  socket.on("typing", ({ sender_id, receiver_id }) => {
+    if (!sender_id || !receiver_id) return;
+
+    io.to(`user_${Number(receiver_id)}`).emit("typing", {
+      sender_id: Number(sender_id),
+    });
+  });
+
+  socket.on("stop_typing", ({ sender_id, receiver_id }) => {
+    if (!sender_id || !receiver_id) return;
+
+    io.to(`user_${Number(receiver_id)}`).emit("stop_typing", {
+      sender_id: Number(sender_id),
+    });
+  });
+
+  socket.on("message_seen", async ({ user_id, other_user_id }) => {
+    try {
+      if (!user_id || !other_user_id) return;
+
+      await query(
+        `
+        UPDATE servia_messages
+        SET is_read = 1
+        WHERE receiver_id = ?
+        AND sender_id = ?
+        `,
+        [Number(user_id), Number(other_user_id)]
+      );
+
+      io.to(`user_${Number(other_user_id)}`).emit("message_seen", {
+        by: Number(user_id),
+      });
+    } catch (err) {
+      console.log("SOCKET MESSAGE SEEN ERROR:", err.message);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      socket.broadcast.emit("user_offline", {
+        userId: socket.userId,
+      });
+    }
+  });
+});
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
-const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
+const API_BASE_URL = process.env.API_BASE_URL || "https://stay.dovail.com";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -1347,6 +1457,122 @@ app.post("/api/auth/verify-otp", async (req, res) => {
     res.status(500).json({ message: "OTP verification failed" });
   }
 });
+
+app.get(
+  "/api/messages/:userId/:otherUserId",
+  verifyToken,
+  async (req, res) => {
+    try {
+      const { userId, otherUserId } = req.params;
+
+      const rows = await query(
+        `
+        SELECT *
+        FROM servia_messages
+        WHERE
+        (sender_id=? AND receiver_id=?)
+        OR
+        (sender_id=? AND receiver_id=?)
+        ORDER BY created_at ASC
+        `,
+        [userId, otherUserId, otherUserId, userId]
+      );
+
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({
+        message: "Messages fetch failed",
+        error: err.message,
+      });
+    }
+  }
+);
+app.put(
+  "/api/messages/read/:userId/:otherUserId",
+  verifyToken,
+  async (req, res) => {
+    try {
+      const { userId, otherUserId } = req.params;
+
+      await query(
+        `
+        UPDATE servia_messages
+        SET is_read = 1
+        WHERE receiver_id = ?
+        AND sender_id = ?
+        `,
+        [userId, otherUserId]
+      );
+
+      res.json({
+        success: true,
+      });
+    } catch (err) {
+      res.status(500).json({
+        message: "Read update failed",
+        error: err.message,
+      });
+    }
+  }
+);
+
+app.get("/api/messages/:userId/:otherUserId", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const otherUserId = Number(req.params.otherUserId);
+
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_messages
+      WHERE
+      (sender_id=? AND receiver_id=?)
+      OR
+      (sender_id=? AND receiver_id=?)
+      ORDER BY created_at ASC
+      `,
+      [userId, otherUserId, otherUserId, userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("MESSAGES FETCH ERROR:", err.message);
+    res.status(500).json({
+      message: "Messages fetch failed",
+      error: err.message,
+    });
+  }
+});
+
+app.put("/api/messages/read/:userId/:otherUserId", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const otherUserId = Number(req.params.otherUserId);
+
+    await query(
+      `
+      UPDATE servia_messages
+      SET is_read = 1
+      WHERE receiver_id = ?
+      AND sender_id = ?
+      `,
+      [userId, otherUserId]
+    );
+
+    res.json({
+      success: true,
+      message: "Messages marked as read",
+    });
+  } catch (err) {
+    console.log("MARK READ ERROR:", err.message);
+    res.status(500).json({
+      message: "Read update failed",
+      error: err.message,
+    });
+  }
+});
+
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
