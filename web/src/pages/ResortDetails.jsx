@@ -6,8 +6,11 @@ import {
   Car,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Images,
+  Keyboard,
   Lock,
   MapPin,
   MessageCircle,
@@ -22,9 +25,6 @@ import {
   Waves,
   Wifi,
   X,
-  ChevronLeft,
-  ChevronRight,
-  Keyboard,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -50,16 +50,6 @@ function addDaysISO(dateString, days) {
   return toLocalISO(date);
 }
 
-function formatDateLabel(dateString) {
-  if (!dateString) return "Add date";
-
-  return new Intl.DateTimeFormat("en-IN", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  }).format(new Date(`${dateString}T00:00:00`));
-}
-
 function formatINR(amount) {
   return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 }
@@ -75,7 +65,8 @@ function getStoredUser() {
       JSON.parse(localStorage.getItem("user") || "null") ||
       JSON.parse(sessionStorage.getItem("user") || "null");
 
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token =
+      localStorage.getItem("token") || sessionStorage.getItem("token");
 
     return user && token ? user : null;
   } catch {
@@ -83,9 +74,47 @@ function getStoredUser() {
   }
 }
 
+function formatCalendarInput(dateString) {
+  if (!dateString) return "Add date";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${dateString}T00:00:00`));
+}
+
+function formatShortInput(dateString) {
+  if (!dateString) return "Add date";
+
+  const date = new Date(`${dateString}T00:00:00`);
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+}
+
+function formatCalendarHeader(dateString) {
+  if (!dateString) return "Add date";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${dateString}T00:00:00`));
+}
+
+function formatFeatureDate(dateString) {
+  if (!dateString) return "today";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${dateString}T00:00:00`));
+}
+
 export default function ResortDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const guestDropdownRef = useRef(null);
 
   const today = useMemo(() => toLocalISO(), []);
@@ -94,18 +123,23 @@ export default function ResortDetails() {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [guestDropdownOpen, setGuestDropdownOpen] = useState(false);
 
   const [checkin, setCheckin] = useState(today);
   const [checkout, setCheckout] = useState(tomorrow);
-  const [guests, setGuests] = useState(1);
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+  const [pets, setPets] = useState(0);
 
   const loadProperty = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
+
       const { data } = await api.get(`/properties/${id}`);
       setProperty(data);
     } catch (err) {
@@ -122,7 +156,10 @@ export default function ResortDetails() {
 
   useEffect(() => {
     function handleOutsideClick(event) {
-      if (guestDropdownRef.current && !guestDropdownRef.current.contains(event.target)) {
+      if (
+        guestDropdownRef.current &&
+        !guestDropdownRef.current.contains(event.target)
+      ) {
         setGuestDropdownOpen(false);
       }
     }
@@ -133,6 +170,7 @@ export default function ResortDetails() {
 
   useEffect(() => {
     if (!checkin) return;
+
     if (!checkout || checkout <= checkin) {
       setCheckout(addDaysISO(checkin, 1));
     }
@@ -141,28 +179,35 @@ export default function ResortDetails() {
   const galleryImages = useMemo(() => {
     const images = [
       property?.image,
-      ...(property?.images || []).map((item) => item?.image_url || item?.url || item),
+      ...(property?.images || []).map(
+        (item) => item?.image_url || item?.url || item
+      ),
     ].filter(Boolean);
 
     const uniqueImages = [...new Set(images)];
+
     return uniqueImages.length ? uniqueImages : [FALLBACK_IMAGE];
   }, [property]);
 
   const price = safeNumber(property?.price, 0);
   const rating = property?.rating || "5.0";
   const maxGuests = Math.max(1, safeNumber(property?.guests, 10));
+  const totalGuests = adults + children;
 
   const nights = useMemo(() => {
     const start = new Date(`${checkin}T00:00:00`);
     const end = new Date(`${checkout}T00:00:00`);
     const diff = Math.round((end - start) / MS_PER_DAY);
+
     return diff > 0 ? diff : 1;
   }, [checkin, checkout]);
 
   const subtotal = price * nights;
+  const cleaningFee = subtotal > 0 ? 500 : 0;
   const serviceFee = Math.round(subtotal * 0.05);
   const taxes = Math.round(subtotal * 0.12);
-  const total = subtotal + serviceFee + taxes;
+  const total = subtotal + cleaningFee + serviceFee + taxes;
+
   const dateError = !checkin || !checkout || checkout <= checkin;
 
   const openLoginModal = () => setLoginModalOpen(true);
@@ -180,9 +225,14 @@ export default function ResortDetails() {
         property,
         checkin,
         checkout,
-        guests,
+        guests: totalGuests,
+        adults,
+        children,
+        infants,
+        pets,
         nights,
         subtotal,
+        cleaningFee,
         serviceFee,
         taxes,
         total,
@@ -201,6 +251,7 @@ export default function ResortDetails() {
 
   const handleWishlist = async () => {
     const user = getStoredUser();
+
     if (!user) {
       openLoginModal();
       return;
@@ -211,6 +262,7 @@ export default function ResortDetails() {
         user_id: user.id,
         property_id: property.id,
       });
+
       alert("Added to wishlist");
     } catch (err) {
       console.error("Wishlist failed:", err);
@@ -244,10 +296,12 @@ export default function ResortDetails() {
     return (
       <div className="min-h-screen bg-white text-[#222]">
         <Navbar />
+
         <main className="mx-auto flex min-h-[60vh] max-w-7xl items-center justify-center px-4 md:px-8">
           <div className="max-w-md rounded-[28px] border border-gray-200 p-8 text-center shadow-sm">
             <h1 className="text-2xl font-bold">Stay not available</h1>
             <p className="mt-3 text-gray-600">{error}</p>
+
             <button
               type="button"
               onClick={() => navigate("/")}
@@ -283,7 +337,10 @@ export default function ResortDetails() {
                 {rating}
               </span>
               <span>·</span>
-              <button type="button" className="font-semibold underline underline-offset-2">
+              <button
+                type="button"
+                className="font-semibold underline underline-offset-2"
+              >
                 Guest favorite
               </button>
               <span>·</span>
@@ -295,19 +352,37 @@ export default function ResortDetails() {
           </div>
 
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <ActionButton icon={<Share size={16} />} label="Share" onClick={shareProperty} />
-            <ActionButton icon={<Heart size={16} />} label="Save" onClick={handleWishlist} />
+            <ActionButton
+              icon={<Share size={16} />}
+              label="Share"
+              onClick={shareProperty}
+            />
+            <ActionButton
+              icon={<Heart size={16} />}
+              label="Save"
+              onClick={handleWishlist}
+            />
           </div>
         </header>
 
-        <PropertyGallery images={galleryImages} title={property.title} onShowAll={() => setGalleryOpen(true)} />
+        <PropertyGallery
+          images={galleryImages}
+          title={property.title}
+          onShowAll={() => setGalleryOpen(true)}
+        />
 
         <section className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-16">
           <article className="min-w-0">
             <section className="border-b border-gray-200 pb-7">
-              <h2 className="text-[22px] font-semibold md:text-2xl">Entire place in {city}</h2>
+              <h2 className="text-[22px] font-semibold md:text-2xl">
+                Entire place in {city}
+              </h2>
+
               <p className="mt-2 text-gray-600">
-                {maxGuests} guests · {property.bedrooms || 1} bedroom{Number(property.bedrooms || 1) > 1 ? "s" : ""} · {property.bathrooms || 1} bath{Number(property.bathrooms || 1) > 1 ? "s" : ""}
+                {maxGuests} guests · {property.bedrooms || 1} bedroom
+                {Number(property.bedrooms || 1) > 1 ? "s" : ""} ·{" "}
+                {property.bathrooms || 1} bath
+                {Number(property.bathrooms || 1) > 1 ? "s" : ""}
               </p>
             </section>
 
@@ -317,11 +392,13 @@ export default function ResortDetails() {
                 title="Guest favorite"
                 text="A highly loved stay with reliable service, clean spaces, and a smooth check-in experience."
               />
+
               <Feature
                 icon={<CalendarDays size={24} />}
                 title="Today’s date is selected"
-                text={`Check-in starts from ${formatDateLabel(today)}. Checkout is automatically set to the next day.`}
+                text={`Check-in starts from ${formatFeatureDate(today)}. Checkout is automatically set to the next day.`}
               />
+
               <Feature
                 icon={<ShieldCheck size={24} />}
                 title="Secure reservation"
@@ -330,14 +407,21 @@ export default function ResortDetails() {
             </section>
 
             <section className="border-b border-gray-200 py-8">
-              <h2 className="mb-4 text-[22px] font-semibold md:text-2xl">About this place</h2>
+              <h2 className="mb-4 text-[22px] font-semibold md:text-2xl">
+                About this place
+              </h2>
+
               <p className="max-w-3xl whitespace-pre-line text-[16px] leading-8 text-gray-700">
-                {property.description || "A comfortable, professionally managed stay with essential amenities and a smooth booking experience."}
+                {property.description ||
+                  "A comfortable, professionally managed stay with essential amenities and a smooth booking experience."}
               </p>
             </section>
 
             <section className="border-b border-gray-200 py-8">
-              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">What this place offers</h2>
+              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
+                What this place offers
+              </h2>
+
               <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
                 <Amenity icon={<Wifi />} text="Wifi" />
                 <Amenity icon={<Car />} text="Free parking" />
@@ -348,15 +432,48 @@ export default function ResortDetails() {
               </div>
             </section>
 
+            <section className="border-b border-gray-200 py-8">
+              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
+                Hosted by Dovail Stay
+              </h2>
+
+              <div className="rounded-[28px] border border-gray-200 p-6 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[#7e4ff5]">
+                    D
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold">Dovail Host</h3>
+                    <p className="text-sm text-gray-500">Superhost · Verified</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
+                  <HostStat label="Response rate" value="100%" />
+                  <HostStat label="Response time" value="1 hour" />
+                  <HostStat label="Support" value="24/7" />
+                </div>
+              </div>
+            </section>
+
             <section className="py-8">
-              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">Where you’ll be</h2>
+              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
+                Where you’ll be
+              </h2>
+
               <div className="flex h-80 items-center justify-center rounded-[28px] border border-[#e8e2ff] bg-gradient-to-br from-[#f7f4ff] to-white">
                 <div className="px-6 text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
                     <MapPin size={34} style={{ color: BRAND_COLOR }} />
                   </div>
-                  <h3 className="text-xl font-semibold">{property.location || "Location"}</h3>
-                  <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">Map integration can be connected here when your backend has latitude and longitude.</p>
+                  <h3 className="text-xl font-semibold">
+                    {property.location || "Location"}
+                  </h3>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                    Map integration can be connected here when your backend has
+                    latitude and longitude.
+                  </p>
                 </div>
               </div>
             </section>
@@ -371,11 +488,19 @@ export default function ResortDetails() {
               checkout={checkout}
               setCheckin={setCheckin}
               setCheckout={setCheckout}
-              guests={guests}
-              setGuests={setGuests}
+              adults={adults}
+              setAdults={setAdults}
+              children={children}
+              setChildren={setChildren}
+              infants={infants}
+              setInfants={setInfants}
+              pets={pets}
+              setPets={setPets}
               maxGuests={maxGuests}
+              totalGuests={totalGuests}
               nights={nights}
               subtotal={subtotal}
+              cleaningFee={cleaningFee}
               serviceFee={serviceFee}
               taxes={taxes}
               total={total}
@@ -392,13 +517,19 @@ export default function ResortDetails() {
 
       <Footer />
 
-      {galleryOpen && <GalleryModal images={galleryImages} title={property.title} onClose={() => setGalleryOpen(false)} />}
+      {galleryOpen && (
+        <GalleryModal
+          images={galleryImages}
+          title={property.title}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
 
       {loginModalOpen && (
         <LoginRequiredModal
           onClose={() => setLoginModalOpen(false)}
           onLogin={() => navigate("/login")}
-          onSignup={() => navigate("/signup")}
+          onSignup={() => navigate("/login")}
         />
       )}
     </div>
@@ -413,11 +544,19 @@ function ReservationCard({
   checkout,
   setCheckin,
   setCheckout,
-  guests,
-  setGuests,
+  adults,
+  setAdults,
+  children,
+  setChildren,
+  infants,
+  setInfants,
+  pets,
+  setPets,
   maxGuests,
+  totalGuests,
   nights,
   subtotal,
+  cleaningFee,
   serviceFee,
   taxes,
   total,
@@ -435,6 +574,7 @@ function ReservationCard({
           <span className="text-[22px] font-semibold">{formatINR(price)}</span>
           <span className="text-gray-500"> night</span>
         </div>
+
         <span className="inline-flex items-center gap-1 text-sm font-semibold">
           <Star size={14} fill="currentColor" />
           {rating}
@@ -442,38 +582,42 @@ function ReservationCard({
       </div>
 
       <div className="overflow-visible rounded-2xl border border-[#b0b0b0] bg-white">
-     <AirbnbDatePicker
-  checkin={checkin}
-  checkout={checkout}
-  setCheckin={setCheckin}
-  setCheckout={setCheckout}
-  today={today}
-/>
+        <AirbnbDatePicker
+          checkin={checkin}
+          checkout={checkout}
+          setCheckin={setCheckin}
+          setCheckout={setCheckout}
+          today={today}
+        />
 
         <GuestDropdown
           refEl={guestDropdownRef}
           open={guestDropdownOpen}
           setOpen={setGuestDropdownOpen}
-          guests={guests}
-          setGuests={setGuests}
+          adults={adults}
+          setAdults={setAdults}
+          children={children}
+          setChildren={setChildren}
+          infants={infants}
+          setInfants={setInfants}
+          pets={pets}
+          setPets={setPets}
+          totalGuests={totalGuests}
           maxGuests={maxGuests}
         />
       </div>
 
-      {dateError && <p className="mt-3 text-sm font-semibold text-red-600">Checkout date must be after check-in.</p>}
+      {dateError && (
+        <p className="mt-3 text-sm font-semibold text-red-600">
+          Checkout date must be after check-in.
+        </p>
+      )}
 
       <button
         type="button"
         onClick={onReserve}
         disabled={dateError}
-        className="mt-5 h-14 w-full rounded-xl text-base font-bold text-white shadow-lg transition disabled:cursor-not-allowed disabled:bg-gray-300"
-        style={{ backgroundColor: dateError ? undefined : BRAND_COLOR }}
-        onMouseEnter={(e) => {
-          if (!dateError) e.currentTarget.style.backgroundColor = BRAND_HOVER;
-        }}
-        onMouseLeave={(e) => {
-          if (!dateError) e.currentTarget.style.backgroundColor = BRAND_COLOR;
-        }}
+        className="mt-5 h-14 w-full rounded-xl bg-[#7e4ff5] text-base font-bold text-white shadow-lg transition-all hover:bg-[#6f43e4] hover:shadow-xl disabled:cursor-not-allowed disabled:bg-gray-300"
       >
         Reserve
       </button>
@@ -487,12 +631,21 @@ function ReservationCard({
         Message Host
       </button>
 
-      <p className="mt-4 text-center text-sm text-gray-500">You won’t be charged yet</p>
+      <p className="mt-4 text-center text-sm text-gray-500">
+        You won’t be charged yet
+      </p>
 
       <div className="mt-6 space-y-3 text-sm">
-        <PriceRow label={`${formatINR(price)} × ${nights} ${nights === 1 ? "night" : "nights"}`} value={formatINR(subtotal)} />
+        <PriceRow
+          label={`${formatINR(price)} × ${nights} ${
+            nights === 1 ? "night" : "nights"
+          }`}
+          value={formatINR(subtotal)}
+        />
+        <PriceRow label="Cleaning fee" value={formatINR(cleaningFee)} />
         <PriceRow label="Service fee" value={formatINR(serviceFee)} />
         <PriceRow label="Taxes" value={formatINR(taxes)} />
+
         <div className="flex items-center justify-between border-t border-gray-200 pt-4 text-base font-bold">
           <span>Total before payment</span>
           <span>{formatINR(total)}</span>
@@ -501,18 +654,28 @@ function ReservationCard({
     </div>
   );
 }
-function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today }) {
+
+function AirbnbDatePicker({
+  checkin,
+  checkout,
+  setCheckin,
+  setCheckout,
+  today,
+}) {
   const [open, setOpen] = useState(false);
   const [selecting, setSelecting] = useState("checkin");
-  const [viewDate, setViewDate] = useState(new Date(`${checkin || today}T00:00:00`));
+  const [viewDate, setViewDate] = useState(
+    new Date(`${checkin || today}T00:00:00`)
+  );
+
   const pickerRef = useRef(null);
 
   useEffect(() => {
-    const close = (e) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+    function close(event) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
         setOpen(false);
       }
-    };
+    }
 
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -521,7 +684,8 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
   const nights = Math.max(
     1,
     Math.round(
-      (new Date(`${checkout}T00:00:00`) - new Date(`${checkin}T00:00:00`)) /
+      (new Date(`${checkout}T00:00:00`) -
+        new Date(`${checkin}T00:00:00`)) /
         MS_PER_DAY
     )
   );
@@ -567,11 +731,13 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
             setOpen(true);
             setSelecting("checkin");
           }}
-          className={`px-4 py-3 text-left ${
+          className={`px-4 py-3 text-left transition hover:bg-gray-50 ${
             selecting === "checkin" && open ? "rounded-xl ring-2 ring-black" : ""
           }`}
         >
-          <span className="block text-[10px] font-black uppercase">Check-in</span>
+          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
+            Check-in
+          </span>
           <span className="mt-1 block text-sm font-semibold">
             {formatCalendarInput(checkin)}
           </span>
@@ -583,11 +749,13 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
             setOpen(true);
             setSelecting("checkout");
           }}
-          className={`border-l border-[#b0b0b0] px-4 py-3 text-left ${
+          className={`border-l border-[#b0b0b0] px-4 py-3 text-left transition hover:bg-gray-50 ${
             selecting === "checkout" && open ? "rounded-xl ring-2 ring-black" : ""
           }`}
         >
-          <span className="block text-[10px] font-black uppercase">Checkout</span>
+          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
+            Checkout
+          </span>
           <span className="mt-1 block text-sm font-semibold">
             {formatCalendarInput(checkout)}
           </span>
@@ -595,12 +763,15 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
       </div>
 
       {open && (
-        <div className="absolute right-[-8px] top-[68px] z-[999] w-[660px] rounded-[22px] border border-gray-200 bg-white p-7 shadow-[0_18px_55px_rgba(0,0,0,0.22)]">
-          <div className="mb-6 flex items-start justify-between">
+        <div className="absolute left-1/2 top-[68px] z-[999] w-[95vw] max-w-[720px] -translate-x-1/2 rounded-[24px] border border-gray-200 bg-white p-5 shadow-[0_18px_55px_rgba(0,0,0,0.22)] md:p-7">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h3 className="text-2xl font-bold">{nights} nights</h3>
+              <h3 className="text-2xl font-bold">
+                {nights} {nights === 1 ? "night" : "nights"}
+              </h3>
               <p className="mt-1 text-sm text-gray-500">
-                {formatCalendarHeader(checkin)} - {formatCalendarHeader(checkout)}
+                {formatCalendarHeader(checkin)} -{" "}
+                {formatCalendarHeader(checkout)}
               </p>
             </div>
 
@@ -629,6 +800,7 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
                 )
               }
               className="rounded-full p-2 hover:bg-gray-100"
+              aria-label="Previous month"
             >
               <ChevronLeft size={20} />
             </button>
@@ -641,12 +813,13 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
                 )
               }
               className="rounded-full p-2 hover:bg-gray-100"
+              aria-label="Next month"
             >
               <ChevronRight size={20} />
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
             <CalendarMonth
               date={viewDate}
               checkin={checkin}
@@ -655,13 +828,21 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
               onDateClick={handleDateClick}
             />
 
-            <CalendarMonth
-              date={new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)}
-              checkin={checkin}
-              checkout={checkout}
-              today={today}
-              onDateClick={handleDateClick}
-            />
+            <div className="hidden md:block">
+              <CalendarMonth
+                date={
+                  new Date(
+                    viewDate.getFullYear(),
+                    viewDate.getMonth() + 1,
+                    1
+                  )
+                }
+                checkin={checkin}
+                checkout={checkout}
+                today={today}
+                onDateClick={handleDateClick}
+              />
+            </div>
           </div>
 
           <div className="mt-7 flex items-center justify-between">
@@ -692,12 +873,13 @@ function AirbnbDatePicker({ checkin, checkout, setCheckin, setCheckout, today })
     </div>
   );
 }
+
 function CalendarTopBox({ label, value, active, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-36 rounded-xl border px-4 py-3 text-left ${
+      className={`w-32 rounded-xl border px-4 py-3 text-left md:w-36 ${
         active ? "border-black ring-1 ring-black" : "border-gray-300"
       }`}
     >
@@ -721,21 +903,21 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const blanks = Array.from({ length: startDay });
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
 
   return (
     <div>
       <h4 className="mb-5 text-center font-bold">{monthName}</h4>
 
       <div className="mb-3 grid grid-cols-7 text-center text-xs font-semibold text-gray-500">
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div key={d + i}>{d}</div>
+        {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+          <div key={`${day}-${index}`}>{day}</div>
         ))}
       </div>
 
       <div className="grid grid-cols-7 gap-y-1 text-center">
-        {blanks.map((_, i) => (
-          <div key={`blank-${i}`} className="h-11" />
+        {blanks.map((_, index) => (
+          <div key={`blank-${index}`} className="h-11" />
         ))}
 
         {days.map((day) => {
@@ -755,13 +937,17 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
               disabled={disabled}
               onClick={() => onDateClick(currentDate)}
               className={`relative h-11 text-sm font-semibold transition ${
-                disabled ? "cursor-not-allowed text-gray-300" : "hover:bg-gray-100"
+                disabled
+                  ? "cursor-not-allowed text-gray-300"
+                  : "hover:bg-gray-100"
               } ${inRange ? "bg-gray-100" : ""}`}
             >
               <span
                 className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full ${
                   isStart || isEnd ? "bg-[#222] text-white" : ""
-                } ${isToday && !isStart && !isEnd ? "border border-black" : ""}`}
+                } ${
+                  isToday && !isStart && !isEnd ? "border border-black" : ""
+                }`}
               >
                 {day}
               </span>
@@ -771,97 +957,56 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
       </div>
     </div>
   );
-}function formatCalendarInput(dateString) {
-  if (!dateString) return "Add date";
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${dateString}T00:00:00`));
 }
 
-function formatShortInput(dateString) {
-  if (!dateString) return "Add date";
-
-  const date = new Date(`${dateString}T00:00:00`);
-  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-}
-
-function formatCalendarHeader(dateString) {
-  if (!dateString) return "Add date";
-
-  return new Intl.DateTimeFormat("en-IN", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(`${dateString}T00:00:00`));
-}
-function DateField({
-  label,
-  value,
-  min,
-  onChange,
-  borderLeft = false,
+function GuestDropdown({
+  refEl,
+  open,
+  setOpen,
+  adults,
+  setAdults,
+  children,
+  setChildren,
+  infants,
+  setInfants,
+  pets,
+  setPets,
+  totalGuests,
+  maxGuests,
 }) {
-  return (
-    <label
-      className={`block px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-        borderLeft ? "border-l border-gray-300" : ""
-      }`}
-    >
-      <span className="text-[10px] font-bold uppercase">
-        {label}
-      </span>
-
-      <input
-        type="date"
-        value={value}
-        min={min}
-        onChange={(e) => onChange(e.target.value)}
-        className="
-          mt-1
-          w-full
-          bg-transparent
-          text-sm
-          font-semibold
-          outline-none
-          appearance-none
-        "
-      />
-    </label>
-  );
-}
-
-
-function GuestDropdown({ refEl, open, setOpen, guests, setGuests, maxGuests }) {
-  const [children, setChildren] = useState(0);
-  const [infants, setInfants] = useState(0);
-  const [pets, setPets] = useState(0);
-
-  const totalGuests = guests + children;
-
-  const updateGuestTotal = (nextAdults, nextChildren) => {
-    setGuests(Math.max(1, Math.min(maxGuests, nextAdults)));
-    setChildren(Math.max(0, Math.min(maxGuests - nextAdults, nextChildren)));
+  const updateAdults = (value) => {
+    const nextAdults = Math.max(1, Math.min(value, maxGuests - children));
+    setAdults(nextAdults);
   };
+
+  const updateChildren = (value) => {
+    const nextChildren = Math.max(0, Math.min(value, maxGuests - adults));
+    setChildren(nextChildren);
+  };
+
+  const summary = [
+    `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`,
+    infants > 0 ? `${infants} infant${infants > 1 ? "s" : ""}` : "",
+    pets > 0 ? `${pets} pet${pets > 1 ? "s" : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div ref={refEl} className="relative border-t border-[#b0b0b0]">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+        onClick={() => setOpen((previous) => !previous)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
       >
         <div>
           <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
             Guests
           </span>
-          <span className="mt-1 block text-sm font-semibold">
-            {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
-            {infants > 0 ? `, ${infants} infant${infants > 1 ? "s" : ""}` : ""}
-            {pets > 0 ? `, ${pets} pet${pets > 1 ? "s" : ""}` : ""}
-          </span>
+          <span className="mt-1 block text-sm font-semibold">{summary}</span>
+          <p className="mt-1 text-xs text-gray-500">
+            Maximum {maxGuests} guests
+          </p>
         </div>
 
         <ChevronDown
@@ -871,14 +1016,14 @@ function GuestDropdown({ refEl, open, setOpen, guests, setGuests, maxGuests }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[72px] z-50 rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.20)]">
+        <div className="absolute left-0 right-0 top-[86px] z-50 rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.20)]">
           <GuestRow
             title="Adults"
             subtitle="Ages 13 or above"
-            value={guests}
+            value={adults}
             min={1}
             max={maxGuests - children}
-            onChange={(value) => updateGuestTotal(value, children)}
+            onChange={updateAdults}
           />
 
           <GuestRow
@@ -886,8 +1031,8 @@ function GuestDropdown({ refEl, open, setOpen, guests, setGuests, maxGuests }) {
             subtitle="Ages 2–12"
             value={children}
             min={0}
-            max={maxGuests - guests}
-            onChange={(value) => updateGuestTotal(guests, value)}
+            max={maxGuests - adults}
+            onChange={updateChildren}
           />
 
           <GuestRow
@@ -912,7 +1057,7 @@ function GuestDropdown({ refEl, open, setOpen, guests, setGuests, maxGuests }) {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="mt-5 w-full rounded-xl bg-[#7e4ff5] py-3 font-bold text-white hover:bg-[#6f43e4]"
+            className="mt-5 w-full rounded-xl bg-[#7e4ff5] py-3 font-bold text-white transition hover:bg-[#6f43e4]"
           >
             Done
           </button>
@@ -942,7 +1087,7 @@ function GuestRow({ title, subtitle, value, min, max, onChange, last }) {
           type="button"
           onClick={decrease}
           disabled={value <= min}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <Minus size={16} />
         </button>
@@ -953,43 +1098,12 @@ function GuestRow({ title, subtitle, value, min, max, onChange, last }) {
           type="button"
           onClick={increase}
           disabled={value >= max}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <Plus size={16} />
         </button>
       </div>
     </div>
-  );
-}
-
-function GuestCounter({ title, subtitle, value, canDecrease, canIncrease, onDecrease, onIncrease }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="font-semibold">{title}</p>
-        <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <CounterButton label="Decrease guests" disabled={!canDecrease} onClick={onDecrease} icon={<Minus size={16} />} />
-        <span className="w-5 text-center font-semibold">{value}</span>
-        <CounterButton label="Increase guests" disabled={!canIncrease} onClick={onIncrease} icon={<Plus size={16} />} />
-      </div>
-    </div>
-  );
-}
-
-function CounterButton({ label, disabled, onClick, icon }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-gray-300"
-    >
-      {icon}
-    </button>
   );
 }
 
@@ -999,15 +1113,28 @@ function PropertyGallery({ images, title, onShowAll }) {
   return (
     <div className="relative overflow-hidden rounded-[24px] md:rounded-[28px]">
       <div className="grid h-[320px] grid-cols-1 gap-2 md:h-[430px] md:grid-cols-4">
-        <GalleryImage src={photos[0]} alt={title} onClick={onShowAll} className="md:col-span-2 md:row-span-2" />
+        <GalleryImage
+          src={photos[0]}
+          alt={title}
+          onClick={onShowAll}
+          className="md:col-span-2 md:row-span-2"
+        />
 
         {photos.slice(1, 5).map((src, index) => (
-          <GalleryImage key={`${src}-${index}`} src={src} alt={`${title} ${index + 2}`} onClick={onShowAll} className="hidden md:block" />
+          <GalleryImage
+            key={`${src}-${index}`}
+            src={src}
+            alt={`${title} ${index + 2}`}
+            onClick={onShowAll}
+            className="hidden md:block"
+          />
         ))}
 
-        {Array.from({ length: Math.max(0, 5 - photos.length) }).map((_, index) => (
-          <div key={`placeholder-${index}`} className="hidden bg-gray-100 md:block" />
-        ))}
+        {Array.from({ length: Math.max(0, 5 - photos.length) }).map(
+          (_, index) => (
+            <div key={`placeholder-${index}`} className="hidden bg-gray-100 md:block" />
+          )
+        )}
       </div>
 
       <button
@@ -1024,8 +1151,20 @@ function PropertyGallery({ images, title, onShowAll }) {
 
 function GalleryImage({ src, alt, onClick, className = "" }) {
   return (
-    <button type="button" onClick={onClick} className={`group overflow-hidden bg-gray-100 ${className}`}>
-      <img src={src} alt={alt} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:brightness-90" loading="lazy" />
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group overflow-hidden bg-gray-100 ${className}`}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:brightness-90"
+        loading="lazy"
+        onError={(event) => {
+          event.currentTarget.src = FALLBACK_IMAGE;
+        }}
+      />
     </button>
   );
 }
@@ -1040,6 +1179,7 @@ function GalleryModal({ images, title, onClose }) {
     }
 
     window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
@@ -1049,10 +1189,19 @@ function GalleryModal({ images, title, onClose }) {
   return (
     <div className="fixed inset-0 z-[99999] overflow-y-auto bg-white">
       <div className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-4 md:px-6">
-        <button type="button" onClick={onClose} className="rounded-full p-3 transition hover:bg-gray-100" aria-label="Close gallery">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-3 transition hover:bg-gray-100"
+          aria-label="Close gallery"
+        >
           <X size={22} />
         </button>
-        <h2 className="truncate px-4 text-center text-lg font-bold">{title}</h2>
+
+        <h2 className="truncate px-4 text-center text-lg font-bold">
+          {title}
+        </h2>
+
         <div className="w-10" />
       </div>
 
@@ -1063,8 +1212,15 @@ function GalleryModal({ images, title, onClose }) {
               key={`${src}-${index}`}
               src={src}
               alt={`${title} ${index + 1}`}
-              className={`w-full rounded-2xl object-cover ${index === 0 ? "max-h-[650px] md:col-span-2" : "h-[320px] md:h-[360px]"}`}
+              className={`w-full rounded-2xl object-cover ${
+                index === 0
+                  ? "max-h-[650px] md:col-span-2"
+                  : "h-[320px] md:h-[360px]"
+              }`}
               loading="lazy"
+              onError={(event) => {
+                event.currentTarget.src = FALLBACK_IMAGE;
+              }}
             />
           ))}
         </div>
@@ -1077,25 +1233,54 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-        <button type="button" onClick={onClose} className="absolute right-5 top-5 rounded-full p-2 transition hover:bg-gray-100" aria-label="Close login modal">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-5 top-5 rounded-full p-2 transition hover:bg-gray-100"
+          aria-label="Close login modal"
+        >
           <X size={20} />
         </button>
 
-        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff]" style={{ color: BRAND_COLOR }}>
+        <div
+          className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff]"
+          style={{ color: BRAND_COLOR }}
+        >
           <Lock size={26} />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900">Log in to continue</h2>
-        <p className="mt-3 leading-6 text-gray-500">Please log in or create an account to reserve this stay, message the host, or save it to your wishlist.</p>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Log in to continue
+        </h2>
+
+        <p className="mt-3 leading-6 text-gray-500">
+          Please log in or create an account to reserve this stay, message the
+          host, or save it to your wishlist.
+        </p>
 
         <div className="mt-6 space-y-3">
-          <button type="button" onClick={onLogin} className="h-12 w-full rounded-xl font-semibold text-white transition" style={{ backgroundColor: BRAND_COLOR }}>
-            Log in
+          <button
+            type="button"
+            onClick={onLogin}
+            className="h-12 w-full rounded-xl font-semibold text-white transition"
+            style={{ backgroundColor: BRAND_COLOR }}
+          >
+            Continue with email
           </button>
-          <button type="button" onClick={onSignup} className="h-12 w-full rounded-xl border border-gray-300 font-semibold transition hover:bg-gray-50">
+
+          <button
+            type="button"
+            onClick={onSignup}
+            className="h-12 w-full rounded-xl border border-gray-300 font-semibold transition hover:bg-gray-50"
+          >
             Create account
           </button>
-          <button type="button" onClick={onClose} className="h-12 w-full rounded-xl text-gray-500 transition hover:bg-gray-50">
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 w-full rounded-xl text-gray-500 transition hover:bg-gray-50"
+          >
             Continue browsing
           </button>
         </div>
@@ -1127,7 +1312,11 @@ function Amenity({ icon, text }) {
 
 function ActionButton({ icon, label, onClick }) {
   return (
-    <button type="button" onClick={onClick} className="flex items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-gray-100 md:px-4">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-gray-100 md:px-4"
+    >
       {icon}
       {label}
     </button>
@@ -1143,19 +1332,31 @@ function PriceRow({ label, value }) {
   );
 }
 
+function HostStat({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-gray-50 p-4">
+      <p className="font-bold">{value}</p>
+      <p className="mt-1 text-xs text-gray-500">{label}</p>
+    </div>
+  );
+}
+
 function ReservePageSkeleton() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
+
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         <div className="h-8 w-2/3 max-w-xl animate-pulse rounded-xl bg-gray-100" />
         <div className="mt-5 h-[320px] animate-pulse rounded-[28px] bg-gray-100 md:h-[430px]" />
+
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_390px]">
           <div className="space-y-5">
             <div className="h-8 w-80 animate-pulse rounded-xl bg-gray-100" />
             <div className="h-24 animate-pulse rounded-2xl bg-gray-100" />
             <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
           </div>
+
           <div className="h-96 animate-pulse rounded-[28px] bg-gray-100" />
         </div>
       </main>
