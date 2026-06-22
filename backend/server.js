@@ -10,7 +10,7 @@ const http = require("http");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
-
+require("dotenv").config();
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT || 587),
@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
-require("dotenv").config();
+
 
 const app = express();
 const server = http.createServer(app);
