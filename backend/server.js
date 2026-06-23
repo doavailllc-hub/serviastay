@@ -1689,10 +1689,13 @@ app.get("/api/reviews/:propertyId", async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "Reviews load failed", error: err.message });
+    console.log("REVIEWS LOAD ERROR:", err.message);
+    res.status(500).json({
+      message: "Reviews load failed",
+      error: err.message,
+    });
   }
 });
-
 app.post("/api/reviews", verifyToken, async (req, res) => {
   try {
     const propertyId = Number(req.body.property_id);
