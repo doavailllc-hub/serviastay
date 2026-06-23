@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import api from "../api/api";
 import NotificationBell from "./NotificationBell";
+import { useEffect, useRef, useState } from "react";
 import {
   Menu,
   User,
@@ -100,7 +101,6 @@ export default function Navbar() {
     "U";
 
   const totalBadge = unreadCount + notificationCount;
-const [open, setOpen] = useState(false);
 const menuRef = useRef(null);
 
 useEffect(() => {
