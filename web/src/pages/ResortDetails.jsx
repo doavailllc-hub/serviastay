@@ -127,7 +127,7 @@ export default function ResortDetails() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [guestDropdownOpen, setGuestDropdownOpen] = useState(false);
-
+const [bookedRanges, setBookedRanges] = useState([]);
   const [checkin, setCheckin] = useState(today);
   const [checkout, setCheckout] = useState(tomorrow);
   const [adults, setAdults] = useState(1);
@@ -167,7 +167,18 @@ export default function ResortDetails() {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
+useEffect(() => {
+  async function loadBookedDates() {
+    try {
+      const { data } = await api.get(`/properties/${id}/booked-dates`);
+      setBookedRanges(data || []);
+    } catch (err) {
+      console.log("Booked dates load failed:", err);
+    }
+  }
 
+  loadBookedDates();
+}, [id]);
   useEffect(() => {
     if (!checkin) return;
 
@@ -518,6 +529,7 @@ const handleMessageHost = async () => {
               checkout={checkout}
               setCheckin={setCheckin}
               setCheckout={setCheckout}
+              bookedRanges={bookedRanges}
               adults={adults}
               setAdults={setAdults}
               children={children}
@@ -595,6 +607,7 @@ function ReservationCard({
   guestDropdownOpen,
   setGuestDropdownOpen,
   onReserve,
+  bookedRanges,
   onMessageHost,
 }) {
   return (
@@ -618,6 +631,7 @@ function ReservationCard({
           setCheckin={setCheckin}
           setCheckout={setCheckout}
           today={today}
+          bookedRanges={bookedRanges}
         />
 
         <GuestDropdown
@@ -691,6 +705,7 @@ function AirbnbDatePicker({
   setCheckin,
   setCheckout,
   today,
+  bookedRanges = [],
 }) {
   const [open, setOpen] = useState(false);
   const [selecting, setSelecting] = useState("checkin");
@@ -720,13 +735,36 @@ function AirbnbDatePicker({
     )
   );
 
+  const isDateBooked = (iso) => {
+    return bookedRanges.some((range) => {
+      const start = String(range.checkin).slice(0, 10);
+      const end = String(range.checkout).slice(0, 10);
+      return iso >= start && iso < end;
+    });
+  };
+
+  const hasBookedDateInRange = (startIso, endIso) => {
+    let current = new Date(`${startIso}T00:00:00`);
+    const end = new Date(`${endIso}T00:00:00`);
+
+    while (current < end) {
+      const iso = toLocalISO(current);
+      if (isDateBooked(iso)) return true;
+      current.setDate(current.getDate() + 1);
+    }
+
+    return false;
+  };
+
   const handleDateClick = (date) => {
     const iso = toLocalISO(date);
+
+    if (isDateBooked(iso)) return;
 
     if (selecting === "checkin") {
       setCheckin(iso);
 
-      if (!checkout || checkout <= iso) {
+      if (!checkout || checkout <= iso || hasBookedDateInRange(iso, checkout)) {
         setCheckout(addDaysISO(iso, 1));
       }
 
@@ -738,6 +776,11 @@ function AirbnbDatePicker({
       setCheckin(iso);
       setCheckout(addDaysISO(iso, 1));
       setSelecting("checkout");
+      return;
+    }
+
+    if (hasBookedDateInRange(checkin, iso)) {
+      alert("Selected range includes unavailable dates.");
       return;
     }
 
@@ -762,7 +805,9 @@ function AirbnbDatePicker({
             setSelecting("checkin");
           }}
           className={`px-4 py-3 text-left transition hover:bg-gray-50 ${
-            selecting === "checkin" && open ? "rounded-xl ring-2 ring-black" : ""
+            selecting === "checkin" && open
+              ? "rounded-xl ring-2 ring-black"
+              : ""
           }`}
         >
           <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
@@ -780,7 +825,9 @@ function AirbnbDatePicker({
             setSelecting("checkout");
           }}
           className={`border-l border-[#b0b0b0] px-4 py-3 text-left transition hover:bg-gray-50 ${
-            selecting === "checkout" && open ? "rounded-xl ring-2 ring-black" : ""
+            selecting === "checkout" && open
+              ? "rounded-xl ring-2 ring-black"
+              : ""
           }`}
         >
           <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
@@ -812,6 +859,7 @@ function AirbnbDatePicker({
                 active={selecting === "checkin"}
                 onClick={() => setSelecting("checkin")}
               />
+
               <CalendarTopBox
                 label="CHECKOUT"
                 value={formatShortInput(checkout)}
@@ -856,6 +904,7 @@ function AirbnbDatePicker({
               checkout={checkout}
               today={today}
               onDateClick={handleDateClick}
+              bookedRanges={bookedRanges}
             />
 
             <div className="hidden md:block">
@@ -871,6 +920,7 @@ function AirbnbDatePicker({
                 checkout={checkout}
                 today={today}
                 onDateClick={handleDateClick}
+                bookedRanges={bookedRanges}
               />
             </div>
           </div>
@@ -919,7 +969,14 @@ function CalendarTopBox({ label, value, active, onClick }) {
   );
 }
 
-function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
+function CalendarMonth({
+  date,
+  checkin,
+  checkout,
+  today,
+  onDateClick,
+  bookedRanges = [],
+}) {
   const year = date.getFullYear();
   const month = date.getMonth();
 
@@ -934,6 +991,14 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
 
   const blanks = Array.from({ length: startDay });
   const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
+
+  const isDateBooked = (iso) => {
+    return bookedRanges.some((range) => {
+      const start = String(range.checkin).slice(0, 10);
+      const end = String(range.checkout).slice(0, 10);
+      return iso >= start && iso < end;
+    });
+  };
 
   return (
     <div>
@@ -954,7 +1019,8 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
           const currentDate = new Date(year, month, day);
           const iso = toLocalISO(currentDate);
 
-          const disabled = iso < today;
+          const booked = isDateBooked(iso);
+          const disabled = iso < today || booked;
           const isStart = iso === checkin;
           const isEnd = iso === checkout;
           const inRange = iso > checkin && iso < checkout;
@@ -970,14 +1036,15 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
                 disabled
                   ? "cursor-not-allowed text-gray-300"
                   : "hover:bg-gray-100"
-              } ${inRange ? "bg-gray-100" : ""}`}
+              } ${inRange && !booked ? "bg-gray-100" : ""}`}
+              title={booked ? "Unavailable" : ""}
             >
               <span
                 className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full ${
                   isStart || isEnd ? "bg-[#222] text-white" : ""
                 } ${
                   isToday && !isStart && !isEnd ? "border border-black" : ""
-                }`}
+                } ${booked ? "line-through" : ""}`}
               >
                 {day}
               </span>
@@ -988,7 +1055,6 @@ function CalendarMonth({ date, checkin, checkout, today, onDateClick }) {
     </div>
   );
 }
-
 function GuestDropdown({
   refEl,
   open,

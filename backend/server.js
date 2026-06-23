@@ -1620,7 +1620,27 @@ app.put("/api/messages/read/:userId/:otherUserId", verifyToken, async (req, res)
   }
 });
 
+app.get("/api/properties/:id/booked-dates", async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT checkin, checkout
+      FROM servia_bookings
+      WHERE property_id = ?
+      AND status != 'Cancelled'
+      `,
+      [req.params.id]
+    );
 
+    res.json(rows);
+  } catch (err) {
+    console.log("BOOKED DATES ERROR:", err.message);
+    res.status(500).json({
+      message: "Booked dates fetch failed",
+      error: err.message,
+    });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
