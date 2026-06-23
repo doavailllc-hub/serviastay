@@ -1665,6 +1665,117 @@ app.put("/api/notifications/:userId/mark-read", verifyToken, async (req, res) =>
   }
 });
 
+app.get("/api/reviews/:propertyId", async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        r.id,
+        r.property_id,
+        r.booking_id,
+        r.user_id,
+        r.rating,
+        r.review,
+        r.host_reply,
+        r.created_at,
+        COALESCE(u.fullname, u.email, 'Guest') AS guest_name
+      FROM servia_reviews r
+      LEFT JOIN servia_users u ON u.id = r.user_id
+      WHERE r.property_id = ?
+      ORDER BY r.created_at DESC
+      `,
+      [req.params.propertyId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Reviews load failed", error: err.message });
+  }
+});
+
+app.post("/api/reviews", verifyToken, async (req, res) => {
+  try {
+    const propertyId = Number(req.body.property_id);
+    const bookingId = req.body.booking_id ? Number(req.body.booking_id) : null;
+    const userId = Number(req.body.user_id);
+    const rating = Number(req.body.rating);
+    const review = String(req.body.review || "").trim();
+
+    if (!propertyId || !userId || !rating) {
+      return res.status(400).json({ message: "Property, user and rating are required" });
+    }
+
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be between 1 and 5" });
+    }
+
+    if (Number(req.user.id) !== userId) {
+      return res.status(403).json({ message: "Invalid user" });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO servia_reviews
+      (property_id, booking_id, user_id, rating, review)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [propertyId, bookingId, userId, rating, review]
+    );
+
+    const avgRows = await query(
+      `
+      SELECT ROUND(AVG(rating), 1) AS avg_rating
+      FROM servia_reviews
+      WHERE property_id = ?
+      `,
+      [propertyId]
+    );
+
+    const avgRating = avgRows[0]?.avg_rating || 5;
+
+    await query(
+      `
+      UPDATE servia_properties
+      SET rating = ?
+      WHERE id = ?
+      `,
+      [avgRating, propertyId]
+    );
+
+    res.json({
+      success: true,
+      message: "Review added",
+      reviewId: result.insertId,
+      rating: avgRating,
+    });
+  } catch (err) {
+    console.log("REVIEW CREATE ERROR:", err.message);
+    res.status(500).json({ message: "Review submit failed", error: err.message });
+  }
+});
+
+app.put("/api/reviews/:id/reply", verifyToken, async (req, res) => {
+  try {
+    const reply = String(req.body.host_reply || "").trim();
+
+    await query(
+      `
+      UPDATE servia_reviews
+      SET host_reply = ?
+      WHERE id = ?
+      `,
+      [reply, req.params.id]
+    );
+
+    res.json({
+      success: true,
+      message: "Host reply added",
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Host reply failed", error: err.message });
+  }
+});
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
