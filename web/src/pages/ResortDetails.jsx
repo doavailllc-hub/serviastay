@@ -1121,178 +1121,86 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
         </span>
       </h2>
 
-      {user && (
-        <div className="mb-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-bold">Write a review</h3>
+  {!user ? (
+  <div className="mb-10 rounded-[28px] border border-gray-200 bg-[#fafafa] p-5">
+    <h3 className="text-lg font-bold">Want to write a review?</h3>
+    <p className="mt-2 text-sm text-gray-500">
+      Please log in to review this stay.
+    </p>
 
-          <div className="mt-4 flex gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => setRating(star)}
-                className="text-[#7e4ff5]"
-              >
-                <Star size={26} fill={star <= rating ? "currentColor" : "none"} />
-              </button>
-            ))}
-          </div>
+    <button
+      type="button"
+      onClick={() => (window.location.href = "/login")}
+      className="mt-4 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4]"
+    >
+      Log in to review
+    </button>
+  </div>
+) : (
+  <div className="mb-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+    <h3 className="text-lg font-bold">Write a review</h3>
 
-          <textarea
-            value={review}
-            onChange={(e) => setReview(e.target.value)}
-            rows={4}
-            placeholder="Share your experience..."
-            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
-          />
+    <div className="mt-4 flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => setRating(star)}
+          className="text-[#7e4ff5]"
+        >
+          <Star size={26} fill={star <= rating ? "currentColor" : "none"} />
+        </button>
+      ))}
+    </div>
 
-          <button
-            type="button"
-            onClick={submitReview}
-            disabled={submitting}
-            className="mt-4 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4] disabled:opacity-60"
-          >
-            {submitting ? "Submitting..." : "Submit review"}
-          </button>
-        </div>
-      )}
+    <textarea
+      value={review}
+      onChange={(e) => setReview(e.target.value)}
+      rows={4}
+      placeholder="Share your experience..."
+      className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
+    />
 
-      {reviews.length === 0 ? (
-        <p className="text-gray-500">No reviews yet.</p>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {reviews.map((item) => (
-            <div key={item.id} className="rounded-[24px] border border-gray-200 p-5">
-              <p className="font-bold">{item.guest_name || "Guest"}</p>
-              <div className="mt-3 flex text-[#7e4ff5]">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={17}
-                    fill={star <= Number(item.rating) ? "currentColor" : "none"}
-                  />
-                ))}
-              </div>
-              <p className="mt-3 leading-7 text-gray-700">
-                {item.review || "No written review."}
-              </p>
-            </div>
+    <button
+      type="button"
+      onClick={submitReview}
+      disabled={submitting}
+      className="mt-4 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4] disabled:opacity-60"
+    >
+      {submitting ? "Submitting..." : "Submit review"}
+    </button>
+  </div>
+)}
+
+{reviews.length === 0 ? (
+  <p className="text-gray-500">No reviews yet.</p>
+) : (
+  <div className="grid gap-6 md:grid-cols-2">
+    {reviews.map((item) => (
+      <div
+        key={item.id}
+        className="rounded-[24px] border border-gray-200 p-5"
+      >
+        <p className="font-bold">{item.guest_name || "Guest"}</p>
+
+        <div className="mt-3 flex text-[#7e4ff5]">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              size={17}
+              fill={star <= Number(item.rating) ? "currentColor" : "none"}
+            />
           ))}
         </div>
-      )}
-    </section>
-  );
-}
-function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
-  const [rating, setRating] = useState(5);
-  const [review, setReview] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
-  const user = getStoredUser();
+        <p className="mt-3 leading-7 text-gray-700">
+          {item.review || "No written review."}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
 
-  const avgRating =
-    reviews.length > 0
-      ? (
-          reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) /
-          reviews.length
-        ).toFixed(1)
-      : "5.0";
-
-  const submitReview = async () => {
-    if (!user?.id) {
-      alert("Please login to write a review.");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      await api.post("/reviews", {
-        property_id: propertyId,
-        user_id: user.id,
-        rating,
-        review,
-      });
-
-      setReview("");
-      setRating(5);
-      await onReviewAdded();
-      alert("Review submitted.");
-    } catch (err) {
-      alert(err.response?.data?.message || "Review submit failed.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <section className="border-t border-gray-200 py-10">
-      <h2 className="mb-8 text-[22px] font-semibold md:text-2xl">
-        <span className="inline-flex items-center gap-2">
-          <Star size={22} fill="currentColor" />
-          {avgRating} · {reviews.length} reviews
-        </span>
-      </h2>
-
-      {user && (
-        <div className="mb-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-bold">Write a review</h3>
-
-          <div className="mt-4 flex gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => setRating(star)}
-                className="text-[#7e4ff5]"
-              >
-                <Star size={26} fill={star <= rating ? "currentColor" : "none"} />
-              </button>
-            ))}
-          </div>
-
-          <textarea
-            value={review}
-            onChange={(e) => setReview(e.target.value)}
-            rows={4}
-            placeholder="Share your experience..."
-            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
-          />
-
-          <button
-            type="button"
-            onClick={submitReview}
-            disabled={submitting}
-            className="mt-4 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4] disabled:opacity-60"
-          >
-            {submitting ? "Submitting..." : "Submit review"}
-          </button>
-        </div>
-      )}
-
-      {reviews.length === 0 ? (
-        <p className="text-gray-500">No reviews yet.</p>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {reviews.map((item) => (
-            <div key={item.id} className="rounded-[24px] border border-gray-200 p-5">
-              <p className="font-bold">{item.guest_name || "Guest"}</p>
-              <div className="mt-3 flex text-[#7e4ff5]">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={17}
-                    fill={star <= Number(item.rating) ? "currentColor" : "none"}
-                  />
-                ))}
-              </div>
-              <p className="mt-3 leading-7 text-gray-700">
-                {item.review || "No written review."}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
