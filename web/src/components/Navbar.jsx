@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import api from "../api/api";
 import NotificationBell from "./NotificationBell";
-import { useEffect, useRef, useState } from "react";
+
 import {
   Menu,
   User,
