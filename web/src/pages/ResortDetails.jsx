@@ -240,15 +240,45 @@ export default function ResortDetails() {
     });
   };
 
-  const handleMessageHost = () => {
-    if (!getStoredUser()) {
-      openLoginModal();
-      return;
-    }
+const handleMessageHost = async () => {
+  const user = getStoredUser();
 
-    navigate("/messages", { state: { property } });
-  };
+  if (!user) {
+    openLoginModal();
+    return;
+  }
 
+  const hostId = Number(property?.user_id);
+
+  if (!hostId) {
+    alert("Host details are missing for this property.");
+    return;
+  }
+
+  if (Number(user.id) === hostId) {
+    alert("This is your own listing.");
+    return;
+  }
+
+  try {
+    await api.post("/conversations/start", {
+      sender_id: user.id,
+      receiver_id: hostId,
+      property_id: property.id,
+      message: `Hi, I’m interested in ${property.title}. Is it available?`,
+    });
+
+    navigate("/messages", {
+      state: {
+        openUserId: hostId,
+        propertyId: property.id,
+      },
+    });
+  } catch (err) {
+    console.log("Start conversation failed:", err);
+    alert(err.response?.data?.message || "Could not start conversation.");
+  }
+};
   const handleWishlist = async () => {
     const user = getStoredUser();
 

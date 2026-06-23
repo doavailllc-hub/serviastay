@@ -747,7 +747,47 @@ app.get("/api/conversations/:userId", verifyToken, async (req, res) => {
     });
   }
 });
+app.post("/api/conversations/start", verifyToken, async (req, res) => {
+  try {
+    const senderId = Number(req.body.sender_id);
+    const receiverId = Number(req.body.receiver_id);
+    const propertyId = req.body.property_id ? Number(req.body.property_id) : null;
 
+    if (!senderId || !receiverId) {
+      return res.status(400).json({ message: "sender_id and receiver_id are required" });
+    }
+
+    if (senderId === receiverId) {
+      return res.status(400).json({ message: "You cannot message yourself" });
+    }
+
+    const message =
+      String(req.body.message || "").trim() ||
+      "Hi, I’m interested in this stay. Is it available?";
+
+    const result = await query(
+      `
+      INSERT INTO servia_messages
+      (sender_id, receiver_id, property_id, message, is_read)
+      VALUES (?, ?, ?, ?, 0)
+      `,
+      [senderId, receiverId, propertyId, message]
+    );
+
+    res.json({
+      success: true,
+      message: "Conversation started",
+      messageId: result.insertId,
+      otherUserId: receiverId,
+    });
+  } catch (err) {
+    console.log("START CONVERSATION ERROR:", err.message);
+    res.status(500).json({
+      message: "Failed to start conversation",
+      error: err.message,
+    });
+  }
+});
 app.get("/api/notifications/:userId/unread-count", verifyToken, async (req, res) => {
   try {
     const rows = await query(
