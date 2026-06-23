@@ -1104,7 +1104,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
       setReview("");
       setRating(5);
       await onReviewAdded();
-      alert("Review submitted.");
+     toast.success("Review submitted successfully");
     } catch (err) {
       alert(err.response?.data?.message || "Review submit failed.");
     } finally {
