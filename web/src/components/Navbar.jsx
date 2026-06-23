@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import api from "../api/api";
-
+import NotificationBell from "./NotificationBell";
 import {
   Menu,
   User,
@@ -100,118 +100,111 @@ export default function Navbar() {
     "U";
 
   const totalBadge = unreadCount + notificationCount;
+const [open, setOpen] = useState(false);
+const menuRef = useRef(null);
 
-  return (
-    <nav className="sticky top-0 z-50 mx-auto flex h-20 max-w-[1500px] items-center justify-between border-b border-gray-200 bg-white px-6 md:px-12">
-      <Link to="/home" onClick={closeMenu} className="flex items-center no-underline">
-        <img src={logo} alt="Servia Stay" className="h-8 w-auto object-contain" />
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (
+      menuRef.current &&
+      !menuRef.current.contains(event.target)
+    ) {
+      setOpen(false);
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () =>
+    document.removeEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+}, []);
+return (
+  <nav className="sticky top-0 z-50 mx-auto flex h-20 max-w-[1500px] items-center justify-between border-b border-gray-200 bg-white/90 px-6 backdrop-blur-md md:px-12">
+    <Link to="/home" onClick={closeMenu} className="flex items-center no-underline">
+      <img src={logo} alt="Dovail Stay" className="h-8 w-auto object-contain" />
+    </Link>
+
+    <div className="hidden h-full items-center justify-center gap-10 md:flex">
+      <NavTab to="/home" icon={<Home size={24} />} label="Homes" active={location.pathname === "/home" || location.pathname === "/"} />
+      <NavTab to="/experiences" icon={<Sparkles size={24} />} label="Experiences" active={location.pathname === "/experiences"} badge="NEW" />
+      <NavTab to="/services" icon={<Bell size={24} />} label="Services" active={location.pathname === "/services"} badge="NEW" />
+    </div>
+
+    <div className="relative flex items-center justify-end gap-[18px]">
+      <Link
+        to="/become-a-host"
+        onClick={closeMenu}
+        className="hidden whitespace-nowrap rounded-full px-4 py-3 text-sm font-semibold text-[#222] no-underline hover:bg-gray-100 md:block"
+      >
+        {user ? "Switch to hosting" : "Become a host"}
       </Link>
 
-      <div className="hidden h-full items-center justify-center gap-10 md:flex">
-        <NavTab
-          to="/home"
-          icon={<Home size={24} />}
-          label="Homes"
-          active={location.pathname === "/home" || location.pathname === "/"}
-        />
+      <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex">
+        <Globe size={18} />
+      </button>
 
-        <NavTab
-          to="/experiences"
-          icon={<Sparkles size={24} />}
-          label="Experiences"
-          active={location.pathname === "/experiences"}
-          badge="NEW"
-        />
+      {user && (
+        <>
+          <NotificationBell />
 
-        <NavTab
-          to="/services"
-          icon={<Bell size={24} />}
-          label="Services"
-          active={location.pathname === "/services"}
-          badge="NEW"
-        />
-      </div>
+          <Link
+            to="/messages"
+            onClick={closeMenu}
+            className="relative hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex"
+          >
+            <MessageSquare size={19} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7e4ff5] px-1 text-[11px] font-bold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </Link>
+        </>
+      )}
 
-      <div className="relative flex items-center justify-end gap-[18px]">
-        <Link
-          to="/become-a-host"
-          onClick={closeMenu}
-          className="hidden whitespace-nowrap rounded-full px-4 py-3 text-sm font-semibold text-[#222] no-underline hover:bg-gray-100 md:block"
-        >
-          {user ? "Switch to hosting" : "Become a host"}
-        </Link>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="relative flex h-[44px] w-[72px] cursor-pointer items-center justify-between rounded-full border border-[#ddd] bg-white px-3 text-[#222] hover:shadow-md"
+      >
+        <Menu size={18} />
 
-        <button className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex">
-          <Globe size={18} />
-        </button>
-
-        {user && (
-          <>
-            <Link
-              to="/notifications"
-              onClick={closeMenu}
-              className="relative hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex"
-            >
-              <Bell size={19} />
-
-              {notificationCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8363F5] px-1 text-[11px] font-bold text-white">
-                  {notificationCount}
-                </span>
-              )}
-            </Link>
-
-            <Link
-              to="/messages"
-              onClick={closeMenu}
-              className="relative hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex"
-            >
-              <MessageSquare size={19} />
-
-              {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8363F5] px-1 text-[11px] font-bold text-white">
-                  {unreadCount}
-                </span>
-              )}
-            </Link>
-          </>
-        )}
-
-        <button
-          onClick={() => setOpen((prev) => !prev)}
-          className="relative flex h-[44px] w-[72px] cursor-pointer items-center justify-between rounded-full border border-[#ddd] bg-white px-3 text-[#222] hover:shadow-md"
-        >
-          <Menu size={18} />
-
+        {user?.profile_image ? (
+          <img src={user.profile_image} alt="" className="h-8 w-8 rounded-full object-cover" />
+        ) : (
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#717171] font-bold text-white">
             {avatarLetter}
           </div>
-
-          {user && totalBadge > 0 && (
-            <span className="absolute right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8363F5] px-1 text-[10px] font-bold text-white">
-              {totalBadge}
-            </span>
-          )}
-        </button>
-
-        {open && (
-          <div className="absolute right-0 top-[58px] z-[9999] w-[315px] overflow-hidden rounded-2xl border border-gray-100 bg-white py-3 shadow-2xl">
-            {!user ? (
-              <GuestMenu closeMenu={closeMenu} />
-            ) : (
-              <UserMenu
-                user={user}
-                unreadCount={unreadCount}
-                notificationCount={notificationCount}
-                logout={logout}
-                closeMenu={closeMenu}
-              />
-            )}
-          </div>
         )}
-      </div>
-    </nav>
-  );
+
+        {user && totalBadge > 0 && (
+          <span className="absolute right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7e4ff5] px-1 text-[10px] font-bold text-white">
+            {totalBadge > 99 ? "99+" : totalBadge}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-[58px] z-[9999] w-[315px] overflow-hidden rounded-2xl border border-gray-100 bg-white py-3 shadow-2xl">
+          {!user ? (
+            <GuestMenu closeMenu={closeMenu} />
+          ) : (
+            <UserMenu
+              user={user}
+              unreadCount={unreadCount}
+              notificationCount={notificationCount}
+              logout={logout}
+              closeMenu={closeMenu}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  </nav>
+);
 }
 
 function GuestMenu({ closeMenu }) {
@@ -274,7 +267,12 @@ function UserMenu({
       </div>
 
       <Divider />
-
+<MenuLink
+  to="/host-dashboard"
+  icon={<Home size={18} />}
+  text="Host Dashboard"
+  onClick={closeMenu}
+/>
       <MenuLink
         to="/wishlist"
         icon={<Heart size={18} />}

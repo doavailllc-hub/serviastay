@@ -1641,6 +1641,30 @@ app.get("/api/properties/:id/booked-dates", async (req, res) => {
     });
   }
 });
+app.put("/api/notifications/:userId/mark-read", verifyToken, async (req, res) => {
+  try {
+    await query(
+      `
+      UPDATE servia_notifications
+      SET is_read = 1
+      WHERE user_id = ?
+      `,
+      [req.params.userId]
+    );
+
+    res.json({
+      success: true,
+      message: "Notifications marked as read",
+    });
+  } catch (err) {
+    console.log("NOTIFICATION MARK READ ERROR:", err.message);
+    res.status(500).json({
+      message: "Notification update failed",
+      error: err.message,
+    });
+  }
+});
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
