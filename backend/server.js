@@ -696,52 +696,55 @@ app.post(
 );
 app.get("/api/conversations/:userId", verifyToken, async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = Number(req.params.userId);
 
     const rows = await query(
       `
       SELECT 
-        m.*,
+        m.id,
+        m.sender_id,
+        m.receiver_id,
+        m.property_id,
+        m.message,
+        COALESCE(m.is_read, 0) AS is_read,
+        m.created_at,
         CASE 
           WHEN m.sender_id = ? THEN m.receiver_id
           ELSE m.sender_id
         END AS other_user_id,
-        u.fullname AS other_user_name,
+        COALESCE(u.fullname, u.email, 'User') AS other_user_name,
         p.title AS property_title,
         p.image AS property_image,
-        (
-          SELECT COUNT(*)
-          FROM servia_messages x
-          WHERE x.receiver_id = ?
-          AND x.sender_id = CASE 
-            WHEN m.sender_id = ? THEN m.receiver_id
-            ELSE m.sender_id
-          END
-          AND x.is_read = false
-        ) AS unread_count
+        0 AS unread_count
       FROM servia_messages m
-      JOIN servia_users u ON u.id = CASE 
-        WHEN m.sender_id = ? THEN m.receiver_id
-        ELSE m.sender_id
-      END
+      LEFT JOIN servia_users u 
+        ON u.id = CASE 
+          WHEN m.sender_id = ? THEN m.receiver_id
+          ELSE m.sender_id
+        END
       LEFT JOIN servia_properties p ON p.id = m.property_id
       WHERE m.id IN (
         SELECT MAX(id)
         FROM servia_messages
         WHERE sender_id = ? OR receiver_id = ?
-        GROUP BY CASE 
-          WHEN sender_id = ? THEN receiver_id
-          ELSE sender_id
-        END
+        GROUP BY 
+          CASE 
+            WHEN sender_id = ? THEN receiver_id
+            ELSE sender_id
+          END
       )
-      ORDER BY m.created_at DESC
+      ORDER BY m.created_at DESC, m.id DESC
       `,
-      [userId, userId, userId, userId, userId, userId, userId]
+      [userId, userId, userId, userId, userId]
     );
 
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "Conversations fetch failed", error: err.message });
+    console.log("CONVERSATIONS FETCH ERROR:", err);
+    res.status(500).json({
+      message: "Conversations fetch failed",
+      error: err.message,
+    });
   }
 });
 
