@@ -415,7 +415,7 @@ app.post("/api/upload", verifyToken, upload.single("image"), (req, res) => {
 
   res.json({
     success: true,
-    imageUrl: buildFileUrl(req.file.filename),
+   imageUrl: `https://stay.dovail.com/uploads/${req.file.filename}`,
   });
 });
 
@@ -428,7 +428,9 @@ app.post("/api/upload/multiple", verifyToken, upload.array("images", 10), (req, 
 
   res.json({
     success: true,
-    imageUrls: req.files.map((file) => buildFileUrl(file.filename)),
+imageUrls: req.files.map(
+  (file) => `https://stay.dovail.com/uploads/${file.filename}`
+),
   });
 });
 
@@ -1016,7 +1018,7 @@ app.post("/api/property-images", verifyToken, upload.single("image"), async (req
       return res.status(400).json({ message: "No image uploaded" });
     }
 
-    const imageUrl = buildFileUrl(req.file.filename);
+const imageUrl = `https://stay.dovail.com/uploads/${req.file.filename}`;
 
     const result = await query(
       "INSERT INTO servia_property_images (property_id, image_url, is_cover, sort_order) VALUES (?, ?, ?, ?)",
