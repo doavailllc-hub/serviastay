@@ -54,13 +54,27 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProperties from "./pages/admin/AdminProperties";
 import AdminBookings from "./pages/admin/AdminBookings";
+import { Toaster } from "react-hot-toast";
+
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
 export default function App() {
   return (
-    <Routes>
+    <>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: "14px",
+            padding: "12px 16px",
+            fontWeight: "600",
+          },
+        }}
+      />
 
+      <Routes>
       {/* ========= PUBLIC ROUTES ========= */}
 
       <Route path="/" element={<Home />} />
@@ -308,9 +322,10 @@ export default function App() {
 <Route path="payments" element={<PaymentHistory />} />
 </Route>
 
-<Route path="*" element={<NotFound />} />
+
       <Route path="*" element={<NotFound />} />
 
-    </Routes>
+      </Routes>
+    </>
   );
 }
