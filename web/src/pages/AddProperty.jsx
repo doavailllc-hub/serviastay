@@ -15,16 +15,18 @@ export default function AddProperty() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    category: "Apartment",
-    location: "",
-    price: "",
-    guests: 1,
-    bedrooms: 1,
-    bathrooms: 1,
-    host_whatsapp: "",
-  });
+  title: "",
+  description: "",
+  category: "Apartment",
+  location: "",
+  latitude: "",
+  longitude: "",
+  price: "",
+  guests: 1,
+  bedrooms: 1,
+  bathrooms: 1,
+  host_whatsapp: "",
+});
 
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -158,19 +160,21 @@ export default function AddProperty() {
 
       const coverImage = await uploadSingleImage(files[0].file);
 
-      const propertyRes = await api.post("/properties", {
-        user_id: user.id,
-        title: form.title.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        location: form.location.trim(),
-        price: Number(form.price),
-        guests: Number(form.guests),
-        bedrooms: Number(form.bedrooms),
-        bathrooms: Number(form.bathrooms),
-        image: coverImage,
-        host_whatsapp: cleanWhatsAppNumber(form.host_whatsapp),
-      });
+const propertyRes = await api.post("/properties", {
+  user_id: user.id,
+  title: form.title.trim(),
+  description: form.description.trim(),
+  category: form.category,
+  location: form.location.trim(),
+  latitude: Number(form.latitude),
+  longitude: Number(form.longitude),
+  price: Number(form.price),
+  guests: Number(form.guests),
+  bedrooms: Number(form.bedrooms),
+  bathrooms: Number(form.bathrooms),
+  image: coverImage,
+  host_whatsapp: cleanWhatsAppNumber(form.host_whatsapp),
+});
 
       const propertyId = propertyRes.data.propertyId;
 
@@ -236,7 +240,19 @@ export default function AddProperty() {
               placeholder="Kochi, Kerala"
               onChange={(value) => updateForm("location", value)}
             />
+<Field
+  label="Latitude"
+  value={form.latitude}
+  placeholder="9.931233"
+  onChange={(value) => updateForm("latitude", value)}
+/>
 
+<Field
+  label="Longitude"
+  value={form.longitude}
+  placeholder="76.267303"
+  onChange={(value) => updateForm("longitude", value)}
+/>
             <Field
               label="Price per night"
               value={form.price}

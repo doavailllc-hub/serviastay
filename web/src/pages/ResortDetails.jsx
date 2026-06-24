@@ -30,7 +30,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
-
+import GoogleMapSection from "../components/GoogleMapSection";
 const BRAND_COLOR = "#7e4ff5";
 const BRAND_HOVER = "#6f43e4";
 const FALLBACK_IMAGE =
@@ -508,26 +508,17 @@ const handleMessageHost = async () => {
               </div>
             </section>
 
-            <section className="py-8">
-              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
-                Where you’ll be
-              </h2>
+           <section className="py-8">
+  <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
+    Where you'll be
+  </h2>
 
-              <div className="flex h-80 items-center justify-center rounded-[28px] border border-[#e8e2ff] bg-gradient-to-br from-[#f7f4ff] to-white">
-                <div className="px-6 text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
-                    <MapPin size={34} style={{ color: BRAND_COLOR }} />
-                  </div>
-                  <h3 className="text-xl font-semibold">
-                    {property.location || "Location"}
-                  </h3>
-                  <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
-                    Map integration can be connected here when your backend has
-                    latitude and longitude.
-                  </p>
-                </div>
-              </div>
-            </section>
+  <GoogleMapSection
+    latitude={property.latitude}
+    longitude={property.longitude}
+    title={property.title}
+  />
+</section>
             <ReviewsSection
   propertyId={property.id}
   reviews={reviews}
@@ -1070,47 +1061,42 @@ function CalendarMonth({
     </div>
   );
 }
-function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
-  const [rating, setRating] = useState(5);
-  const [review, setReview] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+const submitReview = async () => {
+  if (!user?.id) {
+    toast.error("Please login to write a review");
+    return;
+  }
 
-  const user = getStoredUser();
+  try {
+    setSubmitting(true);
 
-  const avgRating =
-    reviews.length > 0
-      ? (
-          reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) /
-          reviews.length
-        ).toFixed(1)
-      : "5.0";
+    await api.post("/reviews", {
+      property_id: propertyId,
+      user_id: user.id,
+      rating,
+      review,
+    });
 
-  const submitReview = async () => {
-    if (!user?.id) {
-      alert("Please login to write a review.");
-      return;
-    }
+    setReview("");
+    setRating(5);
 
     try {
-      setSubmitting(true);
-
-      await api.post("/reviews", {
-        property_id: propertyId,
-        user_id: user.id,
-        rating,
-        review,
-      });
-
-      setReview("");
-      setRating(5);
       await onReviewAdded();
-     toast.success("Review submitted successfully");
-    } catch (err) {
-      alert(err.response?.data?.message || "Review submit failed.");
-    } finally {
-      setSubmitting(false);
+    } catch (reloadError) {
+      console.log("Review reload failed:", reloadError);
     }
-  };
+
+    toast.success("Review submitted successfully");
+  } catch (err) {
+    console.error(err);
+
+    toast.error(
+      err?.response?.data?.message || "Review submit failed"
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <section className="border-t border-gray-200 py-10">
