@@ -1944,6 +1944,139 @@ app.put("/api/user/:id", verifyToken, async (req, res) => {
     });
   }
 });
+
+
+app.get("/api/bookings/:userId", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        p.title,
+        p.location,
+        p.image
+      FROM servia_bookings b
+      JOIN servia_properties p ON b.property_id = p.id
+      WHERE b.user_id = ? OR p.user_id = ?
+      ORDER BY b.id DESC
+      `,
+      [userId, userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("BOOKINGS FETCH ERROR:", err.message);
+    res.status(500).json({
+      message: "Bookings fetch failed",
+      error: err.message,
+    });
+  }
+});
+
+app.get("/api/bookings/:bookingId/receipt", verifyToken, async (req, res) => {
+  try {
+    const bookingId = Number(req.params.bookingId);
+
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        u.fullname,
+        u.email,
+        p.title,
+        p.location
+      FROM servia_bookings b
+      JOIN servia_users u ON u.id = b.user_id
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE b.id = ?
+      LIMIT 1
+      `,
+      [bookingId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const booking = rows[0];
+
+    if (
+      Number(req.user.id) !== Number(booking.user_id) &&
+      Number(req.user.id) !== Number(booking.host_id) &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=dovail-receipt-${bookingId}.pdf`
+    );
+
+    const doc = new PDFDocument({ margin: 50 });
+    doc.pipe(res);
+
+    doc
+      .fontSize(24)
+      .fillColor("#7e4ff5")
+      .text("Dovail Stay", { align: "left" });
+
+    doc
+      .moveDown(0.5)
+      .fontSize(18)
+      .fillColor("#222")
+      .text("Booking Receipt");
+
+    doc.moveDown();
+    doc.fontSize(11).fillColor("#555");
+
+    doc.text(`Receipt ID: DOVAIL-${booking.id}`);
+    doc.text(`Booking Status: ${booking.status}`);
+    doc.text(`Payment Method: ${booking.payment_method || "N/A"}`);
+    doc.text(`Issued Date: ${new Date().toLocaleDateString("en-IN")}`);
+
+    doc.moveDown();
+    doc.fontSize(14).fillColor("#222").text("Guest Details");
+    doc.moveDown(0.4);
+    doc.fontSize(11).fillColor("#555");
+    doc.text(`Name: ${booking.fullname || "Guest"}`);
+    doc.text(`Email: ${booking.email || "N/A"}`);
+
+    doc.moveDown();
+    doc.fontSize(14).fillColor("#222").text("Stay Details");
+    doc.moveDown(0.4);
+    doc.fontSize(11).fillColor("#555");
+    doc.text(`Property: ${booking.title}`);
+    doc.text(`Location: ${booking.location || "N/A"}`);
+    doc.text(`Check-in: ${booking.checkin}`);
+    doc.text(`Check-out: ${booking.checkout}`);
+    doc.text(`Guests: ${booking.guests}`);
+
+    doc.moveDown();
+    doc.fontSize(14).fillColor("#222").text("Payment Summary");
+    doc.moveDown(0.4);
+    doc.fontSize(12).fillColor("#111");
+    doc.text(`Total Paid: INR ${Number(booking.total || 0).toLocaleString("en-IN")}`);
+
+    doc.moveDown(2);
+    doc.fontSize(10).fillColor("#777");
+    doc.text("Thank you for choosing Dovail Stay.");
+    doc.text("This is a system generated receipt.");
+
+    doc.end();
+  } catch (err) {
+    console.log("RECEIPT PDF ERROR:", err.message);
+    res.status(500).json({
+      message: "Receipt generation failed",
+      error: err.message,
+    });
+  }
+});
+
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
