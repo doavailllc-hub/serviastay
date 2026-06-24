@@ -45,7 +45,10 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
+app.use(
+  "/api/payments/razorpay-webhook",
+  express.raw({ type: "application/json" })
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -1212,19 +1215,21 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
     const result = await query(
       `
       INSERT INTO servia_bookings
-      (property_id, user_id, checkin, checkout, guests, total, status, payment_method)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (property_id, user_id, checkin, checkout, guests, total, status, payment_method, payment_status, razorpay_order_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [
-        property_id,
-        user_id,
-        checkin,
-        checkout,
-        guests,
-        total,
-        "Confirmed",
-        payment_method || "cash",
-      ]
+[
+  property_id,
+  user_id,
+  checkin,
+  checkout,
+  guests,
+  total,
+  payment_method === "razorpay" ? "Pending" : "Confirmed",
+  payment_method || "cash",
+  payment_method === "razorpay" ? "Pending" : "Paid",
+  req.body.razorpay_order_id || null,
+]
     );
 
     try {
@@ -1485,6 +1490,7 @@ app.post("/api/payments/create-order", verifyToken, async (req, res) => {
 app.post("/api/payments/verify", verifyToken, async (req, res) => {
   try {
     const {
+      booking_id,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
@@ -1499,6 +1505,27 @@ app.post("/api/payments/verify", verifyToken, async (req, res) => {
 
     if (expectedSignature !== razorpay_signature) {
       return res.status(400).json({ message: "Payment verification failed" });
+    }
+
+    if (booking_id) {
+      await query(
+        `
+        UPDATE servia_bookings
+        SET 
+          razorpay_order_id = ?,
+          payment_id = ?,
+          payment_status = ?,
+          status = ?
+        WHERE id = ?
+        `,
+        [
+          razorpay_order_id,
+          razorpay_payment_id,
+          "Paid",
+          "Confirmed",
+          booking_id,
+        ]
+      );
     }
 
     res.json({
@@ -2145,7 +2172,64 @@ app.get("/api/bookings/:bookingId/receipt", verifyToken, async (req, res) => {
   }
 });
 
+app.post("/api/payments/razorpay-webhook", async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
+    if (!webhookSecret) {
+      return res.status(500).json({ message: "Webhook secret missing" });
+    }
+
+    const signature = req.headers["x-razorpay-signature"];
+
+    const expectedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(req.body)
+      .digest("hex");
+
+    if (expectedSignature !== signature) {
+      return res.status(400).json({ message: "Invalid webhook signature" });
+    }
+
+    const event = JSON.parse(req.body.toString());
+
+    if (event.event === "payment.captured") {
+      const payment = event.payload.payment.entity;
+      const orderId = payment.order_id;
+      const paymentId = payment.id;
+
+      await query(
+        `
+        UPDATE servia_bookings
+        SET payment_status = ?, payment_id = ?
+        WHERE razorpay_order_id = ?
+        `,
+        ["Paid", paymentId, orderId]
+      );
+    }
+
+    if (event.event === "payment.failed") {
+      const payment = event.payload.payment.entity;
+
+      await query(
+        `
+        UPDATE servia_bookings
+        SET payment_status = ?
+        WHERE razorpay_order_id = ?
+        `,
+        ["Failed", payment.order_id]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.log("RAZORPAY WEBHOOK ERROR:", err.message);
+    res.status(500).json({
+      message: "Webhook failed",
+      error: err.message,
+    });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
