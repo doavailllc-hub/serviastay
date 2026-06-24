@@ -224,11 +224,9 @@ useEffect(() => {
     return diff > 0 ? diff : 1;
   }, [checkin, checkout]);
 
-  const subtotal = price * nights;
-  const cleaningFee = subtotal > 0 ? 500 : 0;
-  const serviceFee = Math.round(subtotal * 0.05);
-  const taxes = Math.round(subtotal * 0.12);
-  const total = subtotal + cleaningFee + serviceFee + taxes;
+ const subtotal = price * nights;
+const taxes = Math.round(subtotal * 0.12);
+const total = subtotal + taxes;
 
   const dateError = !checkin || !checkout || checkout <= checkin;
 
@@ -242,25 +240,22 @@ useEffect(() => {
       return;
     }
 
-    navigate("/checkout", {
-      state: {
-        property,
-        checkin,
-        checkout,
-        guests: totalGuests,
-        adults,
-        children,
-        infants,
-        pets,
-        nights,
-        subtotal,
-        cleaningFee,
-        serviceFee,
-        taxes,
-        total,
-      },
-    });
-  };
+  navigate("/checkout", {
+  state: {
+    property,
+    checkin,
+    checkout,
+    guests: totalGuests,
+    adults,
+    children,
+    infants,
+    pets,
+    nights,
+    subtotal,
+    taxes,
+    total,
+  },
+});
 
 const handleMessageHost = async () => {
   const user = getStoredUser();
@@ -549,8 +544,7 @@ const handleMessageHost = async () => {
               totalGuests={totalGuests}
               nights={nights}
               subtotal={subtotal}
-              cleaningFee={cleaningFee}
-              serviceFee={serviceFee}
+      
               taxes={taxes}
               total={total}
               dateError={dateError}
@@ -605,8 +599,6 @@ function ReservationCard({
   totalGuests,
   nights,
   subtotal,
-  cleaningFee,
-  serviceFee,
   taxes,
   total,
   dateError,
@@ -693,8 +685,7 @@ function ReservationCard({
           }`}
           value={formatINR(subtotal)}
         />
-        <PriceRow label="Cleaning fee" value={formatINR(cleaningFee)} />
-        <PriceRow label="Service fee" value={formatINR(serviceFee)} />
+  
         <PriceRow label="Taxes" value={formatINR(taxes)} />
 
         <div className="flex items-center justify-between border-t border-gray-200 pt-4 text-base font-bold">

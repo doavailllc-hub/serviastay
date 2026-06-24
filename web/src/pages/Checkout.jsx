@@ -229,9 +229,10 @@ export default function Checkout() {
 
       handler: async (response) => {
         await api.post("/payments/verify", {
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
+         booking_id: bookingId,
+  razorpay_order_id: response.razorpay_order_id,
+  razorpay_payment_id: response.razorpay_payment_id,
+  razorpay_signature: response.razorpay_signature,
         });
 
         await createBooking({
