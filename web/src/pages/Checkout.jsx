@@ -36,9 +36,8 @@ export default function Checkout() {
 
   const price = Number(property?.price || 0);
   const subtotal = price * nights;
-  const serviceFee = Math.round(subtotal * 0.05);
   const taxes = Math.round(subtotal * 0.12);
-  const beforeDiscountTotal = subtotal + serviceFee + taxes;
+const beforeDiscountTotal = subtotal;
   const discount = Number(coupon?.discount || 0);
   const total = Math.max(beforeDiscountTotal - discount, 0);
 
@@ -475,8 +474,7 @@ export default function Checkout() {
                   label={`${formatINR(price)} x ${nights} nights`}
                   value={formatINR(subtotal)}
                 />
-                <PriceRow label="Service fee" value={formatINR(serviceFee)} />
-                <PriceRow label="Taxes" value={formatINR(taxes)} />
+          
 
                 {discount > 0 && (
                   <PriceRow
