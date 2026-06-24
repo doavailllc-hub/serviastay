@@ -1778,7 +1778,96 @@ app.put("/api/reviews/:id/reply", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Host reply failed", error: err.message });
   }
 });
+app.get("/api/user/:id", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
 
+    if (Number(req.user.id) !== userId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const rows = await query(
+      `
+      SELECT 
+        id,
+        fullname,
+        email,
+        phone,
+        role,
+        profile_image,
+        created_at
+      FROM servia_users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.log("USER LOAD ERROR:", err.message);
+    res.status(500).json({
+      message: "User load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.put("/api/user/:id", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+
+    if (Number(req.user.id) !== userId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const fullname = String(req.body.fullname || "").trim();
+    const phone = String(req.body.phone || "").trim();
+    const profileImage = String(req.body.profile_image || "").trim();
+
+    await query(
+      `
+      UPDATE servia_users
+      SET fullname = ?, phone = ?, profile_image = ?
+      WHERE id = ?
+      `,
+      [fullname, phone, profileImage, userId]
+    );
+
+    const rows = await query(
+      `
+      SELECT 
+        id,
+        fullname,
+        email,
+        phone,
+        role,
+        profile_image,
+        created_at
+      FROM servia_users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      message: "Profile updated",
+      user: rows[0],
+    });
+  } catch (err) {
+    console.log("USER UPDATE ERROR:", err.message);
+    res.status(500).json({
+      message: "Profile update failed",
+      error: err.message,
+    });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
