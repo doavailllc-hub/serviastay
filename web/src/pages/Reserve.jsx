@@ -92,9 +92,8 @@ export default function Reserve() {
 
   const price = Number(property.price || 0);
   const subtotal = price * nights;
-  const serviceFee = Math.round(subtotal * 0.05);
   const taxes = Math.round(subtotal * 0.12);
-  const total = subtotal + serviceFee + taxes;
+const total = subtotal;
 
   const images = [
     property.image,
