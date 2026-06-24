@@ -106,7 +106,8 @@ db.getConnection((err, connection) => {
   console.log("Connected to serviadb ✅");
 });
 
-const buildFileUrl = (filename) => `${API_BASE_URL}/uploads/${filename}`;
+const buildFileUrl = (filename) =>
+  `https://stay.dovail.com/uploads/${filename}`;
 
 function query(sql, values = []) {
   return new Promise((resolve, reject) => {
