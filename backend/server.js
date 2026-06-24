@@ -1046,9 +1046,82 @@ app.post("/api/check-availability", async (req, res) => {
   }
 });
 
+
+async function sendBookingConfirmation({
+  email,
+  guestName,
+  propertyTitle,
+  checkin,
+  checkout,
+  guests,
+  total,
+  bookingId,
+}) {
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to: email,
+    subject: `Booking Confirmed - ${propertyTitle}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px">
+        <h2>Booking Confirmed 🎉</h2>
+
+        <p>Hello ${guestName},</p>
+
+        <p>Your reservation has been confirmed.</p>
+
+        <table style="border-collapse:collapse">
+          <tr>
+            <td><b>Booking ID</b></td>
+            <td>${bookingId}</td>
+          </tr>
+          <tr>
+            <td><b>Property</b></td>
+            <td>${propertyTitle}</td>
+          </tr>
+          <tr>
+            <td><b>Check-in</b></td>
+            <td>${checkin}</td>
+          </tr>
+          <tr>
+            <td><b>Check-out</b></td>
+            <td>${checkout}</td>
+          </tr>
+          <tr>
+            <td><b>Guests</b></td>
+            <td>${guests}</td>
+          </tr>
+          <tr>
+            <td><b>Total</b></td>
+            <td>₹${Number(total).toLocaleString("en-IN")}</td>
+          </tr>
+        </table>
+
+        <br>
+
+        <a href="https://stay.dovail.com/trips"
+           style="background:#7e4ff5;color:#fff;padding:12px 20px;
+           text-decoration:none;border-radius:8px;">
+           View Booking
+        </a>
+
+        <p style="margin-top:20px">
+          Thank you for choosing Dovail Stay.
+        </p>
+      </div>
+    `,
+  });
+}
 app.post("/api/bookings", verifyToken, async (req, res) => {
   try {
-    const { property_id, user_id, checkin, checkout, guests, total, payment_method } = req.body;
+    const {
+      property_id,
+      user_id,
+      checkin,
+      checkout,
+      guests,
+      total,
+      payment_method,
+    } = req.body;
 
     const existing = await query(
       `
@@ -1085,6 +1158,33 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
       ]
     );
 
+    try {
+      const users = await query(
+        "SELECT fullname, email FROM servia_users WHERE id = ? LIMIT 1",
+        [user_id]
+      );
+
+      const properties = await query(
+        "SELECT title FROM servia_properties WHERE id = ? LIMIT 1",
+        [property_id]
+      );
+
+      if (users.length && users[0].email) {
+        await sendBookingConfirmation({
+          email: users[0].email,
+          guestName: users[0].fullname || "Guest",
+          propertyTitle: properties[0]?.title || "Dovail Stay",
+          checkin,
+          checkout,
+          guests,
+          total,
+          bookingId: result.insertId,
+        });
+      }
+    } catch (emailErr) {
+      console.log("BOOKING EMAIL ERROR:", emailErr.message);
+    }
+
     res.json({
       success: true,
       message: "Booking created successfully",
@@ -1094,30 +1194,6 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Booking failed", error: err.message });
   }
 });
-
-app.get("/api/bookings/:userId", verifyToken, async (req, res) => {
-  try {
-    const rows = await query(
-      `
-      SELECT 
-        b.*,
-        p.title,
-        p.location,
-        p.image
-      FROM servia_bookings b
-      JOIN servia_properties p ON b.property_id = p.id
-      WHERE b.user_id = ? OR p.user_id = ?
-      ORDER BY b.id DESC
-      `,
-      [req.params.userId, req.params.userId]
-    );
-
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ message: "Bookings fetch failed", error: err.message });
-  }
-});
-
 /* WISHLIST */
 
 app.post("/api/wishlist", verifyToken, async (req, res) => {
