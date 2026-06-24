@@ -479,6 +479,8 @@ app.post("/api/properties", verifyToken, async (req, res) => {
       description,
       category,
       location,
+       latitude,
+       longitude,
       price,
       guests,
       bedrooms,
@@ -850,7 +852,74 @@ app.get("/api/host/reservations/:hostId", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Host reservations fetch failed", error: err.message });
   }
 });
+app.get("/api/host/earnings/:hostId", verifyToken, async (req, res) => {
+  try {
+    const hostId = Number(req.params.hostId);
 
+    if (Number(req.user.id) !== hostId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const summaryRows = await query(
+      `
+      SELECT
+        COUNT(b.id) AS totalBookings,
+        COALESCE(SUM(CASE WHEN b.status != 'Cancelled' THEN b.total ELSE 0 END), 0) AS totalRevenue,
+        COALESCE(SUM(CASE WHEN b.status = 'Confirmed' THEN b.total ELSE 0 END), 0) AS confirmedRevenue,
+        COALESCE(SUM(CASE WHEN b.status = 'Cancelled' THEN b.total ELSE 0 END), 0) AS cancelledRevenue
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE p.user_id = ?
+      `,
+      [hostId]
+    );
+
+    const monthlyRows = await query(
+      `
+      SELECT
+        DATE_FORMAT(b.created_at, '%Y-%m') AS month,
+        COUNT(b.id) AS bookings,
+        COALESCE(SUM(CASE WHEN b.status != 'Cancelled' THEN b.total ELSE 0 END), 0) AS revenue
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE p.user_id = ?
+      GROUP BY DATE_FORMAT(b.created_at, '%Y-%m')
+      ORDER BY month DESC
+      LIMIT 12
+      `,
+      [hostId]
+    );
+
+    const propertyRows = await query(
+      `
+      SELECT
+        p.id,
+        p.title,
+        p.image,
+        COUNT(b.id) AS bookings,
+        COALESCE(SUM(CASE WHEN b.status != 'Cancelled' THEN b.total ELSE 0 END), 0) AS revenue
+      FROM servia_properties p
+      LEFT JOIN servia_bookings b ON b.property_id = p.id
+      WHERE p.user_id = ?
+      GROUP BY p.id
+      ORDER BY revenue DESC
+      `,
+      [hostId]
+    );
+
+    res.json({
+      summary: summaryRows[0],
+      monthly: monthlyRows,
+      properties: propertyRows,
+    });
+  } catch (err) {
+    console.log("HOST EARNINGS ERROR:", err.message);
+    res.status(500).json({
+      message: "Host earnings fetch failed",
+      error: err.message,
+    });
+  }
+});
 
 
 app.get("/api/my-properties/:userId", verifyToken, async (req, res) => {
