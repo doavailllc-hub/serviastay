@@ -423,10 +423,7 @@ export default function Reserve() {
                   underline
                 />
 
-                <PriceRow
-                  label="Service fee"
-                  value={formatINR(serviceFee)}
-                />
+              
 
                 <PriceRow label="Taxes" value={formatINR(taxes)} />
 
