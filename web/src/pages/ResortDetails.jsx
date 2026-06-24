@@ -256,7 +256,7 @@ const total = subtotal + taxes;
     total,
   },
 });
-
+}; 
 const handleMessageHost = async () => {
   const user = getStoredUser();
 
