@@ -263,7 +263,7 @@ export default function Messages() {
           </div>
         </div>
 
-        <div className="h-[calc(100vh-170px)] min-h-[620px] overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+      <div className="h-[calc(100vh-230px)] min-h-[520px] overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
           <div className="grid h-full lg:grid-cols-[360px_1fr]">
           <aside
   className={`min-h-0 h-full border-r border-gray-200 bg-white ${
