@@ -1,18 +1,31 @@
 import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
+import { Heart, Star, MapPin, Trash2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
 export default function Wishlist() {
   const navigate = useNavigate();
+
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [removingId, setRemovingId] = useState(null);
 
   useEffect(() => {
     loadWishlist();
   }, []);
 
+  const formatINR = (amount) =>
+    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+
   const loadWishlist = async () => {
     try {
+      setLoading(true);
+
       const user = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token");
 
@@ -30,103 +43,150 @@ export default function Wishlist() {
       localStorage.removeItem("user");
 
       navigate("/");
+    } finally {
+      setLoading(false);
     }
   };
 
   const removeWishlist = async (id) => {
     try {
+      setRemovingId(id);
       await api.delete(`/wishlist/${id}`);
-      loadWishlist();
+      setItems((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
       console.log("Remove wishlist failed:", err);
       alert("Failed to remove wishlist item");
+    } finally {
+      setRemovingId(null);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-10">
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold">Wishlists ❤️</h1>
-
-          <p className="text-gray-500 mt-2">
-            Homes you've saved.
-          </p>
-        </div>
-
-        {items.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center">
-            <div className="text-6xl mb-4">❤️</div>
-            <h2 className="text-2xl font-bold">No saved homes yet</h2>
-            <p className="text-gray-500 mt-2">
-              Tap the heart icon on any property to save it here.
+      <main className="mx-auto max-w-7xl px-4 pb-14 pt-24 md:px-8">
+        <section className="mb-8 flex flex-col gap-3 border-b border-gray-200 pb-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Wishlists
+            </h1>
+            <p className="mt-2 text-sm text-gray-500 md:text-base">
+              Homes you have saved for your next stay.
             </p>
-
-            <button
-              onClick={() => navigate("/home")}
-              className="mt-6 px-6 py-3 rounded-xl bg-[#8363F5] text-white font-semibold hover:bg-[#7152E8]"
-            >
-              Explore homes
-            </button>
           </div>
+
+          {!loading && items.length > 0 && (
+            <p className="text-sm font-medium text-gray-500">
+              {items.length} saved {items.length === 1 ? "home" : "homes"}
+            </p>
+          )}
+        </section>
+
+        {loading ? (
+          <div className="flex min-h-[420px] items-center justify-center">
+            <div className="flex items-center gap-3 text-gray-500">
+              <Loader2 size={22} className="animate-spin" />
+              <span className="text-sm font-medium">Loading wishlists...</span>
+            </div>
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyWishlist navigate={navigate} />
         ) : (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {items.map((item) => (
-              <div
+              <article
                 key={item.id}
-                className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition"
+                className="group cursor-pointer"
+                onClick={() => navigate(`/reserve/${item.id}`)}
               >
-                <div className="relative">
+                <div className="relative overflow-hidden rounded-3xl bg-gray-100">
                   <img
-                    src={
-                      item.image ||
-                      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
-                    }
-                    alt={item.title}
-                    className="w-full h-64 object-cover"
+                    src={item.image || FALLBACK_IMAGE}
+                    alt={item.title || "Saved property"}
+                    className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
                   />
 
                   <button
-                    onClick={() => removeWishlist(item.id)}
-                    className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white flex items-center justify-center shadow hover:scale-110 transition"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeWishlist(item.id);
+                    }}
+                    disabled={removingId === item.id}
+                    className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#7E4FF5] shadow-sm backdrop-blur transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    ❤️
+                    {removingId === item.id ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Heart size={20} fill="currentColor" />
+                    )}
                   </button>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex justify-between gap-4">
-                    <h2 className="text-xl font-bold line-clamp-1">
-                      {item.title}
+                <div className="mt-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="line-clamp-1 text-[15px] font-semibold text-gray-950">
+                      {item.title || "Beautiful stay"}
                     </h2>
 
-                    <span className="whitespace-nowrap">
-                      ⭐ {item.rating}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1 text-sm font-medium">
+                      <Star size={14} fill="currentColor" />
+                      <span>{item.rating || "New"}</span>
+                    </div>
                   </div>
 
-                  <p className="text-gray-500 mt-2 line-clamp-1">
-                    {item.location}
+                  <div className="mt-1 flex items-center gap-1 text-sm text-gray-500">
+                    <MapPin size={14} />
+                    <p className="line-clamp-1">
+                      {item.location || "Location unavailable"}
+                    </p>
+                  </div>
+
+                  <p className="mt-2 text-sm text-gray-500">
+                    Saved to your wishlist
                   </p>
 
-                  <p className="mt-4 font-bold text-[#8363F5]">
-                    ₹{Number(item.price || 0).toLocaleString("en-IN")} / night
+                  <p className="mt-2 text-[15px]">
+                    <span className="font-bold">
+                      {formatINR(item.price)}
+                    </span>{" "}
+                    <span className="text-gray-500">night</span>
                   </p>
-
-                  <button
-                    onClick={() => navigate(`/reserve/${item.id}`)}
-                    className="w-full mt-6 h-12 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white font-semibold transition"
-                  >
-                    View Property
-                  </button>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function EmptyWishlist({ navigate }) {
+  return (
+    <div className="mx-auto flex min-h-[480px] max-w-xl items-center justify-center text-center">
+      <div>
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#F4F0FF] text-[#7E4FF5]">
+          <Heart size={34} />
+        </div>
+
+        <h2 className="text-2xl font-bold tracking-tight text-gray-950">
+          Create your first wishlist
+        </h2>
+
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+          Save homes you love and come back to them anytime when planning your
+          next trip.
+        </p>
+
+        <button
+          onClick={() => navigate("/home")}
+          className="mt-7 rounded-full bg-[#7E4FF5] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#6F42EA]"
+        >
+          Start exploring
+        </button>
+      </div>
     </div>
   );
 }
