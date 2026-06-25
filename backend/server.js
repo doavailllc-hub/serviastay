@@ -2422,6 +2422,115 @@ app.put("/api/admin/reviews/:id/status", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Review update failed" });
   }
 });
+
+
+app.post("/api/kyc/submit", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    const { id_proof, address_proof } = req.body;
+
+    if (!id_proof || !address_proof) {
+      return res.status(400).json({ message: "ID proof and address proof are required" });
+    }
+
+    await query(
+      `
+      UPDATE servia_users
+      SET kyc_status = ?, kyc_id_proof = ?, kyc_address_proof = ?, kyc_note = NULL
+      WHERE id = ?
+      `,
+      ["Pending", id_proof, address_proof, userId]
+    );
+
+    res.json({ success: true, message: "KYC submitted for review" });
+  } catch (err) {
+    res.status(500).json({ message: "KYC submit failed", error: err.message });
+  }
+});
+
+app.get("/api/kyc/me", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT id, fullname, email, kyc_status, kyc_id_proof, kyc_address_proof, kyc_note
+      FROM servia_users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [req.user.id]
+    );
+
+    res.json(rows[0] || null);
+  } catch (err) {
+    res.status(500).json({ message: "KYC load failed", error: err.message });
+  }
+});
+
+app.get("/api/admin/kyc", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const rows = await query(
+      `
+      SELECT id, fullname, email, phone, kyc_status, kyc_id_proof, kyc_address_proof, kyc_note
+      FROM servia_users
+      WHERE kyc_status IS NOT NULL
+      ORDER BY FIELD(kyc_status, 'Pending', 'Rejected', 'Approved', 'Not Submitted'), id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Admin KYC load failed", error: err.message });
+  }
+});
+
+app.put("/api/admin/kyc/:userId/status", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const { status, note } = req.body;
+    const allowed = ["Approved", "Rejected", "Pending"];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid KYC status" });
+    }
+
+    await query(
+      `
+      UPDATE servia_users
+      SET kyc_status = ?, kyc_note = ?
+      WHERE id = ?
+      `,
+      [status, note || null, req.params.userId]
+    );
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        req.params.userId,
+        "KYC verification updated",
+        `Your host verification status is now ${status}.`,
+        "kyc",
+        0,
+      ]
+    );
+
+    res.json({ success: true, message: "KYC status updated" });
+  } catch (err) {
+    res.status(500).json({ message: "KYC update failed", error: err.message });
+  }
+});
+
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });

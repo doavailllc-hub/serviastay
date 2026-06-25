@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   BadgeCheck,
-  CheckCircle,
   FileText,
-  Mail,
-  Phone,
+  Home,
   RefreshCw,
   ShieldCheck,
-  UserRoundCheck,
+  Upload,
+  XCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -18,225 +17,287 @@ import api from "../api/api";
 export default function Verification() {
   const navigate = useNavigate();
 
-  const [verification, setVerification] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [kyc, setKyc] = useState(null);
+  const [idProof, setIdProof] = useState(null);
+  const [addressProof, setAddressProof] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadVerification();
+    loadKyc();
   }, []);
 
-  const getUser = () =>
-    JSON.parse(localStorage.getItem("user")) ||
-    JSON.parse(sessionStorage.getItem("user"));
-
-  const loadVerification = async () => {
+  const loadKyc = async () => {
     try {
       setLoading(true);
 
-      const user = getUser();
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const token = localStorage.getItem("token");
 
-      if (!user || !token) {
+      if (!user?.id || !token) {
         navigate("/");
         return;
       }
 
-      const res = await api.get(`/user/${user.id}/verification`);
-      setVerification(res.data);
+      const res = await api.get("/kyc/me");
+      setKyc(res.data);
     } catch (err) {
-      console.log("Verification load failed:", err);
-      alert("Verification details failed to load");
+      console.log("KYC load failed:", err);
+      toast.error("Verification details failed to load");
     } finally {
       setLoading(false);
     }
   };
 
-  const progress = useMemo(() => {
-    if (!verification) return 0;
+  const uploadFile = async (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
 
-    const checks = [
-      verification.email_verified,
-      verification.phone_verified,
-      verification.id_verified,
-      verification.selfie_verified,
-    ];
+    const res = await api.post("/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-    const done = checks.filter(Boolean).length;
+    return res.data.imageUrl;
+  };
 
-    return Math.round((done / checks.length) * 100);
-  }, [verification]);
+  const submitKyc = async () => {
+    if (!idProof || !addressProof) {
+      toast.error("Please upload both ID proof and address proof");
+      return;
+    }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FAFAFC]">
-        <Navbar />
-        <main className="mx-auto max-w-6xl px-4 py-20 md:px-8">
-          Loading verification...
-        </main>
-      </div>
-    );
-  }
+    try {
+      setUploading(true);
+
+      const idProofUrl = await uploadFile(idProof);
+      const addressProofUrl = await uploadFile(addressProof);
+
+      await api.post("/kyc/submit", {
+        id_proof: idProofUrl,
+        address_proof: addressProofUrl,
+      });
+
+      toast.success("KYC submitted for review");
+      setIdProof(null);
+      setAddressProof(null);
+      await loadKyc();
+    } catch (err) {
+      console.log("KYC submit failed:", err);
+      toast.error(err.response?.data?.message || "KYC submit failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const status = kyc?.kyc_status || "Not Submitted";
 
   return (
     <div className="min-h-screen bg-[#FAFAFC]">
       <Navbar />
 
       <main className="mx-auto max-w-6xl px-4 py-10 md:px-8">
-        <div className="mb-8 flex items-center gap-5">
-          <button
-            onClick={() => navigate("/profile")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm hover:bg-gray-100"
-          >
-            <ArrowLeft size={22} />
-          </button>
-
+        <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">
-              Verification
+              Host Verification
             </h1>
-
             <p className="mt-2 text-gray-500">
-              Complete trust checks to improve guest and host confidence.
+              Submit your identity and address documents to become a verified
+              host.
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={loadKyc}
+            className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+          >
+            <RefreshCw size={18} />
+            Refresh
+          </button>
         </div>
 
-        <div className="mb-8 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex flex-col justify-between gap-5 md:flex-row md:items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Account Trust Score
-              </h2>
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+          <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="mb-8 flex items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[#7e4ff5]">
+                <ShieldCheck size={28} />
+              </div>
 
-              <p className="mt-1 text-gray-500">
-                Complete all verification steps for a trusted profile.
-              </p>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Submit verification documents
+                </h2>
+                <p className="mt-2 text-gray-500">
+                  Upload clear photos or PDF files of your ID proof and address
+                  proof.
+                </p>
+              </div>
             </div>
 
-            <button
-              onClick={loadVerification}
-              className="flex items-center gap-2 rounded-xl border border-gray-300 px-5 py-3 font-semibold hover:bg-gray-50"
-            >
-              <RefreshCw size={18} />
-              Refresh
-            </button>
-          </div>
+            {loading ? (
+              <div className="rounded-2xl bg-[#FAFAFC] p-8 text-center text-gray-500">
+                Loading verification...
+              </div>
+            ) : status === "Approved" ? (
+              <ApprovedCard />
+            ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <UploadBox
+                    title="ID Proof"
+                    description="Passport, Aadhaar, Emirates ID, driving license, or national ID."
+                    file={idProof}
+                    onChange={setIdProof}
+                  />
 
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-semibold text-gray-700">
-              Verification progress
-            </span>
+                  <UploadBox
+                    title="Address Proof"
+                    description="Utility bill, bank statement, rental agreement, or official address document."
+                    file={addressProof}
+                    onChange={setAddressProof}
+                  />
+                </div>
 
-            <span className="font-bold text-[#8363F5]">
-              {progress}%
-            </span>
-          </div>
+                {kyc?.kyc_note && (
+                  <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-700">
+                    <b>Admin note:</b> {kyc.kyc_note}
+                  </div>
+                )}
 
-          <div className="h-3 overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-[#8363F5]"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
+                <button
+                  type="button"
+                  onClick={submitKyc}
+                  disabled={uploading}
+                  className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#7e4ff5] font-bold text-white shadow-lg hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-8"
+                >
+                  <Upload size={18} />
+                  {uploading ? "Submitting..." : "Submit for Verification"}
+                </button>
+              </>
+            )}
+          </section>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <VerificationCard
-            icon={<Mail />}
-            title="Email verification"
-            desc="Confirm your email address to receive booking updates and account alerts."
-            active={Boolean(verification?.email_verified)}
-            actionText="Verify Email"
-          />
+          <aside className="space-y-6">
+            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+              <StatusBadge status={status} />
 
-          <VerificationCard
-            icon={<Phone />}
-            title="Phone verification"
-            desc="Verify your phone number so hosts and support can reach you when required."
-            active={Boolean(verification?.phone_verified)}
-            actionText="Verify Phone"
-          />
+              <h2 className="mt-5 text-2xl font-bold text-gray-900">
+                Verification Status
+              </h2>
 
-          <VerificationCard
-            icon={<FileText />}
-            title="Government ID"
-            desc="Upload and verify your government ID for higher trust and secure hosting."
-            active={Boolean(verification?.id_verified)}
-            actionText="Upload ID"
-          />
+              <p className="mt-2 text-gray-500">
+                Current status of your host verification.
+              </p>
 
-          <VerificationCard
-            icon={<UserRoundCheck />}
-            title="Selfie verification"
-            desc="Match your profile with a selfie to help keep the community safe."
-            active={Boolean(verification?.selfie_verified)}
-            actionText="Verify Selfie"
-          />
-        </div>
+              <div className="mt-6 space-y-4">
+                <Info label="Name" value={kyc?.fullname || "User"} />
+                <Info label="Email" value={kyc?.email || "-"} />
+                <Info label="Status" value={status} />
+              </div>
+            </div>
 
-        <div className="mt-8 rounded-3xl bg-[#F4F1FF] p-6">
-          <div className="mb-3 flex items-center gap-2">
-            <ShieldCheck className="text-[#8363F5]" />
-            <h3 className="text-xl font-bold text-gray-900">
-              Why verification matters
-            </h3>
-          </div>
+            <div className="rounded-3xl bg-gradient-to-r from-[#7e4ff5] to-[#6f43e4] p-6 text-white shadow-xl">
+              <h2 className="text-2xl font-bold">Why verify?</h2>
 
-          <p className="leading-7 text-gray-600">
-            Verified profiles help hosts and guests feel safer before bookings,
-            reduce fake accounts, and improve trust across the platform.
-          </p>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-white/90">
+                <li>✓ Builds guest trust</li>
+                <li>✓ Improves listing credibility</li>
+                <li>✓ Helps prevent fake hosts</li>
+                <li>✓ Required for professional hosting</li>
+              </ul>
+
+              <button
+                type="button"
+                onClick={() => navigate("/host-dashboard")}
+                className="mt-6 flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-[#7e4ff5]"
+              >
+                <Home size={18} />
+                Host Dashboard
+              </button>
+            </div>
+          </aside>
         </div>
       </main>
     </div>
   );
 }
 
-function VerificationCard({ icon, title, desc, active, actionText }) {
+function UploadBox({ title, description, file, onChange }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
-          {icon}
-        </div>
+    <label className="group cursor-pointer rounded-3xl border-2 border-dashed border-gray-200 bg-[#FAFAFC] p-6 transition hover:border-[#7e4ff5] hover:bg-[#f7f4ff]">
+      <input
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
+      />
 
-        {active ? (
-          <span className="flex items-center gap-1 rounded-full bg-green-100 px-4 py-2 text-sm font-bold text-green-700">
-            <CheckCircle size={16} />
-            Verified
-          </span>
-        ) : (
-          <span className="rounded-full bg-yellow-100 px-4 py-2 text-sm font-bold text-yellow-700">
-            Pending
-          </span>
-        )}
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#7e4ff5] shadow-sm">
+        <FileText size={26} />
       </div>
 
-      <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-
-      <p className="mt-2 min-h-14 text-sm leading-6 text-gray-500">
-        {desc}
+      <h3 className="mt-5 text-xl font-bold text-gray-900">{title}</h3>
+      <p className="mt-2 min-h-[48px] text-sm leading-6 text-gray-500">
+        {description}
       </p>
 
-      <button
-        type="button"
-        disabled={active}
-        className={`mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl font-semibold ${
-          active
-            ? "cursor-not-allowed bg-green-100 text-green-700"
-            : "bg-[#8363F5] text-white hover:bg-[#7152E8]"
-        }`}
-      >
-        {active ? (
-          <>
-            <BadgeCheck size={18} />
-            Completed
-          </>
-        ) : (
-          actionText
-        )}
-      </button>
+      <div className="mt-5 rounded-2xl bg-white p-4 text-sm font-semibold text-gray-700">
+        {file ? file.name : "Click to upload document"}
+      </div>
+    </label>
+  );
+}
+
+function StatusBadge({ status }) {
+  const style =
+    status === "Approved"
+      ? "bg-green-100 text-green-700"
+      : status === "Rejected"
+      ? "bg-red-100 text-red-600"
+      : status === "Pending"
+      ? "bg-yellow-100 text-yellow-700"
+      : "bg-gray-100 text-gray-600";
+
+  const Icon =
+    status === "Approved" ? BadgeCheck : status === "Rejected" ? XCircle : ShieldCheck;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ${style}`}
+    >
+      <Icon size={16} />
+      {status}
+    </span>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-[#FAFAFC] p-4">
+      <p className="text-xs font-bold uppercase text-gray-500">{label}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value || "-"}</p>
+    </div>
+  );
+}
+
+function ApprovedCard() {
+  return (
+    <div className="rounded-3xl border border-green-100 bg-green-50 p-8 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-green-600">
+        <BadgeCheck size={34} />
+      </div>
+
+      <h3 className="mt-5 text-2xl font-bold text-green-700">
+        You are verified
+      </h3>
+
+      <p className="mx-auto mt-3 max-w-xl text-green-700/80">
+        Your documents have been approved. Your host profile can now show a
+        verified badge to guests.
+      </p>
     </div>
   );
 }
