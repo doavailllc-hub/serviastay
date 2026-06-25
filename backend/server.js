@@ -2255,9 +2255,19 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
 
     const rows = await query(
       `
-      SELECT b.id, p.user_id AS host_id
+      SELECT 
+        b.id,
+        b.user_id,
+        b.checkin,
+        b.checkout,
+        b.total,
+        p.user_id AS host_id,
+        p.title,
+        u.fullname,
+        u.email
       FROM servia_bookings b
       JOIN servia_properties p ON p.id = b.property_id
+      JOIN servia_users u ON u.id = b.user_id
       WHERE b.id = ?
       LIMIT 1
       `,
@@ -2268,7 +2278,9 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (Number(rows[0].host_id) !== hostId && req.user.role !== "admin") {
+    const booking = rows[0];
+
+    if (Number(booking.host_id) !== hostId && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -2280,6 +2292,56 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
       `,
       [status, bookingId]
     );
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        booking.user_id,
+        "Booking status updated",
+        `Your booking for ${booking.title} is now ${status}.`,
+        "booking",
+        0,
+      ]
+    );
+
+    try {
+      await transporter.sendMail({
+        from: process.env.MAIL_FROM,
+        to: booking.email,
+        subject: `Booking ${status} - ${booking.title}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;border:1px solid #eee;border-radius:18px">
+            <h2 style="color:#7e4ff5;margin-bottom:8px">Booking ${status}</h2>
+            <p>Hello ${booking.fullname || "Guest"},</p>
+            <p>Your booking status has been updated.</p>
+
+            <div style="background:#f7f4ff;padding:16px;border-radius:14px;margin:20px 0">
+              <p><b>Booking ID:</b> ${booking.id}</p>
+              <p><b>Property:</b> ${booking.title}</p>
+              <p><b>Status:</b> ${status}</p>
+              <p><b>Check-in:</b> ${booking.checkin}</p>
+              <p><b>Check-out:</b> ${booking.checkout}</p>
+              <p><b>Total:</b> ₹${Number(booking.total || 0).toLocaleString("en-IN")}</p>
+            </div>
+
+            <a href="${process.env.CLIENT_URL}/trips"
+              style="display:inline-block;background:#7e4ff5;color:#fff;padding:12px 20px;text-decoration:none;border-radius:10px;font-weight:bold">
+              View My Trips
+            </a>
+
+            <p style="margin-top:24px;color:#666;font-size:14px">
+              Thank you for choosing Dovail Stay.
+            </p>
+          </div>
+        `,
+      });
+    } catch (mailErr) {
+      console.log("BOOKING STATUS EMAIL ERROR:", mailErr.message);
+    }
 
     res.json({
       success: true,
@@ -2293,8 +2355,6 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
     });
   }
 });
-
-
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });

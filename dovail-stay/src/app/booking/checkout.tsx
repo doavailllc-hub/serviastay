@@ -31,10 +31,6 @@ export default function CheckoutScreen() {
             <Text style={styles.normal}>$62 x 1 night</Text>
             <Text style={styles.normal}>$62</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.normal}>Service fee</Text>
-            <Text style={styles.normal}>$8</Text>
-          </View>
           <View style={styles.totalRow}>
             <Text style={styles.total}>Total</Text>
             <Text style={styles.total}>$70</Text>
