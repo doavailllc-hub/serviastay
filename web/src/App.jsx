@@ -304,7 +304,6 @@ export default function App() {
           </ProtectedPage>
         }
       />
- <Route path="/admin/kyc" element={<AdminKyc />} />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
 
@@ -319,11 +318,13 @@ export default function App() {
 <Route index element={<AdminDashboard />} />
 <Route path="dashboard" element={<AdminDashboard />} />
 <Route path="analytics" element={<Analytics />} />
+<Route path="kyc" element={<AdminKyc />} />
 <Route path="users" element={<AdminUsers />} />
 <Route path="properties" element={<AdminProperties />} />
 <Route path="bookings" element={<AdminBookings />} />
 <Route path="reviews" element={<AdminReviews />} />
 <Route path="payments" element={<PaymentHistory />} />
+
 </Route>
 
 
