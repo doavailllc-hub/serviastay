@@ -457,14 +457,33 @@ app.get("/api/properties", async (req, res) => {
 
 app.get("/api/properties/:id", async (req, res) => {
   try {
-    const rows = await query("SELECT * FROM servia_properties WHERE id=?", [req.params.id]);
+    const rows = await query(
+      `
+      SELECT 
+        p.*,
+        u.fullname AS host_name,
+        u.email AS host_email,
+        u.phone AS host_phone,
+        u.kyc_status AS host_kyc_status
+      FROM servia_properties p
+      LEFT JOIN servia_users u ON u.id = p.user_id
+      WHERE p.id = ?
+      LIMIT 1
+      `,
+      [req.params.id]
+    );
 
     if (!rows.length) {
       return res.status(404).json({ message: "Property not found" });
     }
 
     const images = await query(
-      "SELECT * FROM servia_property_images WHERE property_id=? ORDER BY sort_order ASC, id ASC",
+      `
+      SELECT *
+      FROM servia_property_images
+      WHERE property_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `,
       [req.params.id]
     );
 
@@ -473,10 +492,12 @@ app.get("/api/properties/:id", async (req, res) => {
       images,
     });
   } catch (err) {
-    res.status(500).json({ message: "Cannot fetch property", error: err.message });
+    res.status(500).json({
+      message: "Cannot fetch property",
+      error: err.message,
+    });
   }
 });
-
 app.post("/api/properties", verifyToken, async (req, res) => {
   try {
     const {
