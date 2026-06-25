@@ -251,7 +251,7 @@ export default function Messages() {
     <div className="min-h-screen bg-white text-gray-900">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+    <main className="mx-auto max-w-7xl px-4 pb-6 pt-24 md:px-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -265,11 +265,11 @@ export default function Messages() {
 
         <div className="h-[calc(100vh-170px)] min-h-[620px] overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
           <div className="grid h-full lg:grid-cols-[360px_1fr]">
-            <aside
-              className={`h-full border-r border-gray-200 bg-white ${
-                showChatMobile ? "hidden lg:block" : "block"
-              }`}
-            >
+          <aside
+  className={`min-h-0 h-full border-r border-gray-200 bg-white ${
+    showChatMobile ? "hidden lg:block" : "block"
+  }`}
+>
               <div className="border-b border-gray-100 p-4">
                 <div className="flex h-11 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#7E4FF5] focus-within:bg-white">
                   <Search size={17} className="text-gray-400" />
@@ -351,11 +351,11 @@ export default function Messages() {
               </div>
             </aside>
 
-            <section
-              className={`h-full bg-white ${
-                showChatMobile ? "flex" : "hidden lg:flex"
-              } flex-col`}
-            >
+         <section
+  className={`min-h-0 h-full bg-white ${
+    showChatMobile ? "flex" : "hidden lg:flex"
+  } flex-col`}
+>
               {activeUser ? (
                 <>
                   <div className="flex h-[77px] items-center gap-3 border-b border-gray-100 px-4 md:px-5">
@@ -394,7 +394,7 @@ export default function Messages() {
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-3 overflow-y-auto bg-white px-4 py-5 md:px-6">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-white px-4 py-5 md:px-6">
                     {messages.length === 0 ? (
                       <div className="flex h-full items-center justify-center text-center">
                         <div>
