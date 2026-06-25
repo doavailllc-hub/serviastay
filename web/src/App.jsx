@@ -53,6 +53,7 @@ import AdminSignup from "./pages/admin/AdminSignup";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProperties from "./pages/admin/AdminProperties";
+import AdminReviews from "./pages/admin/AdminReviews";
 import AdminBookings from "./pages/admin/AdminBookings";
 import { Toaster } from "react-hot-toast";
 
@@ -319,6 +320,7 @@ export default function App() {
 <Route path="users" element={<AdminUsers />} />
 <Route path="properties" element={<AdminProperties />} />
 <Route path="bookings" element={<AdminBookings />} />
+<Route path="reviews" element={<AdminReviews />} />
 <Route path="payments" element={<PaymentHistory />} />
 </Route>
 

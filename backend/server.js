@@ -1857,6 +1857,7 @@ app.get("/api/reviews/:propertyId", async (req, res) => {
       FROM servia_reviews r
       LEFT JOIN servia_users u ON u.id = r.user_id
       WHERE r.property_id = ?
+      AND COALESCE(r.status, 'Approved') = 'Approved'
       ORDER BY r.created_at DESC
       `,
       [req.params.propertyId]
@@ -1871,6 +1872,7 @@ app.get("/api/reviews/:propertyId", async (req, res) => {
     });
   }
 });
+
 app.post("/api/reviews", verifyToken, async (req, res) => {
   try {
     const propertyId = Number(req.body.property_id);
@@ -1880,11 +1882,15 @@ app.post("/api/reviews", verifyToken, async (req, res) => {
     const review = String(req.body.review || "").trim();
 
     if (!propertyId || !userId || !rating) {
-      return res.status(400).json({ message: "Property, user and rating are required" });
+      return res.status(400).json({
+        message: "Property, user and rating are required",
+      });
     }
 
     if (rating < 1 || rating > 5) {
-      return res.status(400).json({ message: "Rating must be between 1 and 5" });
+      return res.status(400).json({
+        message: "Rating must be between 1 and 5",
+      });
     }
 
     if (Number(req.user.id) !== userId) {
@@ -1894,10 +1900,10 @@ app.post("/api/reviews", verifyToken, async (req, res) => {
     const result = await query(
       `
       INSERT INTO servia_reviews
-      (property_id, booking_id, user_id, rating, review)
-      VALUES (?, ?, ?, ?, ?)
+      (property_id, booking_id, user_id, rating, review, status)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [propertyId, bookingId, userId, rating, review]
+      [propertyId, bookingId, userId, rating, review, "Approved"]
     );
 
     const avgRows = await query(
@@ -1905,6 +1911,7 @@ app.post("/api/reviews", verifyToken, async (req, res) => {
       SELECT ROUND(AVG(rating), 1) AS avg_rating
       FROM servia_reviews
       WHERE property_id = ?
+      AND COALESCE(status, 'Approved') = 'Approved'
       `,
       [propertyId]
     );
@@ -1928,7 +1935,10 @@ app.post("/api/reviews", verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.log("REVIEW CREATE ERROR:", err.message);
-    res.status(500).json({ message: "Review submit failed", error: err.message });
+    res.status(500).json({
+      message: "Review submit failed",
+      error: err.message,
+    });
   }
 });
 
@@ -1950,7 +1960,10 @@ app.put("/api/reviews/:id/reply", verifyToken, async (req, res) => {
       message: "Host reply added",
     });
   } catch (err) {
-    res.status(500).json({ message: "Host reply failed", error: err.message });
+    res.status(500).json({
+      message: "Host reply failed",
+      error: err.message,
+    });
   }
 });
 app.get("/api/user/:id", verifyToken, async (req, res) => {
@@ -2353,6 +2366,60 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
       message: "Booking status update failed",
       error: err.message,
     });
+  }
+});
+
+app.get("/api/admin/reviews", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const rows = await query(`
+      SELECT 
+        r.*,
+        u.fullname AS guest_name,
+        u.email AS guest_email,
+        p.title AS property_title
+      FROM servia_reviews r
+      LEFT JOIN servia_users u ON u.id = r.user_id
+      LEFT JOIN servia_properties p ON p.id = r.property_id
+      ORDER BY r.id DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN REVIEWS LOAD ERROR:", err.message);
+    res.status(500).json({ message: "Admin reviews load failed" });
+  }
+});
+
+app.put("/api/admin/reviews/:id/status", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const { status, admin_note } = req.body;
+    const allowed = ["Approved", "Hidden", "Flagged"];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid review status" });
+    }
+
+    await query(
+      `
+      UPDATE servia_reviews
+      SET status = ?, admin_note = ?
+      WHERE id = ?
+      `,
+      [status, admin_note || null, req.params.id]
+    );
+
+    res.json({ success: true, message: "Review updated" });
+  } catch (err) {
+    console.log("ADMIN REVIEW UPDATE ERROR:", err.message);
+    res.status(500).json({ message: "Review update failed" });
   }
 });
 server.listen(PORT, "0.0.0.0", () => {

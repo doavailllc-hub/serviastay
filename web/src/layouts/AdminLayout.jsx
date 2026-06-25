@@ -7,7 +7,8 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
-  Menu,
+ Menu,
+  MessageSquare,
   Settings,
   ShieldCheck,
   Users,
@@ -40,6 +41,11 @@ const menuItems = [
     label: "Payments",
     path: "/admin/payments",
     icon: <CreditCard size={20} />,
+  },
+    {
+    label: "Reviews",
+    path: "/admin/reviews",
+    icon: <MessageSquare size={20} />,
   },
   {
     label: "Analytics",
