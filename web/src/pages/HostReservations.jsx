@@ -9,17 +9,26 @@ import {
   Eye,
   RefreshCw,
   Search,
-  Clock,
+  LogIn,
+  LogOut,
+  MessageCircle,
+  ReceiptText,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+const BRAND = "#7e4ff5";
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
 export default function HostReservations() {
   const navigate = useNavigate();
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [query, setQuery] = useState("");
 
@@ -34,10 +43,10 @@ export default function HostReservations() {
     try {
       setLoading(true);
 
-      const user = JSON.parse(localStorage.getItem("user"));
+      const user = JSON.parse(localStorage.getItem("user") || "null");
       const token = localStorage.getItem("token");
 
-      if (!user || !token) {
+      if (!user?.id || !token) {
         navigate("/");
         return;
       }
@@ -46,28 +55,30 @@ export default function HostReservations() {
       setBookings(res.data || []);
     } catch (err) {
       console.log("Reservations load failed:", err);
-      alert("Reservations failed to load");
+      toast.error("Reservations failed to load");
     } finally {
       setLoading(false);
     }
   };
 
   const updateStatus = async (bookingId, status) => {
-    const confirmAction = window.confirm(
-      `Are you sure you want to mark this reservation as ${status}?`
-    );
-
-    if (!confirmAction) return;
+    const ok = window.confirm(`Mark this reservation as ${status}?`);
+    if (!ok) return;
 
     try {
-      await api.put(`/bookings/${bookingId}/status`, {
+      setUpdatingId(bookingId);
+
+      await api.put(`/host/bookings/${bookingId}/status`, {
         status,
       });
 
-      loadReservations();
+      toast.success(`Reservation marked as ${status}`);
+      await loadReservations();
     } catch (err) {
       console.log("Status update failed:", err);
-      alert("Failed to update booking status");
+      toast.error(err.response?.data?.message || "Failed to update booking");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -84,7 +95,7 @@ export default function HostReservations() {
       data = data.filter((item) =>
         `${item.title || ""} ${item.location || ""} ${item.guest_name || ""} ${
           item.guest_email || ""
-        } ${item.payment_method || ""}`
+        } ${item.payment_method || ""} ${item.payment_status || ""}`
           .toLowerCase()
           .includes(q)
       );
@@ -93,21 +104,17 @@ export default function HostReservations() {
     return data;
   }, [bookings, statusFilter, query]);
 
-  const totalRevenue = bookings
-    .filter((item) => item.status !== "Cancelled")
+  const activeRevenue = bookings
+    .filter((item) => !["Cancelled", "Declined"].includes(item.status))
     .reduce((sum, item) => sum + Number(item.total || 0), 0);
 
-  const pendingCount = bookings.filter((item) => item.status === "Pending")
-    .length;
-
-  const confirmedCount = bookings.filter((item) => item.status === "Confirmed")
-    .length;
-
-  const completedCount = bookings.filter((item) => item.status === "Completed")
-    .length;
-
-  const cancelledCount = bookings.filter((item) => item.status === "Cancelled")
-    .length;
+  const pendingCount = bookings.filter((item) => item.status === "Pending").length;
+  const confirmedCount = bookings.filter((item) => item.status === "Confirmed").length;
+  const checkedInCount = bookings.filter((item) => item.status === "Checked-in").length;
+  const checkedOutCount = bookings.filter((item) => item.status === "Checked-out").length;
+  const cancelledCount = bookings.filter((item) =>
+    ["Cancelled", "Declined"].includes(item.status)
+  ).length;
 
   return (
     <div className="min-h-screen bg-[#FAFAFC]">
@@ -119,15 +126,15 @@ export default function HostReservations() {
             <h1 className="text-4xl font-bold text-gray-900">
               Host Reservations
             </h1>
-
             <p className="mt-2 text-gray-500">
-              Manage all guest orders for your hosted rooms and listings.
+              Manage guest bookings, check-ins, cancellations and payments.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={loadReservations}
-            className="flex items-center gap-2 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#7152E8]"
+            className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -135,35 +142,11 @@ export default function HostReservations() {
         </div>
 
         <div className="mb-10 grid gap-6 md:grid-cols-5">
-          <StatCard
-            title="Revenue"
-            value={formatINR(totalRevenue)}
-            color="text-[#8363F5]"
-          />
-
-          <StatCard
-            title="Confirmed"
-            value={confirmedCount}
-            color="text-green-600"
-          />
-
-          <StatCard
-            title="Pending"
-            value={pendingCount}
-            color="text-yellow-600"
-          />
-
-          <StatCard
-            title="Completed"
-            value={completedCount}
-            color="text-blue-600"
-          />
-
-          <StatCard
-            title="Cancelled"
-            value={cancelledCount}
-            color="text-red-500"
-          />
+          <StatCard title="Revenue" value={formatINR(activeRevenue)} color="text-[#7e4ff5]" />
+          <StatCard title="Pending" value={pendingCount} color="text-yellow-600" />
+          <StatCard title="Confirmed" value={confirmedCount} color="text-green-600" />
+          <StatCard title="Checked-in" value={checkedInCount} color="text-[#7e4ff5]" />
+          <StatCard title="Closed" value={checkedOutCount + cancelledCount} color="text-blue-600" />
         </div>
 
         <div className="mb-8 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -186,16 +169,17 @@ export default function HostReservations() {
               <option>All</option>
               <option>Pending</option>
               <option>Confirmed</option>
-              <option>Completed</option>
+              <option>Checked-in</option>
+              <option>Checked-out</option>
               <option>Cancelled</option>
+              <option>Declined</option>
             </select>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
           <div className="border-b p-6">
-            <h2 className="text-2xl font-semibold">Guest Orders</h2>
-
+            <h2 className="text-2xl font-semibold">Guest Reservations</h2>
             <p className="mt-1 text-gray-500">
               Showing {filteredBookings.length} reservations.
             </p>
@@ -206,15 +190,7 @@ export default function HostReservations() {
               Loading reservations...
             </div>
           ) : filteredBookings.length === 0 ? (
-            <div className="p-14 text-center">
-              <div className="mb-4 text-6xl">📋</div>
-
-              <h3 className="text-2xl font-bold">No reservations found</h3>
-
-              <p className="mt-2 text-gray-500">
-                New guest bookings for your rooms will appear here.
-              </p>
-            </div>
+            <EmptyState />
           ) : (
             <div className="divide-y">
               {filteredBookings.map((booking) => (
@@ -222,9 +198,21 @@ export default function HostReservations() {
                   key={booking.id}
                   booking={booking}
                   formatINR={formatINR}
+                  updating={updatingId === booking.id}
                   onView={() => navigate(`/reserve/${booking.property_id}`)}
-                  onConfirm={() => updateStatus(booking.id, "Confirmed")}
-                  onComplete={() => updateStatus(booking.id, "Completed")}
+                  onMessage={() =>
+                    navigate("/messages", {
+                      state: {
+                        openUserId: booking.user_id,
+                        propertyId: booking.property_id,
+                      },
+                    })
+                  }
+                  onReceipt={() => navigate(`/receipt/${booking.id}`)}
+                  onAccept={() => updateStatus(booking.id, "Confirmed")}
+                  onDecline={() => updateStatus(booking.id, "Declined")}
+                  onCheckIn={() => updateStatus(booking.id, "Checked-in")}
+                  onCheckOut={() => updateStatus(booking.id, "Checked-out")}
                   onCancel={() => updateStatus(booking.id, "Cancelled")}
                 />
               ))}
@@ -239,24 +227,30 @@ export default function HostReservations() {
 function ReservationCard({
   booking,
   formatINR,
+  updating,
   onView,
-  onConfirm,
-  onComplete,
+  onMessage,
+  onReceipt,
+  onAccept,
+  onDecline,
+  onCheckIn,
+  onCheckOut,
   onCancel,
 }) {
   const status = booking.status || "Pending";
+  const nights = getNights(booking.checkin, booking.checkout);
 
   return (
     <div className="p-6 transition hover:bg-gray-50">
-      <div className="grid gap-6 xl:grid-cols-[310px_1fr_auto] xl:items-center">
+      <div className="grid gap-6 xl:grid-cols-[320px_1fr_auto] xl:items-center">
         <div className="flex gap-4">
           <img
-            src={
-              booking.image ||
-              "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
-            }
-            alt={booking.title}
+            src={booking.image || FALLBACK_IMAGE}
+            alt={booking.title || "Property"}
             className="h-28 w-28 rounded-2xl object-cover"
+            onError={(event) => {
+              event.currentTarget.src = FALLBACK_IMAGE;
+            }}
           />
 
           <div>
@@ -268,9 +262,7 @@ function ReservationCard({
               {booking.location || "Location unavailable"}
             </p>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Order #{booking.id}
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Order #{booking.id}</p>
 
             <StatusBadge status={status} />
           </div>
@@ -286,70 +278,101 @@ function ReservationCard({
 
           <InfoItem
             icon={<CalendarDays size={18} />}
-            label="Dates"
+            label="Stay"
             value={`${booking.checkin} - ${booking.checkout}`}
+            subValue={`${nights} ${nights === 1 ? "night" : "nights"}`}
           />
 
           <InfoItem
             icon={<Users size={18} />}
             label="Guests"
             value={`${booking.guests || 1} ${
-              booking.guests > 1 ? "guests" : "guest"
+              Number(booking.guests || 1) > 1 ? "guests" : "guest"
             }`}
           />
 
           <InfoItem
             icon={<CreditCard size={18} />}
             label="Payment"
-            value={booking.payment_method || "cash"}
+            value={booking.payment_status || booking.payment_method || "Pending"}
+            subValue={booking.payment_method || "cash"}
             capitalize
           />
         </div>
 
         <div className="flex flex-col gap-3 xl:items-end">
-          <p className="text-xl font-bold text-[#8363F5]">
+          <p className="text-xl font-bold text-[#7e4ff5]">
             {formatINR(booking.total)}
           </p>
 
           <div className="flex flex-wrap justify-end gap-2">
-            <button
-              onClick={onView}
-              className="flex items-center gap-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
-            >
-              <Eye size={16} />
-              View
-            </button>
+            <SmallButton icon={<Eye size={16} />} label="View" onClick={onView} />
+
+            <SmallButton
+              icon={<MessageCircle size={16} />}
+              label="Message"
+              onClick={onMessage}
+            />
+
+            <SmallButton
+              icon={<ReceiptText size={16} />}
+              label="Receipt"
+              onClick={onReceipt}
+            />
 
             {status === "Pending" && (
-              <button
-                onClick={onConfirm}
-                className="flex items-center gap-1 rounded-xl border border-green-300 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-50"
-              >
-                <CheckCircle size={16} />
-                Confirm
-              </button>
+              <>
+                <ActionButton
+                  icon={<CheckCircle size={16} />}
+                  label="Accept"
+                  onClick={onAccept}
+                  disabled={updating}
+                  type="success"
+                />
+                <ActionButton
+                  icon={<XCircle size={16} />}
+                  label="Decline"
+                  onClick={onDecline}
+                  disabled={updating}
+                  type="danger"
+                />
+              </>
             )}
 
             {status === "Confirmed" && (
-              <button
-                onClick={onComplete}
-                className="flex items-center gap-1 rounded-xl border border-blue-300 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                <Clock size={16} />
-                Complete
-              </button>
+              <ActionButton
+                icon={<LogIn size={16} />}
+                label="Check-in"
+                onClick={onCheckIn}
+                disabled={updating}
+                type="purple"
+              />
             )}
 
-            {status !== "Cancelled" && status !== "Completed" && (
-              <button
+            {status === "Checked-in" && (
+              <ActionButton
+                icon={<LogOut size={16} />}
+                label="Check-out"
+                onClick={onCheckOut}
+                disabled={updating}
+                type="blue"
+              />
+            )}
+
+            {!["Cancelled", "Declined", "Checked-out"].includes(status) && (
+              <ActionButton
+                icon={<XCircle size={16} />}
+                label="Cancel"
                 onClick={onCancel}
-                className="flex items-center gap-1 rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-              >
-                <XCircle size={16} />
-                Cancel
-              </button>
+                disabled={updating}
+                type="danger"
+              />
             )}
           </div>
+
+          {updating && (
+            <p className="text-xs font-semibold text-gray-400">Updating...</p>
+          )}
         </div>
       </div>
     </div>
@@ -359,7 +382,7 @@ function ReservationCard({
 function InfoItem({ icon, label, value, subValue, capitalize }) {
   return (
     <div className="rounded-2xl bg-[#FAFAFC] p-4">
-      <div className="mb-2 flex items-center gap-2 text-[#8363F5]">
+      <div className="mb-2 flex items-center gap-2 text-[#7e4ff5]">
         {icon}
         <span className="text-xs font-bold uppercase text-gray-500">
           {label}
@@ -381,13 +404,53 @@ function InfoItem({ icon, label, value, subValue, capitalize }) {
   );
 }
 
+function SmallButton({ icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function ActionButton({ icon, label, onClick, disabled, type }) {
+  const styles = {
+    success: "border-green-300 text-green-700 hover:bg-green-50",
+    danger: "border-red-300 text-red-600 hover:bg-red-50",
+    purple: "border-[#d8ccff] text-[#7e4ff5] hover:bg-[#f7f4ff]",
+    blue: "border-blue-300 text-blue-700 hover:bg-blue-50",
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center gap-1 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+        styles[type] || styles.purple
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
 function StatusBadge({ status }) {
   const style =
     status === "Cancelled"
       ? "bg-red-100 text-red-600"
+      : status === "Declined"
+      ? "bg-gray-200 text-gray-700"
       : status === "Pending"
       ? "bg-yellow-100 text-yellow-700"
-      : status === "Completed"
+      : status === "Checked-in"
+      ? "bg-[#f4f0ff] text-[#7e4ff5]"
+      : status === "Checked-out"
       ? "bg-blue-100 text-blue-700"
       : "bg-green-100 text-green-700";
 
@@ -404,8 +467,29 @@ function StatCard({ title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
       <p className="text-sm text-gray-500">{title}</p>
-
       <h2 className={`mt-2 text-3xl font-bold ${color}`}>{value}</h2>
     </div>
   );
+}
+
+function EmptyState() {
+  return (
+    <div className="p-14 text-center">
+      <div className="mb-4 text-6xl">📋</div>
+      <h3 className="text-2xl font-bold">No reservations found</h3>
+      <p className="mt-2 text-gray-500">
+        New guest bookings for your rooms will appear here.
+      </p>
+    </div>
+  );
+}
+
+function getNights(checkin, checkout) {
+  if (!checkin || !checkout) return 1;
+
+  const start = new Date(`${String(checkin).slice(0, 10)}T00:00:00`);
+  const end = new Date(`${String(checkout).slice(0, 10)}T00:00:00`);
+  const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
+
+  return diff > 0 ? diff : 1;
 }

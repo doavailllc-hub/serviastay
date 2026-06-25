@@ -2233,6 +2233,68 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
     });
   }
 });
+
+app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) => {
+  try {
+    const bookingId = Number(req.params.bookingId);
+    const hostId = Number(req.user.id);
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      "Pending",
+      "Confirmed",
+      "Checked-in",
+      "Checked-out",
+      "Cancelled",
+      "Declined",
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid booking status" });
+    }
+
+    const rows = await query(
+      `
+      SELECT b.id, p.user_id AS host_id
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE b.id = ?
+      LIMIT 1
+      `,
+      [bookingId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (Number(rows[0].host_id) !== hostId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    await query(
+      `
+      UPDATE servia_bookings
+      SET status = ?
+      WHERE id = ?
+      `,
+      [status, bookingId]
+    );
+
+    res.json({
+      success: true,
+      message: `Booking marked as ${status}`,
+    });
+  } catch (err) {
+    console.log("HOST BOOKING STATUS ERROR:", err.message);
+    res.status(500).json({
+      message: "Booking status update failed",
+      error: err.message,
+    });
+  }
+});
+
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
