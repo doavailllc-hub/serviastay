@@ -55,6 +55,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProperties from "./pages/admin/AdminProperties";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminBookings from "./pages/admin/AdminBookings";
+import AdminKyc from "./pages/admin/AdminKyc";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -303,6 +304,7 @@ export default function App() {
           </ProtectedPage>
         }
       />
+      <Route path="kyc" element={<AdminKyc />} />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
 

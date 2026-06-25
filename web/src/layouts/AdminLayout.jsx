@@ -28,6 +28,11 @@ const menuItems = [
     icon: <Users size={20} />,
   },
   {
+  label: "KYC",
+  path: "/admin/kyc",
+  icon: <ShieldCheck size={20} />,
+},
+  {
     label: "Properties",
     path: "/admin/properties",
     icon: <Building2 size={20} />,
