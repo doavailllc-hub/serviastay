@@ -5,7 +5,6 @@ import {
   AirVent,
   CalendarDays,
   Car,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -32,6 +31,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 import GoogleMapSection from "../components/GoogleMapSection";
+
 const BRAND_COLOR = "#7e4ff5";
 const BRAND_HOVER = "#6f43e4";
 const FALLBACK_IMAGE =
@@ -128,8 +128,9 @@ export default function ResortDetails() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [guestDropdownOpen, setGuestDropdownOpen] = useState(false);
-const [bookedRanges, setBookedRanges] = useState([]);
-const [reviews, setReviews] = useState([]);
+  const [bookedRanges, setBookedRanges] = useState([]);
+  const [reviews, setReviews] = useState([]);
+
   const [checkin, setCheckin] = useState(today);
   const [checkout, setCheckout] = useState(tomorrow);
   const [adults, setAdults] = useState(1);
@@ -151,19 +152,20 @@ const [reviews, setReviews] = useState([]);
       setLoading(false);
     }
   }, [id]);
-  const loadReviews = useCallback(async () => {
-  try {
-    const { data } = await api.get(`/reviews/${id}`);
-    setReviews(data || []);
-  } catch (err) {
-    console.log("Reviews load failed:", err);
-  }
-}, [id]);
 
-useEffect(() => {
-  loadProperty();
-  loadReviews();
-}, [loadProperty, loadReviews]);
+  const loadReviews = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/reviews/${id}`);
+      setReviews(data || []);
+    } catch (err) {
+      console.log("Reviews load failed:", err);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadProperty();
+    loadReviews();
+  }, [loadProperty, loadReviews]);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -178,18 +180,20 @@ useEffect(() => {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
-useEffect(() => {
-  async function loadBookedDates() {
-    try {
-      const { data } = await api.get(`/properties/${id}/booked-dates`);
-      setBookedRanges(data || []);
-    } catch (err) {
-      console.log("Booked dates load failed:", err);
-    }
-  }
 
-  loadBookedDates();
-}, [id]);
+  useEffect(() => {
+    async function loadBookedDates() {
+      try {
+        const { data } = await api.get(`/properties/${id}/booked-dates`);
+        setBookedRanges(data || []);
+      } catch (err) {
+        console.log("Booked dates load failed:", err);
+      }
+    }
+
+    loadBookedDates();
+  }, [id]);
+
   useEffect(() => {
     if (!checkin) return;
 
@@ -207,7 +211,6 @@ useEffect(() => {
     ].filter(Boolean);
 
     const uniqueImages = [...new Set(images)];
-
     return uniqueImages.length ? uniqueImages : [FALLBACK_IMAGE];
   }, [property]);
 
@@ -224,9 +227,9 @@ useEffect(() => {
     return diff > 0 ? diff : 1;
   }, [checkin, checkout]);
 
- const subtotal = price * nights;
-const taxes = Math.round(subtotal * 0.12);
-const total = subtotal + taxes;
+  const subtotal = price * nights;
+  const taxes = Math.round(subtotal * 0.12);
+  const total = subtotal + taxes;
 
   const dateError = !checkin || !checkout || checkout <= checkin;
 
@@ -240,62 +243,64 @@ const total = subtotal + taxes;
       return;
     }
 
-  navigate("/checkout", {
-  state: {
-    property,
-    checkin,
-    checkout,
-    guests: totalGuests,
-    adults,
-    children,
-    infants,
-    pets,
-    nights,
-    subtotal,
-    taxes,
-    total,
-  },
-});
-}; 
-const handleMessageHost = async () => {
-  const user = getStoredUser();
-
-  if (!user) {
-    openLoginModal();
-    return;
-  }
-
-  const hostId = Number(property?.user_id);
-
-  if (!hostId) {
-    toast.error("Host details are missing for this property.");
-    return;
-  }
-
-  if (Number(user.id) === hostId) {
-    toast.error("This is your own listing.");
-    return;
-  }
-
-  try {
-    await api.post("/conversations/start", {
-      sender_id: user.id,
-      receiver_id: hostId,
-      property_id: property.id,
-      message: `Hi, I’m interested in ${property.title}. Is it available?`,
-    });
-
-    navigate("/messages", {
+    navigate("/checkout", {
       state: {
-        openUserId: hostId,
-        propertyId: property.id,
+        property,
+        checkin,
+        checkout,
+        guests: totalGuests,
+        adults,
+        children,
+        infants,
+        pets,
+        nights,
+        subtotal,
+        taxes,
+        total,
       },
     });
-  } catch (err) {
-    console.log("Start conversation failed:", err);
-    toast.error(err.response?.data?.message || "Could not start conversation.");
-  }
-};
+  };
+
+  const handleMessageHost = async () => {
+    const user = getStoredUser();
+
+    if (!user) {
+      openLoginModal();
+      return;
+    }
+
+    const hostId = Number(property?.user_id);
+
+    if (!hostId) {
+      toast.error("Host details are missing for this property.");
+      return;
+    }
+
+    if (Number(user.id) === hostId) {
+      toast.error("This is your own listing.");
+      return;
+    }
+
+    try {
+      await api.post("/conversations/start", {
+        sender_id: user.id,
+        receiver_id: hostId,
+        property_id: property.id,
+        message: `Hi, I’m interested in ${property.title}. Is it available?`,
+      });
+
+      navigate("/messages", {
+        state: {
+          openUserId: hostId,
+          propertyId: property.id,
+        },
+      });
+    } catch (err) {
+      console.log("Start conversation failed:", err);
+      toast.error(err.response?.data?.message || "Could not start conversation.");
+    }
+  };
+
   const handleWishlist = async () => {
     const user = getStoredUser();
 
@@ -331,7 +336,7 @@ const handleMessageHost = async () => {
       }
 
       await navigator.clipboard.writeText(url);
-      alert("Link copied");
+      toast.success("Link copied");
     } catch (err) {
       console.error("Share failed:", err);
     }
@@ -341,18 +346,18 @@ const handleMessageHost = async () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white text-[#222]">
+      <div className="min-h-screen bg-white text-gray-950">
         <Navbar />
 
-        <main className="mx-auto flex min-h-[60vh] max-w-7xl items-center justify-center px-4 md:px-8">
-          <div className="max-w-md rounded-[28px] border border-gray-200 p-8 text-center shadow-sm">
+        <main className="mx-auto flex min-h-[65vh] max-w-7xl items-center justify-center px-4 md:px-8">
+          <div className="max-w-md rounded-[32px] border border-gray-200 bg-white p-8 text-center shadow-sm">
             <h1 className="text-2xl font-bold">Stay not available</h1>
             <p className="mt-3 text-gray-600">{error}</p>
 
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="mt-6 rounded-xl px-6 py-3 font-bold text-white"
+              className="mt-6 rounded-full px-7 py-3 text-sm font-bold text-white transition hover:bg-[#6f43e4]"
               style={{ backgroundColor: BRAND_COLOR }}
             >
               Back to home
@@ -368,49 +373,16 @@ const handleMessageHost = async () => {
   const city = String(property.location || "this location").split(",")[0];
 
   return (
-    <div className="min-h-screen bg-white text-[#222]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 pb-14 pt-6 md:px-8 lg:pt-8">
-        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="max-w-4xl text-2xl font-semibold tracking-tight md:text-[32px] md:leading-tight">
-              {property.title}
-            </h1>
-
-            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span className="inline-flex items-center gap-1 font-semibold">
-                <Star size={15} fill="currentColor" />
-                {rating}
-              </span>
-              <span>·</span>
-              <button
-                type="button"
-                className="font-semibold underline underline-offset-2"
-              >
-                Guest favorite
-              </button>
-              <span>·</span>
-              <span className="inline-flex items-center gap-1 text-gray-700">
-                <MapPin size={15} />
-                {property.location || "Location not specified"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <ActionButton
-              icon={<Share size={16} />}
-              label="Share"
-              onClick={shareProperty}
-            />
-            <ActionButton
-              icon={<Heart size={16} />}
-              label="Save"
-              onClick={handleWishlist}
-            />
-          </div>
-        </header>
+      <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 md:px-8 lg:pt-8">
+        <PropertyHeader
+          property={property}
+          rating={rating}
+          onShare={shareProperty}
+          onSave={handleWishlist}
+        />
 
         <PropertyGallery
           images={galleryImages}
@@ -420,12 +392,12 @@ const handleMessageHost = async () => {
 
         <section className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-16">
           <article className="min-w-0">
-            <section className="border-b border-gray-200 pb-7">
-              <h2 className="text-[22px] font-semibold md:text-2xl">
+            <section className="border-b border-gray-200 pb-8">
+              <h2 className="text-[22px] font-semibold tracking-tight md:text-2xl">
                 Entire place in {city}
               </h2>
 
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-[15px] text-gray-600">
                 {maxGuests} guests · {property.bedrooms || 1} bedroom
                 {Number(property.bedrooms || 1) > 1 ? "s" : ""} ·{" "}
                 {property.bathrooms || 1} bath
@@ -433,28 +405,28 @@ const handleMessageHost = async () => {
               </p>
             </section>
 
-            <section className="space-y-7 border-b border-gray-200 py-8">
+            <section className="space-y-6 border-b border-gray-200 py-8">
               <Feature
-                icon={<Sparkles size={24} />}
+                icon={<Sparkles size={23} />}
                 title="Guest favorite"
                 text="A highly loved stay with reliable service, clean spaces, and a smooth check-in experience."
               />
 
               <Feature
-                icon={<CalendarDays size={24} />}
-                title="Today’s date is selected"
+                icon={<CalendarDays size={23} />}
+                title="Flexible date selection"
                 text={`Check-in starts from ${formatFeatureDate(today)}. Checkout is automatically set to the next day.`}
               />
 
               <Feature
-                icon={<ShieldCheck size={24} />}
+                icon={<ShieldCheck size={23} />}
                 title="Secure reservation"
                 text="Your reservation continues to checkout only after login, keeping booking details protected."
               />
             </section>
 
-            <section className="border-b border-gray-200 py-8">
-              <h2 className="mb-4 text-[22px] font-semibold md:text-2xl">
+            <section className="border-b border-gray-200 py-9">
+              <h2 className="mb-4 text-[22px] font-semibold tracking-tight md:text-2xl">
                 About this place
               </h2>
 
@@ -464,79 +436,29 @@ const handleMessageHost = async () => {
               </p>
             </section>
 
-            <section className="border-b border-gray-200 py-8">
-              <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
-                What this place offers
+            <AmenitiesSection />
+
+            <HostSection property={property} onMessageHost={handleMessageHost} />
+
+            <section className="border-b border-gray-200 py-9">
+              <h2 className="mb-6 text-[22px] font-semibold tracking-tight md:text-2xl">
+                Where you'll be
               </h2>
 
-              <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
-                <Amenity icon={<Wifi />} text="Wifi" />
-                <Amenity icon={<Car />} text="Free parking" />
-                <Amenity icon={<Utensils />} text="Kitchen" />
-                <Amenity icon={<Waves />} text="Pool" />
-                <Amenity icon={<AirVent />} text="Air conditioning" />
-                <Amenity icon={<Tv />} text="TV" />
+              <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-gray-50">
+                <GoogleMapSection
+                  latitude={property.latitude}
+                  longitude={property.longitude}
+                  title={property.title}
+                />
               </div>
             </section>
-<section className="border-b border-gray-200 py-8">
-  <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
-    Hosted by {property?.host_name || "Dovail Stay"}
-  </h2>
 
-  <div className="rounded-[28px] border border-gray-200 p-6 shadow-sm">
-    <div className="flex items-center gap-4">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[#7e4ff5]">
-        {(property?.host_name || "D").charAt(0).toUpperCase()}
-      </div>
-
-      <div>
-        <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold">
-          {property?.host_name || "Dovail Host"}
-
-          {property?.host_kyc_status === "Approved" && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-[#F0FDF4] px-2.5 py-1 text-xs font-semibold text-green-700">
-              <ShieldCheck size={13} />
-              Verified Host
-            </span>
-          )}
-        </h3>
-
-        <p className="text-sm text-gray-500">
-          {property?.host_email || "Host email unavailable"}
-        </p>
-
-        {property?.host_phone && (
-          <p className="mt-1 text-sm text-gray-500">
-            {property.host_phone}
-          </p>
-        )}
-      </div>
-    </div>
-
-    <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
-      <HostStat label="Response rate" value="100%" />
-      <HostStat label="Response time" value="1 hour" />
-      <HostStat label="Support" value="24/7" />
-    </div>
-  </div>
-</section>
-
-           <section className="py-8">
-  <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
-    Where you'll be
-  </h2>
-
-  <GoogleMapSection
-    latitude={property.latitude}
-    longitude={property.longitude}
-    title={property.title}
-  />
-</section>
             <ReviewsSection
-  propertyId={property.id}
-  reviews={reviews}
-  onReviewAdded={loadReviews}
-/>
+              propertyId={property.id}
+              reviews={reviews}
+              onReviewAdded={loadReviews}
+            />
           </article>
 
           <aside className="lg:pt-1">
@@ -548,7 +470,7 @@ const handleMessageHost = async () => {
               checkout={checkout}
               setCheckin={setCheckin}
               setCheckout={setCheckout}
-                bookedRanges={bookedRanges}
+              bookedRanges={bookedRanges}
               adults={adults}
               setAdults={setAdults}
               children={children}
@@ -561,7 +483,6 @@ const handleMessageHost = async () => {
               totalGuests={totalGuests}
               nights={nights}
               subtotal={subtotal}
-      
               taxes={taxes}
               total={total}
               dateError={dateError}
@@ -596,6 +517,41 @@ const handleMessageHost = async () => {
   );
 }
 
+function PropertyHeader({ property, rating, onShare, onSave }) {
+  return (
+    <header className="mb-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="max-w-4xl text-2xl font-semibold tracking-tight text-gray-950 md:text-[32px] md:leading-tight">
+            {property.title}
+          </h1>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-700">
+            <span className="inline-flex items-center gap-1 font-semibold text-gray-950">
+              <Star size={15} fill="currentColor" />
+              {rating}
+            </span>
+            <span className="text-gray-400">·</span>
+            <span className="font-semibold underline underline-offset-2">
+              Guest favorite
+            </span>
+            <span className="text-gray-400">·</span>
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={15} />
+              {property.location || "Location not specified"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 text-sm font-semibold">
+          <ActionButton icon={<Share size={16} />} label="Share" onClick={onShare} />
+          <ActionButton icon={<Heart size={16} />} label="Save" onClick={onSave} />
+        </div>
+      </div>
+    </header>
+  );
+}
+
 function ReservationCard({
   price,
   rating,
@@ -627,10 +583,12 @@ function ReservationCard({
   onMessageHost,
 }) {
   return (
-    <div className="sticky top-24 rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] md:p-6">
+    <div className="sticky top-24 rounded-[32px] border border-gray-200 bg-white p-5 shadow-[0_14px_42px_rgba(0,0,0,0.12)] md:p-6">
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
-          <span className="text-[22px] font-semibold">{formatINR(price)}</span>
+          <span className="text-[22px] font-semibold text-gray-950">
+            {formatINR(price)}
+          </span>
           <span className="text-gray-500"> night</span>
         </div>
 
@@ -640,7 +598,7 @@ function ReservationCard({
         </span>
       </div>
 
-      <div className="overflow-visible rounded-2xl border border-[#b0b0b0] bg-white">
+      <div className="overflow-visible rounded-3xl border border-gray-300 bg-white">
         <AirbnbDatePicker
           checkin={checkin}
           checkout={checkout}
@@ -677,7 +635,7 @@ function ReservationCard({
         type="button"
         onClick={onReserve}
         disabled={dateError}
-        className="mt-5 h-14 w-full rounded-xl bg-[#7e4ff5] text-base font-bold text-white shadow-lg transition-all hover:bg-[#6f43e4] hover:shadow-xl disabled:cursor-not-allowed disabled:bg-gray-300"
+        className="mt-5 h-14 w-full rounded-2xl bg-[#7e4ff5] text-base font-bold text-white shadow-lg shadow-purple-100 transition-all hover:-translate-y-0.5 hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
       >
         Reserve
       </button>
@@ -685,7 +643,7 @@ function ReservationCard({
       <button
         type="button"
         onClick={onMessageHost}
-        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold transition hover:bg-gray-50"
+        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 font-semibold transition hover:bg-gray-50"
       >
         <MessageCircle size={18} />
         Message Host
@@ -696,13 +654,15 @@ function ReservationCard({
       </p>
 
       <div className="mt-6 space-y-3 text-sm">
+        <h3 className="font-semibold text-gray-950">Price details</h3>
+
         <PriceRow
           label={`${formatINR(price)} × ${nights} ${
             nights === 1 ? "night" : "nights"
           }`}
           value={formatINR(subtotal)}
         />
-  
+
         <PriceRow label="Taxes" value={formatINR(taxes)} />
 
         <div className="flex items-center justify-between border-t border-gray-200 pt-4 text-base font-bold">
@@ -812,7 +772,7 @@ function AirbnbDatePicker({
 
   return (
     <div ref={pickerRef} className="relative">
-      <div className="grid grid-cols-2 border-b border-[#b0b0b0]">
+      <div className="grid grid-cols-2 border-b border-gray-300">
         <button
           type="button"
           onClick={() => {
@@ -820,9 +780,7 @@ function AirbnbDatePicker({
             setSelecting("checkin");
           }}
           className={`px-4 py-3 text-left transition hover:bg-gray-50 ${
-            selecting === "checkin" && open
-              ? "rounded-xl ring-2 ring-black"
-              : ""
+            selecting === "checkin" && open ? "rounded-2xl ring-2 ring-gray-950" : ""
           }`}
         >
           <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
@@ -839,10 +797,8 @@ function AirbnbDatePicker({
             setOpen(true);
             setSelecting("checkout");
           }}
-          className={`border-l border-[#b0b0b0] px-4 py-3 text-left transition hover:bg-gray-50 ${
-            selecting === "checkout" && open
-              ? "rounded-xl ring-2 ring-black"
-              : ""
+          className={`border-l border-gray-300 px-4 py-3 text-left transition hover:bg-gray-50 ${
+            selecting === "checkout" && open ? "rounded-2xl ring-2 ring-gray-950" : ""
           }`}
         >
           <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
@@ -855,7 +811,7 @@ function AirbnbDatePicker({
       </div>
 
       {open && (
-        <div className="absolute left-1/2 top-[68px] z-[999] w-[95vw] max-w-[720px] -translate-x-1/2 rounded-[24px] border border-gray-200 bg-white p-5 shadow-[0_18px_55px_rgba(0,0,0,0.22)] md:p-7">
+        <div className="absolute left-1/2 top-[68px] z-[999] w-[95vw] max-w-[720px] -translate-x-1/2 rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_22px_60px_rgba(0,0,0,0.22)] md:p-7">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h3 className="text-2xl font-bold">
@@ -892,7 +848,7 @@ function AirbnbDatePicker({
                   new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)
                 )
               }
-              className="rounded-full p-2 hover:bg-gray-100"
+              className="rounded-full p-2 transition hover:bg-gray-100"
               aria-label="Previous month"
             >
               <ChevronLeft size={20} />
@@ -905,7 +861,7 @@ function AirbnbDatePicker({
                   new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
                 )
               }
-              className="rounded-full p-2 hover:bg-gray-100"
+              className="rounded-full p-2 transition hover:bg-gray-100"
               aria-label="Next month"
             >
               <ChevronRight size={20} />
@@ -957,7 +913,7 @@ function AirbnbDatePicker({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg bg-[#222] px-6 py-3 text-sm font-bold text-white hover:bg-black"
+                className="rounded-xl bg-gray-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-black"
               >
                 Close
               </button>
@@ -974,8 +930,8 @@ function CalendarTopBox({ label, value, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-32 rounded-xl border px-4 py-3 text-left md:w-36 ${
-        active ? "border-black ring-1 ring-black" : "border-gray-300"
+      className={`w-32 rounded-2xl border px-4 py-3 text-left transition md:w-36 ${
+        active ? "border-gray-950 ring-1 ring-gray-950" : "border-gray-300"
       }`}
     >
       <span className="block text-[10px] font-black uppercase">{label}</span>
@@ -1056,9 +1012,9 @@ function CalendarMonth({
             >
               <span
                 className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full ${
-                  isStart || isEnd ? "bg-[#222] text-white" : ""
+                  isStart || isEnd ? "bg-gray-950 text-white" : ""
                 } ${
-                  isToday && !isStart && !isEnd ? "border border-black" : ""
+                  isToday && !isStart && !isEnd ? "border border-gray-950" : ""
                 } ${booked ? "line-through" : ""}`}
               >
                 {day}
@@ -1070,6 +1026,229 @@ function CalendarMonth({
     </div>
   );
 }
+
+function GuestDropdown({
+  refEl,
+  open,
+  setOpen,
+  adults,
+  setAdults,
+  children,
+  setChildren,
+  infants,
+  setInfants,
+  pets,
+  setPets,
+  totalGuests,
+  maxGuests,
+}) {
+  const updateAdults = (value) => {
+    const nextAdults = Math.max(1, Math.min(value, maxGuests - children));
+    setAdults(nextAdults);
+  };
+
+  const updateChildren = (value) => {
+    const nextChildren = Math.max(0, Math.min(value, maxGuests - adults));
+    setChildren(nextChildren);
+  };
+
+  const summary = [
+    `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`,
+    infants > 0 ? `${infants} infant${infants > 1 ? "s" : ""}` : "",
+    pets > 0 ? `${pets} pet${pets > 1 ? "s" : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <div ref={refEl} className="relative border-t border-gray-300">
+      <button
+        type="button"
+        onClick={() => setOpen((previous) => !previous)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
+      >
+        <div>
+          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
+            Guests
+          </span>
+          <span className="mt-1 block text-sm font-semibold">{summary}</span>
+          <p className="mt-1 text-xs text-gray-500">Maximum {maxGuests} guests</p>
+        </div>
+
+        <ChevronDown
+          size={20}
+          className={`transition ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[86px] z-50 rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.20)]">
+          <GuestRow
+            title="Adults"
+            subtitle="Ages 13 or above"
+            value={adults}
+            min={1}
+            max={maxGuests - children}
+            onChange={updateAdults}
+          />
+
+          <GuestRow
+            title="Children"
+            subtitle="Ages 2–12"
+            value={children}
+            min={0}
+            max={maxGuests - adults}
+            onChange={updateChildren}
+          />
+
+          <GuestRow
+            title="Infants"
+            subtitle="Under 2"
+            value={infants}
+            min={0}
+            max={5}
+            onChange={setInfants}
+          />
+
+          <GuestRow
+            title="Pets"
+            subtitle="Bringing a service animal?"
+            value={pets}
+            min={0}
+            max={3}
+            onChange={setPets}
+            last
+          />
+
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="mt-5 w-full rounded-2xl bg-[#7e4ff5] py-3 font-bold text-white transition hover:bg-[#6f43e4]"
+          >
+            Done
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuestRow({ title, subtitle, value, min, max, onChange, last }) {
+  const decrease = () => onChange(Math.max(min, value - 1));
+  const increase = () => onChange(Math.min(max, value + 1));
+
+  return (
+    <div
+      className={`flex items-center justify-between py-4 ${
+        last ? "" : "border-b border-gray-200"
+      }`}
+    >
+      <div>
+        <p className="font-semibold text-gray-950">{title}</p>
+        <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={decrease}
+          disabled={value <= min}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Minus size={16} />
+        </button>
+
+        <span className="w-5 text-center font-semibold">{value}</span>
+
+        <button
+          type="button"
+          onClick={increase}
+          disabled={value >= max}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AmenitiesSection() {
+  return (
+    <section className="border-b border-gray-200 py-9">
+      <h2 className="mb-6 text-[22px] font-semibold tracking-tight md:text-2xl">
+        What this place offers
+      </h2>
+
+      <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
+        <Amenity icon={<Wifi />} title="Wifi" text="High speed internet" />
+        <Amenity icon={<Car />} title="Free parking" text="On premises" />
+        <Amenity icon={<Utensils />} title="Kitchen" text="Fully equipped" />
+        <Amenity icon={<Waves />} title="Pool" text="Private or shared access" />
+        <Amenity icon={<AirVent />} title="Air conditioning" text="Comfort cooling" />
+        <Amenity icon={<Tv />} title="TV" text="Entertainment ready" />
+      </div>
+    </section>
+  );
+}
+
+function HostSection({ property, onMessageHost }) {
+  return (
+    <section className="border-b border-gray-200 py-9">
+      <h2 className="mb-6 text-[22px] font-semibold tracking-tight md:text-2xl">
+        Hosted by {property?.host_name || "Dovail Stay"}
+      </h2>
+
+      <div className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[#7e4ff5]">
+              {(property?.host_name || "D").charAt(0).toUpperCase()}
+            </div>
+
+            <div>
+              <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold">
+                {property?.host_name || "Dovail Host"}
+
+                {property?.host_kyc_status === "Approved" && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-[#F0FDF4] px-2.5 py-1 text-xs font-semibold text-green-700">
+                    <ShieldCheck size={13} />
+                    Verified Host
+                  </span>
+                )}
+              </h3>
+
+              <p className="mt-1 text-sm text-gray-500">
+                {property?.host_email || "Host email unavailable"}
+              </p>
+
+              {property?.host_phone && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {property.host_phone}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onMessageHost}
+            className="rounded-2xl border border-gray-300 px-5 py-3 text-sm font-semibold transition hover:bg-gray-50"
+          >
+            Message Host
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
+          <HostStat label="Response rate" value="100%" />
+          <HostStat label="Response time" value="1 hour" />
+          <HostStat label="Support" value="24/7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState("");
@@ -1125,8 +1304,8 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
   };
 
   return (
-    <section className="border-t border-gray-200 py-10">
-      <h2 className="mb-8 text-[22px] font-semibold md:text-2xl">
+    <section className="py-10">
+      <h2 className="mb-8 text-[22px] font-semibold tracking-tight md:text-2xl">
         <span className="inline-flex items-center gap-2">
           <Star size={22} fill="currentColor" />
           {avgRating} · {reviews.length} reviews
@@ -1134,7 +1313,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
       </h2>
 
       {!user ? (
-        <div className="mb-10 rounded-[28px] border border-gray-200 bg-[#fafafa] p-5">
+        <div className="mb-10 rounded-[32px] border border-gray-200 bg-gray-50 p-6">
           <h3 className="text-lg font-bold">Want to write a review?</h3>
           <p className="mt-2 text-sm text-gray-500">
             Please log in to review this stay.
@@ -1143,13 +1322,13 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
           <button
             type="button"
             onClick={() => (window.location.href = "/login")}
-            className="mt-4 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4]"
+            className="mt-4 rounded-2xl bg-[#7e4ff5] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4]"
           >
             Log in to review
           </button>
         </div>
       ) : (
-        <div className="mb-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="mb-10 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-bold">Write a review</h3>
 
           <div className="mt-4 flex gap-1">
@@ -1173,14 +1352,14 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
             onChange={(e) => setReview(e.target.value)}
             rows={4}
             placeholder="Share your experience..."
-            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
+            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none transition focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
           />
 
           <button
             type="button"
             onClick={submitReview}
             disabled={submitting}
-            className="mt-4 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4] disabled:opacity-60"
+            className="mt-4 rounded-2xl bg-[#7e4ff5] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4] disabled:opacity-60"
           >
             {submitting ? "Submitting..." : "Submit review"}
           </button>
@@ -1190,25 +1369,31 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
       {reviews.length === 0 ? (
         <p className="text-gray-500">No reviews yet.</p>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-8 md:grid-cols-2">
           {reviews.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-[24px] border border-gray-200 p-5"
-            >
-              <p className="font-bold">{item.guest_name || "Guest"}</p>
+            <div key={item.id} className="border-b border-gray-200 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-sm font-bold">
+                  {(item.guest_name || "G").charAt(0).toUpperCase()}
+                </div>
 
-              <div className="mt-3 flex text-[#7e4ff5]">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={17}
-                    fill={star <= Number(item.rating) ? "currentColor" : "none"}
-                  />
-                ))}
+                <div>
+                  <p className="font-bold">{item.guest_name || "Guest"}</p>
+                  <div className="mt-1 flex text-[#7e4ff5]">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={15}
+                        fill={
+                          star <= Number(item.rating) ? "currentColor" : "none"
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <p className="mt-3 leading-7 text-gray-700">
+              <p className="mt-4 leading-7 text-gray-700">
                 {item.review || "No written review."}
               </p>
             </div>
@@ -1218,159 +1403,12 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
     </section>
   );
 }
-function GuestDropdown({
-  refEl,
-  open,
-  setOpen,
-  adults,
-  setAdults,
-  children,
-  setChildren,
-  infants,
-  setInfants,
-  pets,
-  setPets,
-  totalGuests,
-  maxGuests,
-}) {
-  const updateAdults = (value) => {
-    const nextAdults = Math.max(1, Math.min(value, maxGuests - children));
-    setAdults(nextAdults);
-  };
-
-  const updateChildren = (value) => {
-    const nextChildren = Math.max(0, Math.min(value, maxGuests - adults));
-    setChildren(nextChildren);
-  };
-
-  const summary = [
-    `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`,
-    infants > 0 ? `${infants} infant${infants > 1 ? "s" : ""}` : "",
-    pets > 0 ? `${pets} pet${pets > 1 ? "s" : ""}` : "",
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  return (
-    <div ref={refEl} className="relative border-t border-[#b0b0b0]">
-      <button
-        type="button"
-        onClick={() => setOpen((previous) => !previous)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
-      >
-        <div>
-          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
-            Guests
-          </span>
-          <span className="mt-1 block text-sm font-semibold">{summary}</span>
-          <p className="mt-1 text-xs text-gray-500">
-            Maximum {maxGuests} guests
-          </p>
-        </div>
-
-        <ChevronDown
-          size={20}
-          className={`transition ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 right-0 top-[86px] z-50 rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.20)]">
-          <GuestRow
-            title="Adults"
-            subtitle="Ages 13 or above"
-            value={adults}
-            min={1}
-            max={maxGuests - children}
-            onChange={updateAdults}
-          />
-
-          <GuestRow
-            title="Children"
-            subtitle="Ages 2–12"
-            value={children}
-            min={0}
-            max={maxGuests - adults}
-            onChange={updateChildren}
-          />
-
-          <GuestRow
-            title="Infants"
-            subtitle="Under 2"
-            value={infants}
-            min={0}
-            max={5}
-            onChange={setInfants}
-          />
-
-          <GuestRow
-            title="Pets"
-            subtitle="Bringing a service animal?"
-            value={pets}
-            min={0}
-            max={3}
-            onChange={setPets}
-            last
-          />
-
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="mt-5 w-full rounded-xl bg-[#7e4ff5] py-3 font-bold text-white transition hover:bg-[#6f43e4]"
-          >
-            Done
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function GuestRow({ title, subtitle, value, min, max, onChange, last }) {
-  const decrease = () => onChange(Math.max(min, value - 1));
-  const increase = () => onChange(Math.min(max, value + 1));
-
-  return (
-    <div
-      className={`flex items-center justify-between py-4 ${
-        last ? "" : "border-b border-gray-200"
-      }`}
-    >
-      <div>
-        <p className="font-semibold text-gray-900">{title}</p>
-        <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={decrease}
-          disabled={value <= min}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          <Minus size={16} />
-        </button>
-
-        <span className="w-5 text-center font-semibold">{value}</span>
-
-        <button
-          type="button"
-          onClick={increase}
-          disabled={value >= max}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-900 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          <Plus size={16} />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function PropertyGallery({ images, title, onShowAll }) {
   const photos = images.length ? images : [FALLBACK_IMAGE];
 
   return (
-    <div className="relative overflow-hidden rounded-[24px] md:rounded-[28px]">
+    <div className="relative overflow-hidden rounded-[28px] bg-gray-100">
       <div className="grid h-[320px] grid-cols-1 gap-2 md:h-[430px] md:grid-cols-4">
         <GalleryImage
           src={photos[0]}
@@ -1399,7 +1437,7 @@ function PropertyGallery({ images, title, onShowAll }) {
       <button
         type="button"
         onClick={onShowAll}
-        className="absolute bottom-4 right-4 flex items-center gap-2 rounded-xl border border-black bg-white px-4 py-2.5 text-sm font-bold shadow-lg transition hover:bg-gray-100 md:bottom-5 md:right-5"
+        className="absolute bottom-4 right-4 flex items-center gap-2 rounded-2xl border border-gray-900 bg-white px-4 py-2.5 text-sm font-bold shadow-lg transition hover:bg-gray-100 md:bottom-5 md:right-5"
       >
         <Images size={18} />
         Show all photos
@@ -1418,7 +1456,7 @@ function GalleryImage({ src, alt, onClick, className = "" }) {
       <img
         src={src}
         alt={alt}
-        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:brightness-90"
+        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] group-hover:brightness-90"
         loading="lazy"
         onError={(event) => {
           event.currentTarget.src = FALLBACK_IMAGE;
@@ -1457,9 +1495,7 @@ function GalleryModal({ images, title, onClose }) {
           <X size={22} />
         </button>
 
-        <h2 className="truncate px-4 text-center text-lg font-bold">
-          {title}
-        </h2>
+        <h2 className="truncate px-4 text-center text-lg font-bold">{title}</h2>
 
         <div className="w-10" />
       </div>
@@ -1471,7 +1507,7 @@ function GalleryModal({ images, title, onClose }) {
               key={`${src}-${index}`}
               src={src}
               alt={`${title} ${index + 1}`}
-              className={`w-full rounded-2xl object-cover ${
+              className={`w-full rounded-3xl object-cover ${
                 index === 0
                   ? "max-h-[650px] md:col-span-2"
                   : "h-[320px] md:h-[360px]"
@@ -1491,7 +1527,7 @@ function GalleryModal({ images, title, onClose }) {
 function LoginRequiredModal({ onClose, onLogin, onSignup }) {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-[32px] bg-white p-6 shadow-2xl">
         <button
           type="button"
           onClick={onClose}
@@ -1501,16 +1537,11 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <X size={20} />
         </button>
 
-        <div
-          className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff]"
-          style={{ color: BRAND_COLOR }}
-        >
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[#7e4ff5]">
           <Lock size={26} />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900">
-          Log in to continue
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-950">Log in to continue</h2>
 
         <p className="mt-3 leading-6 text-gray-500">
           Please log in or create an account to reserve this stay, message the
@@ -1521,8 +1552,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onLogin}
-            className="h-12 w-full rounded-xl font-semibold text-white transition"
-            style={{ backgroundColor: BRAND_COLOR }}
+            className="h-12 w-full rounded-2xl bg-[#7e4ff5] font-semibold text-white transition hover:bg-[#6f43e4]"
           >
             Continue with email
           </button>
@@ -1530,7 +1560,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onSignup}
-            className="h-12 w-full rounded-xl border border-gray-300 font-semibold transition hover:bg-gray-50"
+            className="h-12 w-full rounded-2xl border border-gray-300 font-semibold transition hover:bg-gray-50"
           >
             Create account
           </button>
@@ -1538,7 +1568,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onClose}
-            className="h-12 w-full rounded-xl text-gray-500 transition hover:bg-gray-50"
+            className="h-12 w-full rounded-2xl text-gray-500 transition hover:bg-gray-50"
           >
             Continue browsing
           </button>
@@ -1551,20 +1581,26 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
 function Feature({ icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <div className="mt-0.5 text-[#222]">{icon}</div>
+      <div className="mt-0.5 text-gray-950">{icon}</div>
       <div>
-        <h4 className="font-semibold">{title}</h4>
+        <h4 className="font-semibold text-gray-950">{title}</h4>
         <p className="mt-1 text-sm leading-6 text-gray-600">{text}</p>
       </div>
     </div>
   );
 }
 
-function Amenity({ icon, text }) {
+function Amenity({ icon, title, text }) {
   return (
-    <div className="flex items-center gap-4 text-gray-800">
-      <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
-      <span className="font-medium">{text}</span>
+    <div className="flex gap-4">
+      <span className="mt-1 flex h-6 w-6 items-center justify-center text-gray-950">
+        {icon}
+      </span>
+
+      <div>
+        <p className="font-semibold text-gray-950">{title}</p>
+        <p className="mt-1 text-sm text-gray-500">{text}</p>
+      </div>
     </div>
   );
 }
@@ -1574,7 +1610,7 @@ function ActionButton({ icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-gray-100 md:px-4"
+      className="flex items-center gap-2 rounded-full px-3 py-2 transition hover:bg-gray-100 md:px-4"
     >
       {icon}
       {label}
@@ -1594,7 +1630,7 @@ function PriceRow({ label, value }) {
 function HostStat({ label, value }) {
   return (
     <div className="rounded-2xl bg-gray-50 p-4">
-      <p className="font-bold">{value}</p>
+      <p className="font-bold text-gray-950">{value}</p>
       <p className="mt-1 text-xs text-gray-500">{label}</p>
     </div>
   );
