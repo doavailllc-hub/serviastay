@@ -5,12 +5,16 @@ import {
   MessageCircle,
   Circle,
   CheckCheck,
+  ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
 import { socket, connectSocket } from "../socket/socket";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80";
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -25,6 +29,7 @@ export default function Messages() {
   const [typingUser, setTypingUser] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [search, setSearch] = useState("");
+  const [showChatMobile, setShowChatMobile] = useState(false);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -50,23 +55,22 @@ export default function Messages() {
         if (!exists) return prev;
 
         return prev.map((item) => {
-          if (
+          const matched =
             item.other_user_id === msg.sender_id ||
-            item.other_user_id === msg.receiver_id
-          ) {
-            return {
-              ...item,
-              message: msg.message,
-              created_at: msg.created_at,
-              unread_count:
-                msg.receiver_id === storedUser.id &&
-                activeUser?.other_user_id !== msg.sender_id
-                  ? Number(item.unread_count || 0) + 1
-                  : item.unread_count,
-            };
-          }
+            item.other_user_id === msg.receiver_id;
 
-          return item;
+          if (!matched) return item;
+
+          return {
+            ...item,
+            message: msg.message,
+            created_at: msg.created_at,
+            unread_count:
+              msg.receiver_id === storedUser.id &&
+              activeUser?.other_user_id !== msg.sender_id
+                ? Number(item.unread_count || 0) + 1
+                : item.unread_count,
+          };
         });
       });
 
@@ -90,9 +94,7 @@ export default function Messages() {
       }
     });
 
-    socket.on("typing", ({ sender_id }) => {
-      setTypingUser(sender_id);
-    });
+    socket.on("typing", ({ sender_id }) => setTypingUser(sender_id));
 
     socket.on("stop_typing", ({ sender_id }) => {
       setTypingUser((current) => (current === sender_id ? null : current));
@@ -108,12 +110,12 @@ export default function Messages() {
 
     socket.on("user_online", ({ userId }) => {
       setOnlineUsers((prev) =>
-        prev.includes(userId) ? prev : [...prev, userId]
+        prev.includes(Number(userId)) ? prev : [...prev, Number(userId)]
       );
     });
 
     socket.on("user_offline", ({ userId }) => {
-      setOnlineUsers((prev) => prev.filter((id) => id !== userId));
+      setOnlineUsers((prev) => prev.filter((id) => id !== Number(userId)));
     });
 
     return () => {
@@ -123,8 +125,9 @@ export default function Messages() {
       socket.off("message_seen");
       socket.off("user_online");
       socket.off("user_offline");
+      clearTimeout(typingTimer.current);
     };
-  }, [activeUser]);
+  }, [activeUser, navigate]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -137,18 +140,24 @@ export default function Messages() {
       setConversations(data);
 
       if (!activeUser && data.length > 0) {
-        openConversation(data[0], userId);
+        openConversation(data[0], userId, false);
       }
     } catch (err) {
       console.log("Conversation load failed:", err);
     }
   };
 
-  const openConversation = async (conversation, userId = user?.id) => {
+  const openConversation = async (
+    conversation,
+    userId = user?.id,
+    openMobile = true
+  ) => {
     if (!userId) return;
 
     setActiveUser(conversation);
     setTypingUser(null);
+
+    if (openMobile) setShowChatMobile(true);
 
     try {
       const res = await api.get(
@@ -199,13 +208,15 @@ export default function Messages() {
   };
 
   const sendMessage = () => {
-    if (!text.trim() || !activeUser || !user) return;
+    const cleanText = text.trim();
+
+    if (!cleanText || !activeUser || !user) return;
 
     socket.emit("send_message", {
       sender_id: user.id,
       receiver_id: activeUser.other_user_id,
       property_id: activeUser.property_id || null,
-      message: text.trim(),
+      message: cleanText,
     });
 
     socket.emit("stop_typing", {
@@ -214,6 +225,15 @@ export default function Messages() {
     });
 
     setText("");
+  };
+
+  const formatTime = (date) => {
+    if (!date) return "";
+
+    return new Date(date).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const filteredConversations = conversations.filter((item) => {
@@ -228,224 +248,295 @@ export default function Messages() {
     activeUser && onlineUsers.includes(Number(activeUser.other_user_id));
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-900">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Messages</h1>
-          <p className="mt-2 text-gray-500">
-            Chat with guests and hosts in real time.
-          </p>
+      <main className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              Messages
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Manage guest and host conversations.
+            </p>
+          </div>
         </div>
 
-        <div className="grid h-[720px] overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm lg:grid-cols-[360px_1fr]">
-          <aside className="border-r border-gray-100">
-            <div className="border-b p-5">
-              <div className="flex h-12 items-center gap-3 rounded-full bg-[#FAFAFC] px-4">
-                <Search size={18} className="text-gray-400" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search messages"
-                  className="flex-1 bg-transparent text-sm outline-none"
-                />
+        <div className="h-[calc(100vh-170px)] min-h-[620px] overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+          <div className="grid h-full lg:grid-cols-[360px_1fr]">
+            <aside
+              className={`h-full border-r border-gray-200 bg-white ${
+                showChatMobile ? "hidden lg:block" : "block"
+              }`}
+            >
+              <div className="border-b border-gray-100 p-4">
+                <div className="flex h-11 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#7E4FF5] focus-within:bg-white">
+                  <Search size={17} className="text-gray-400" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search messages"
+                    className="flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="h-[660px] overflow-y-auto">
-              {filteredConversations.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <MessageCircle className="mx-auto mb-3" size={42} />
-                  No conversations yet.
-                </div>
-              ) : (
-                filteredConversations.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => openConversation(item)}
-                    className={`flex w-full gap-4 border-b p-5 text-left transition hover:bg-[#FAFAFC] ${
-                      activeUser?.other_user_id === item.other_user_id
-                        ? "bg-[#F4F1FF]"
-                        : ""
-                    }`}
-                  >
-                    <div className="relative">
-                      <img
-                        src={
-                          item.property_image ||
-                          "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80"
-                        }
-                        alt=""
-                        className="h-14 w-14 rounded-2xl object-cover"
-                      />
-
-                      <span
-                        className={`absolute -bottom-1 -right-1 rounded-full border-2 border-white ${
-                          onlineUsers.includes(Number(item.other_user_id))
-                            ? "text-green-500"
-                            : "text-gray-300"
-                        }`}
-                      >
-                        <Circle size={12} fill="currentColor" />
-                      </span>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex justify-between gap-3">
-                        <h3 className="truncate font-bold">
-                          {item.other_user_name}
-                        </h3>
-
-                        {item.unread_count > 0 && (
-                          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#8363F5] px-2 text-xs font-bold text-white">
-                            {item.unread_count}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-1 truncate text-sm text-gray-500">
-                        {item.message}
-                      </p>
-
-                      <p className="mt-1 truncate text-xs text-gray-400">
-                        {item.property_title || "Staybnb conversation"}
-                      </p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </aside>
-
-          <section className="flex flex-col">
-            {activeUser ? (
-              <>
-                <div className="flex items-center gap-4 border-b p-5">
-                  <div className="relative">
-                    <img
-                      src={
-                        activeUser.property_image ||
-                        "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80"
-                      }
-                      alt=""
-                      className="h-14 w-14 rounded-2xl object-cover"
-                    />
-
-                    <span
-                      className={`absolute -bottom-1 -right-1 rounded-full border-2 border-white ${
-                        isOnline ? "text-green-500" : "text-gray-300"
-                      }`}
-                    >
-                      <Circle size={12} fill="currentColor" />
-                    </span>
-                  </div>
-
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {activeUser.other_user_name}
-                    </h2>
-
-                    <p className="text-sm text-gray-500">
-                      {isOnline ? "Online" : "Offline"} ·{" "}
-                      {activeUser.property_title || "Staybnb chat"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex-1 space-y-4 overflow-y-auto bg-[#FAFAFC] p-6">
-                  {messages.map((msg) => {
-                    const mine = msg.sender_id === user?.id;
+              <div className="h-[calc(100%-77px)] overflow-y-auto">
+                {filteredConversations.length === 0 ? (
+                  <EmptyConversations />
+                ) : (
+                  filteredConversations.map((item) => {
+                    const selected =
+                      activeUser?.other_user_id === item.other_user_id;
+                    const online = onlineUsers.includes(
+                      Number(item.other_user_id)
+                    );
 
                     return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${
-                          mine ? "justify-end" : "justify-start"
+                      <button
+                        key={item.id}
+                        onClick={() => openConversation(item)}
+                        className={`group flex w-full gap-3 border-b border-gray-100 px-4 py-4 text-left transition-all duration-200 hover:bg-gray-50 ${
+                          selected ? "bg-[#F4F0FF]" : "bg-white"
                         }`}
                       >
-                        <div
-                          className={`max-w-[75%] rounded-3xl px-5 py-3 ${
-                            mine
-                              ? "bg-[#8363F5] text-white"
-                              : "border border-gray-100 bg-white text-gray-800"
-                          }`}
-                        >
-                          <p className="text-sm leading-6">{msg.message}</p>
+                        <div className="relative shrink-0">
+                          <img
+                            src={item.property_image || FALLBACK_IMAGE}
+                            alt={item.other_user_name || "Conversation"}
+                            className="h-12 w-12 rounded-2xl object-cover"
+                          />
 
-                          <div
-                            className={`mt-2 flex items-center justify-end gap-1 text-[11px] ${
-                              mine ? "text-white/70" : "text-gray-400"
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white ${
+                              online ? "text-green-500" : "text-gray-300"
                             }`}
                           >
-                            <span>
-                              {new Date(msg.created_at).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                            <Circle size={11} fill="currentColor" />
+                          </span>
+                        </div>
 
-                            {mine && (
-                              <CheckCheck
-                                size={13}
-                                className={
-                                  msg.is_read
-                                    ? "text-green-200"
-                                    : "text-white/60"
-                                }
-                              />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="truncate text-[15px] font-semibold text-gray-950">
+                              {item.other_user_name || "Guest"}
+                            </h3>
+
+                            <span className="shrink-0 text-[11px] font-medium text-gray-400">
+                              {formatTime(item.created_at)}
+                            </span>
+                          </div>
+
+                          <p className="mt-1 truncate text-sm text-gray-500">
+                            {item.message || "No messages yet"}
+                          </p>
+
+                          <div className="mt-1 flex items-center justify-between gap-3">
+                            <p className="truncate text-xs text-gray-400">
+                              {item.property_title || "Staybnb conversation"}
+                            </p>
+
+                            {Number(item.unread_count) > 0 && (
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7E4FF5] px-1.5 text-[11px] font-bold text-white">
+                                {item.unread_count}
+                              </span>
                             )}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
-                  })}
-
-                  {typingUser === activeUser.other_user_id && (
-                    <div className="flex justify-start">
-                      <div className="rounded-3xl border border-gray-100 bg-white px-5 py-3 text-sm text-gray-500">
-                        Typing...
-                      </div>
-                    </div>
-                  )}
-
-                  <div ref={bottomRef} />
-                </div>
-
-                <div className="flex gap-3 border-t bg-white p-5">
-                  <input
-                    value={text}
-                    onChange={(e) => handleTyping(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                    placeholder="Write a message..."
-                    className="h-12 flex-1 rounded-xl border border-gray-300 px-4 outline-none focus:ring-2 focus:ring-[#8363F5]"
-                  />
-
-                  <button
-                    onClick={sendMessage}
-                    className="flex h-12 items-center gap-2 rounded-xl bg-[#8363F5] px-6 font-semibold text-white hover:bg-[#7152E8]"
-                  >
-                    <Send size={18} />
-                    Send
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-1 items-center justify-center text-center text-gray-500">
-                <div>
-                  <MessageCircle className="mx-auto mb-4" size={60} />
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Select a conversation
-                  </h2>
-                  <p className="mt-2">
-                    Choose a guest or host to start messaging.
-                  </p>
-                </div>
+                  })
+                )}
               </div>
-            )}
-          </section>
+            </aside>
+
+            <section
+              className={`h-full bg-white ${
+                showChatMobile ? "flex" : "hidden lg:flex"
+              } flex-col`}
+            >
+              {activeUser ? (
+                <>
+                  <div className="flex h-[77px] items-center gap-3 border-b border-gray-100 px-4 md:px-5">
+                    <button
+                      onClick={() => setShowChatMobile(false)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 lg:hidden"
+                    >
+                      <ArrowLeft size={20} />
+                    </button>
+
+                    <div className="relative shrink-0">
+                      <img
+                        src={activeUser.property_image || FALLBACK_IMAGE}
+                        alt={activeUser.other_user_name || "User"}
+                        className="h-12 w-12 rounded-2xl object-cover"
+                      />
+
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white ${
+                          isOnline ? "text-green-500" : "text-gray-300"
+                        }`}
+                      >
+                        <Circle size={11} fill="currentColor" />
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <h2 className="truncate text-base font-semibold text-gray-950 md:text-lg">
+                        {activeUser.other_user_name || "Guest"}
+                      </h2>
+
+                      <p className="truncate text-sm text-gray-500">
+                        {isOnline ? "Online" : "Offline"} ·{" "}
+                        {activeUser.property_title || "Staybnb chat"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-3 overflow-y-auto bg-white px-4 py-5 md:px-6">
+                    {messages.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-center">
+                        <div>
+                          <MessageCircle
+                            size={46}
+                            className="mx-auto mb-3 text-gray-300"
+                          />
+                          <h3 className="text-lg font-semibold">
+                            Start the conversation
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Send a message to continue.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      messages.map((msg, index) => {
+                        const mine = Number(msg.sender_id) === Number(user?.id);
+
+                        return (
+                          <div
+                            key={msg.id || index}
+                            className={`flex animate-[fadeIn_.18s_ease-out] ${
+                              mine ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[420px] rounded-[22px] px-4 py-3 shadow-none ${
+                                mine
+                                  ? "bg-[#7E4FF5] text-white"
+                                  : "border border-gray-200 bg-white text-gray-800"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                                {msg.message}
+                              </p>
+
+                              <div
+                                className={`mt-1.5 flex items-center justify-end gap-1 text-[11px] ${
+                                  mine ? "text-white/75" : "text-gray-400"
+                                }`}
+                              >
+                                <span>{formatTime(msg.created_at)}</span>
+
+                                {mine && (
+                                  <CheckCheck
+                                    size={13}
+                                    className={
+                                      msg.is_read
+                                        ? "text-white"
+                                        : "text-white/55"
+                                    }
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+
+                    {typingUser === activeUser.other_user_id && (
+                      <div className="flex justify-start">
+                        <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-4 py-3">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:120ms]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:240ms]" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div ref={bottomRef} />
+                  </div>
+
+                  <div className="border-t border-gray-100 bg-white p-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        value={text}
+                        onChange={(e) => handleTyping(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                          }
+                        }}
+                        placeholder="Write a message..."
+                        className="h-12 flex-1 rounded-full border border-gray-200 bg-gray-50 px-5 text-sm outline-none transition focus:border-[#7E4FF5] focus:bg-white focus:ring-2 focus:ring-[#7E4FF5]/10"
+                      />
+
+                      <button
+                        onClick={sendMessage}
+                        disabled={!text.trim()}
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#7E4FF5] text-white transition-all duration-200 hover:scale-105 hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:scale-100"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <EmptyChat />
+              )}
+            </section>
+          </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function EmptyConversations() {
+  return (
+    <div className="flex h-full items-center justify-center px-6 text-center">
+      <div>
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
+          <MessageCircle size={28} className="text-gray-400" />
+        </div>
+        <h3 className="text-base font-semibold text-gray-900">
+          No conversations
+        </h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Your guest and host messages will appear here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyChat() {
+  return (
+    <div className="flex flex-1 items-center justify-center px-6 text-center">
+      <div>
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#F4F0FF]">
+          <MessageCircle size={32} className="text-[#7E4FF5]" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-950">
+          Select a conversation
+        </h2>
+        <p className="mt-2 max-w-sm text-sm text-gray-500">
+          Choose a guest or host from the left side to continue messaging.
+        </p>
+      </div>
     </div>
   );
 }
