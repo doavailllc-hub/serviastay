@@ -304,7 +304,7 @@ export default function App() {
           </ProtectedPage>
         }
       />
-      <Route path="kyc" element={<AdminKyc />} />
+ <Route path="/admin/kyc" element={<AdminKyc />} />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
 
