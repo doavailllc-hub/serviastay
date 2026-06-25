@@ -480,20 +480,20 @@ const handleMessageHost = async () => {
             </section>
 <section className="border-b border-gray-200 py-8">
   <h2 className="mb-6 text-[22px] font-semibold md:text-2xl">
-    Hosted by Dovail Stay
+    Hosted by {property?.host_name || "Dovail Stay"}
   </h2>
 
   <div className="rounded-[28px] border border-gray-200 p-6 shadow-sm">
     <div className="flex items-center gap-4">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[#7e4ff5]">
-        D
+        {(property?.host_name || "D").charAt(0).toUpperCase()}
       </div>
 
       <div>
-        <h3 className="flex items-center gap-2 text-lg font-bold">
-          Dovail Host
+        <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold">
+          {property?.host_name || "Dovail Host"}
 
-          {property?.kyc_status === "Approved" && (
+          {property?.host_kyc_status === "Approved" && (
             <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-[#F0FDF4] px-2.5 py-1 text-xs font-semibold text-green-700">
               <ShieldCheck size={13} />
               Verified Host
@@ -502,8 +502,14 @@ const handleMessageHost = async () => {
         </h3>
 
         <p className="text-sm text-gray-500">
-          Superhost · Trusted by Dovail Stay
+          {property?.host_email || "Host email unavailable"}
         </p>
+
+        {property?.host_phone && (
+          <p className="mt-1 text-sm text-gray-500">
+            {property.host_phone}
+          </p>
+        )}
       </div>
     </div>
 
