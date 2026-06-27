@@ -94,7 +94,7 @@ export default function PropertyCard({ property }) {
            <div className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-[#222222]">
   
   <span className="font-semibold text-[#717171]">
-  ★{property.rating || "5.0"}</span>
+  {property.rating || "5.0"}</span>
 </div>
           </div>
 
