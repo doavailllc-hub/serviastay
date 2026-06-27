@@ -32,7 +32,7 @@ export default function Messages() {
   const [showChatMobile, setShowChatMobile] = useState(false);
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
+    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
     const token = localStorage.getItem("token");
 
     if (!storedUser || !token) {
@@ -248,47 +248,48 @@ export default function Messages() {
     activeUser && onlineUsers.includes(Number(activeUser.other_user_id));
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-[#f8fafc] text-[var(--text-main)]">
       <Navbar />
 
-    <main className="mx-auto max-w-7xl px-4 pb-6 pt-24 md:px-8">
-        <div className="mb-6 flex items-center justify-between">
+      <main className="mx-auto max-w-7xl px-4 pb-8 pt-24 md:px-8">
+        <div className="mb-7 flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            <h1 className="font-heading text-[32px] font-black tracking-[-0.045em] text-[var(--text-main)] md:text-[42px]">
               Messages
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage guest and host conversations.
+            <p className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">
+              Manage guest and host conversations in one clean inbox.
             </p>
           </div>
         </div>
 
-      <div className="h-[calc(100vh-230px)] min-h-[520px] overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
-          <div className="grid h-full lg:grid-cols-[360px_1fr]">
-          <aside
-  className={`min-h-0 h-full border-r border-gray-200 bg-white ${
-    showChatMobile ? "hidden lg:block" : "block"
-  }`}
->
-              <div className="border-b border-gray-100 p-4">
-                <div className="flex h-11 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#3b71e6] focus-within:bg-white">
+        <div className="h-[calc(100vh-230px)] min-h-[560px] overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-[0_18px_55px_rgba(17,24,39,0.08)]">
+          <div className="grid h-full lg:grid-cols-[380px_1fr]">
+            <aside
+              className={`h-full min-h-0 border-r border-gray-200 bg-white ${
+                showChatMobile ? "hidden lg:block" : "block"
+              }`}
+            >
+              <div className="border-b border-gray-100 p-5">
+                <div className="flex h-12 items-center gap-3 rounded-full border border-gray-200 bg-[#f8fafc] px-4 transition focus-within:border-[var(--primary)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[rgba(59,113,230,0.10)]">
                   <Search size={17} className="text-gray-400" />
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search messages"
-                    className="flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                    className="flex-1 bg-transparent text-sm font-medium text-gray-800 outline-none placeholder:text-gray-400"
                   />
                 </div>
               </div>
 
-              <div className="h-[calc(100%-77px)] overflow-y-auto">
+              <div className="h-[calc(100%-89px)] overflow-y-auto">
                 {filteredConversations.length === 0 ? (
                   <EmptyConversations />
                 ) : (
                   filteredConversations.map((item) => {
                     const selected =
                       activeUser?.other_user_id === item.other_user_id;
+
                     const online = onlineUsers.includes(
                       Number(item.other_user_id)
                     );
@@ -297,15 +298,17 @@ export default function Messages() {
                       <button
                         key={item.id}
                         onClick={() => openConversation(item)}
-                        className={`group flex w-full gap-3 border-b border-gray-100 px-4 py-4 text-left transition-all duration-200 hover:bg-gray-50 ${
-                          selected ? "bg-[#F4F0FF]" : "bg-white"
+                        className={`group flex w-full gap-3 border-b border-gray-100 px-5 py-4 text-left transition-all duration-200 ${
+                          selected
+                            ? "bg-[var(--primary-light)]"
+                            : "bg-white hover:bg-[#f8fafc]"
                         }`}
                       >
                         <div className="relative shrink-0">
                           <img
                             src={item.property_image || FALLBACK_IMAGE}
                             alt={item.other_user_name || "Conversation"}
-                            className="h-12 w-12 rounded-2xl object-cover"
+                            className="h-13 w-13 h-[52px] w-[52px] rounded-[18px] object-cover"
                           />
 
                           <span
@@ -319,27 +322,29 @@ export default function Messages() {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-3">
-                            <h3 className="truncate text-[15px] font-semibold text-gray-950">
+                            <h3 className="truncate text-[15px] font-bold text-gray-950">
                               {item.other_user_name || "Guest"}
                             </h3>
 
-                            <span className="shrink-0 text-[11px] font-medium text-gray-400">
+                            <span className="shrink-0 text-[11px] font-semibold text-gray-400">
                               {formatTime(item.created_at)}
                             </span>
                           </div>
 
-                          <p className="mt-1 truncate text-sm text-gray-500">
+                          <p className="mt-1 truncate text-sm font-medium text-gray-500">
                             {item.message || "No messages yet"}
                           </p>
 
-                          <div className="mt-1 flex items-center justify-between gap-3">
-                            <p className="truncate text-xs text-gray-400">
-                              {item.property_title || "Staybnb conversation"}
+                          <div className="mt-1.5 flex items-center justify-between gap-3">
+                            <p className="truncate text-xs font-medium text-gray-400">
+                              {item.property_title || "Dovail Stay conversation"}
                             </p>
 
                             {Number(item.unread_count) > 0 && (
-                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3b71e6] px-1.5 text-[11px] font-bold text-white">
-                                {item.unread_count}
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-[11px] font-black text-white">
+                                {item.unread_count > 99
+                                  ? "99+"
+                                  : item.unread_count}
                               </span>
                             )}
                           </div>
@@ -351,14 +356,14 @@ export default function Messages() {
               </div>
             </aside>
 
-         <section
-  className={`min-h-0 h-full bg-white ${
-    showChatMobile ? "flex" : "hidden lg:flex"
-  } flex-col`}
->
+            <section
+              className={`h-full min-h-0 bg-white ${
+                showChatMobile ? "flex" : "hidden lg:flex"
+              } flex-col`}
+            >
               {activeUser ? (
                 <>
-                  <div className="flex h-[77px] items-center gap-3 border-b border-gray-100 px-4 md:px-5">
+                  <div className="flex h-[89px] items-center gap-3 border-b border-gray-100 bg-white px-4 md:px-6">
                     <button
                       onClick={() => setShowChatMobile(false)}
                       className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 lg:hidden"
@@ -370,7 +375,7 @@ export default function Messages() {
                       <img
                         src={activeUser.property_image || FALLBACK_IMAGE}
                         alt={activeUser.other_user_name || "User"}
-                        className="h-12 w-12 rounded-2xl object-cover"
+                        className="h-[54px] w-[54px] rounded-[18px] object-cover"
                       />
 
                       <span
@@ -383,29 +388,29 @@ export default function Messages() {
                     </div>
 
                     <div className="min-w-0">
-                      <h2 className="truncate text-base font-semibold text-gray-950 md:text-lg">
+                      <h2 className="truncate font-heading text-lg font-black tracking-[-0.03em] text-gray-950">
                         {activeUser.other_user_name || "Guest"}
                       </h2>
 
-                      <p className="truncate text-sm text-gray-500">
+                      <p className="truncate text-sm font-medium text-gray-500">
                         {isOnline ? "Online" : "Offline"} ·{" "}
-                        {activeUser.property_title || "Staybnb chat"}
+                        {activeUser.property_title || "Dovail Stay chat"}
                       </p>
                     </div>
                   </div>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-white px-4 py-5 md:px-6">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-[#f7f9fc] px-4 py-6 md:px-7">
                     {messages.length === 0 ? (
                       <div className="flex h-full items-center justify-center text-center">
                         <div>
                           <MessageCircle
-                            size={46}
+                            size={48}
                             className="mx-auto mb-3 text-gray-300"
                           />
-                          <h3 className="text-lg font-semibold">
+                          <h3 className="font-heading text-xl font-black tracking-[-0.035em] text-gray-950">
                             Start the conversation
                           </h3>
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-2 text-sm font-medium text-gray-500">
                             Send a message to continue.
                           </p>
                         </div>
@@ -422,10 +427,10 @@ export default function Messages() {
                             }`}
                           >
                             <div
-                              className={`max-w-[420px] rounded-[22px] px-4 py-3 shadow-none ${
+                              className={`max-w-[430px] rounded-[24px] px-4 py-3 ${
                                 mine
-                                  ? "bg-[#3b71e6] text-white"
-                                  : "border border-gray-200 bg-white text-gray-800"
+                                  ? "bg-[var(--primary)] text-white shadow-[0_10px_24px_rgba(59,113,230,0.18)]"
+                                  : "bg-white text-gray-800 shadow-sm ring-1 ring-gray-200"
                               }`}
                             >
                               <p className="whitespace-pre-wrap break-words text-sm leading-6">
@@ -458,7 +463,7 @@ export default function Messages() {
 
                     {typingUser === activeUser.other_user_id && (
                       <div className="flex justify-start">
-                        <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-4 py-3">
+                        <div className="flex items-center gap-1 rounded-full bg-white px-4 py-3 shadow-sm ring-1 ring-gray-200">
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:120ms]" />
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:240ms]" />
@@ -469,7 +474,7 @@ export default function Messages() {
                     <div ref={bottomRef} />
                   </div>
 
-                  <div className="border-t border-gray-100 bg-white p-4">
+                  <div className="border-t border-gray-100 bg-white p-4 md:p-5">
                     <div className="flex items-center gap-3">
                       <input
                         value={text}
@@ -481,13 +486,13 @@ export default function Messages() {
                           }
                         }}
                         placeholder="Write a message..."
-                        className="h-12 flex-1 rounded-full border border-gray-200 bg-gray-50 px-5 text-sm outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-2 focus:ring-[#3b71e6]/10"
+                        className="h-13 h-[52px] flex-1 rounded-full border border-gray-200 bg-[#f8fafc] px-5 text-sm font-medium outline-none transition focus:border-[var(--primary)] focus:bg-white focus:ring-4 focus:ring-[rgba(59,113,230,0.10)]"
                       />
 
                       <button
                         onClick={sendMessage}
                         disabled={!text.trim()}
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#3b71e6] text-white transition-all duration-200 hover:scale-105 hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:scale-100"
+                        className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-[0_12px_24px_rgba(59,113,230,0.22)] transition-all duration-200 hover:scale-105 hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:scale-100"
                       >
                         <Send size={18} />
                       </button>
@@ -509,13 +514,13 @@ function EmptyConversations() {
   return (
     <div className="flex h-full items-center justify-center px-6 text-center">
       <div>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f8fafc]">
           <MessageCircle size={28} className="text-gray-400" />
         </div>
-        <h3 className="text-base font-semibold text-gray-900">
+        <h3 className="font-heading text-lg font-black tracking-[-0.035em] text-gray-950">
           No conversations
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-2 text-sm font-medium text-gray-500">
           Your guest and host messages will appear here.
         </p>
       </div>
@@ -525,15 +530,15 @@ function EmptyConversations() {
 
 function EmptyChat() {
   return (
-    <div className="flex flex-1 items-center justify-center px-6 text-center">
+    <div className="flex flex-1 items-center justify-center bg-[#f7f9fc] px-6 text-center">
       <div>
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#F4F0FF]">
-          <MessageCircle size={32} className="text-[#3b71e6]" />
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--primary-light)]">
+          <MessageCircle size={32} className="text-[var(--primary)]" />
         </div>
-        <h2 className="text-xl font-bold text-gray-950">
+        <h2 className="font-heading text-2xl font-black tracking-[-0.04em] text-gray-950">
           Select a conversation
         </h2>
-        <p className="mt-2 max-w-sm text-sm text-gray-500">
+        <p className="mt-2 max-w-sm text-sm font-medium text-gray-500">
           Choose a guest or host from the left side to continue messaging.
         </p>
       </div>
