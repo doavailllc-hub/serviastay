@@ -112,7 +112,7 @@ export default function Verification() {
           <button
             type="button"
             onClick={loadKyc}
-            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#2f5fc2]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -171,7 +171,7 @@ export default function Verification() {
                   type="button"
                   onClick={submitKyc}
                   disabled={uploading}
-                  className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] font-bold text-white shadow-lg hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-8"
+                  className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] font-bold text-white shadow-lg hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-8"
                 >
                   <Upload size={18} />
                   {uploading ? "Submitting..." : "Submit for Verification"}
@@ -199,7 +199,7 @@ export default function Verification() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6f43e4] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#2f5fc2] p-6 text-white shadow-xl">
               <h2 className="text-2xl font-bold">Why verify?</h2>
 
               <ul className="mt-4 space-y-3 text-sm leading-6 text-white/90">

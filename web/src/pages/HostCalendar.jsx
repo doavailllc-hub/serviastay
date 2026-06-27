@@ -186,7 +186,7 @@ export default function HostCalendar() {
                 loadBookedDates(selectedPropertyId);
               }
             }}
-            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#2f5fc2]"
           >
             <RefreshCw size={18} />
             Refresh

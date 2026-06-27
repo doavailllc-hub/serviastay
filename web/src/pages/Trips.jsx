@@ -83,7 +83,7 @@ body{
 }
 
 .header{
-  background:linear-gradient(135deg,#8762f3,#6d4df0);
+  background:linear-gradient(135deg,#2f5fc2,#6d4df0);
   color:#fff;
   padding:35px;
   display:flex;
@@ -123,7 +123,7 @@ body{
 
 .title{
   font-size:14px;
-  color:#8762f3;
+  color:#2f5fc2;
   font-weight:700;
   margin-bottom:15px;
   text-transform:uppercase;
@@ -157,7 +157,7 @@ body{
 .total{
   font-size:34px;
   font-weight:800;
-  color:#8762f3;
+  color:#2f5fc2;
 }
 
 .footer{

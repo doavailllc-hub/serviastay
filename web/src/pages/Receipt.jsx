@@ -106,7 +106,7 @@ export default function Receipt() {
           <button
             type="button"
             onClick={printReceipt}
-            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#2f5fc2]"
           >
             <Printer size={18} />
             Print / Download
@@ -114,7 +114,7 @@ export default function Receipt() {
         </div>
 
         <section className="overflow-hidden rounded-[32px] border border-gray-100 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-          <div className="bg-gradient-to-r from-[#3b71e6] to-[#6f43e4] p-8 text-white print:bg-white print:text-gray-900">
+          <div className="bg-gradient-to-r from-[#3b71e6] to-[#2f5fc2] p-8 text-white print:bg-white print:text-gray-900">
             <div className="flex flex-col justify-between gap-8 md:flex-row md:items-start">
               <div>
                 <div className="flex items-center gap-3">
@@ -271,7 +271,7 @@ export default function Receipt() {
               <button
                 type="button"
                 onClick={printReceipt}
-                className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-bold text-white hover:bg-[#6f43e4]"
+                className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-bold text-white hover:bg-[#2f5fc2]"
               >
                 <Download size={18} />
                 Download Receipt

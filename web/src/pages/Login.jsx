@@ -6,7 +6,7 @@ import api from "../api/api";
 import logo from "../assets/logo.png";
 
 const BRAND = "#3b71e6";
-const BRAND_DARK = "#6f43e4";
+const BRAND_DARK = "#2f5fc2";
 
 export default function Login() {
   const navigate = useNavigate();

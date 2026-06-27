@@ -82,7 +82,7 @@ export default function AdminKyc() {
 
         <button
           onClick={loadKyc}
-          className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-bold text-white hover:bg-[#6f43e4]"
+          className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-bold text-white hover:bg-[#2f5fc2]"
         >
           <RefreshCw size={18} />
           Refresh
@@ -214,7 +214,7 @@ function DocumentBox({ title, url }) {
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#3b71e6] px-4 py-2 text-sm font-bold text-white hover:bg-[#6f43e4]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#3b71e6] px-4 py-2 text-sm font-bold text-white hover:bg-[#2f5fc2]"
         >
           <Eye size={16} />
           View PDF

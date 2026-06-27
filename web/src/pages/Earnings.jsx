@@ -87,7 +87,7 @@ export default function Earnings() {
 
           <button
             onClick={() => navigate("/host-dashboard")}
-            className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#2f5fc2]"
           >
             Back to Dashboard
           </button>
@@ -241,7 +241,7 @@ export default function Earnings() {
               )}
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6f43e4] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#2f5fc2] p-6 text-white shadow-xl">
               <h2 className="text-2xl font-bold">Keep earning 🚀</h2>
 
               <p className="mt-3 text-white/90">

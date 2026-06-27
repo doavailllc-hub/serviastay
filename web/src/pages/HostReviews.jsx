@@ -14,7 +14,7 @@ import Navbar from "../components/Navbar";
 import api from "../api/api";
 
 const BRAND_COLOR = "#3b71e6";
-const BRAND_HOVER = "#6f43e4";
+const BRAND_HOVER = "#2f5fc2";
 
 export default function HostReviews() {
   const navigate = useNavigate();
@@ -110,7 +110,7 @@ export default function HostReviews() {
           <button
             type="button"
             onClick={() => navigate("/host-dashboard")}
-            className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#2f5fc2]"
           >
             Back to Dashboard
           </button>
@@ -280,7 +280,7 @@ function ReviewCard({
                 type="button"
                 onClick={onReply}
                 disabled={replying}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-2.5 font-bold text-white transition hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-2.5 font-bold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send size={16} />
                 {replying ? "Replying..." : "Post reply"}
