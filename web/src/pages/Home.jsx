@@ -4,10 +4,11 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  MapPin,
   Navigation,
-  Users,
   X,
+  MapPin,
+  Minus,
+  Plus,
 } from "lucide-react";
 import axios from "axios";
 
@@ -16,6 +17,8 @@ import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
 
 const API_URL = "https://stay.dovail.com/api/properties";
+const BRAND = "#7e4ff5";
+const BRAND_HOVER = "#6f43e4";
 
 function toISO(date) {
   if (!date) return "";
@@ -56,14 +59,14 @@ export default function Home() {
   const totalGuests = adults + children;
 
   const destinations = [
-    { name: "Nearby", icon: <Navigation size={24} />, desc: "Find what’s around you" },
-    { name: "Wayanad, India", icon: "🏞️", desc: "Because your wishlist has stays in Wayanad" },
-    { name: "Kozhikode, India", icon: "🌴", desc: "For a trip abroad" },
-    { name: "Riyadh, Saudi Arabia", icon: "🏙️", desc: "For sights like National Museum of Saudi Arabia" },
-    { name: "Kochi, India", icon: "🌊", desc: "For nature-lovers" },
-    { name: "Bengaluru, India", icon: "🌆", desc: "For its top-notch dining" },
-    { name: "Sulthan Bathery, India", icon: "⛰️", desc: "Because your wishlist has stays in Sulthan Bathery" },
-    { name: "Munnar, India", icon: "🍃", desc: "Tea gardens and hill stays" },
+    { name: "Nearby", icon: <Navigation size={22} />, desc: "Find stays around your current location" },
+    { name: "Wayanad, India", icon: "🏞️", desc: "Nature stays, resorts and villas" },
+    { name: "Kozhikode, India", icon: "🌴", desc: "Beach stays and city homes" },
+    { name: "Riyadh, Saudi Arabia", icon: "🏙️", desc: "Modern apartments and premium stays" },
+    { name: "Kochi, India", icon: "🌊", desc: "Backwaters, city stays and villas" },
+    { name: "Bengaluru, India", icon: "🌆", desc: "Apartments near dining and work hubs" },
+    { name: "Sulthan Bathery, India", icon: "⛰️", desc: "Hill stays and peaceful escapes" },
+    { name: "Munnar, India", icon: "🍃", desc: "Tea gardens and mountain homes" },
   ];
 
   useEffect(() => {
@@ -96,6 +99,11 @@ export default function Home() {
       : checkin
       ? `${formatDisplayDate(checkin)} – Add checkout`
       : "Add dates";
+
+  const guestLabel =
+    totalGuests > 0
+      ? `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`
+      : "Add guests";
 
   const handleDateClick = (date) => {
     if (!checkin || (checkin && checkout)) {
@@ -147,19 +155,21 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#222]">
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
+    <div className="min-h-screen bg-white text-gray-950">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-xl">
         <Navbar />
 
         <section className="hidden w-full justify-center bg-white px-4 pb-5 pt-3 md:flex">
-          <div ref={searchRef} className="relative w-full max-w-[920px]">
-            <div className="flex h-[68px] items-center rounded-full border border-gray-200 bg-white shadow-[0_3px_18px_rgba(0,0,0,0.10)]">
+          <div ref={searchRef} className="relative w-full max-w-[960px]">
+            <div className="flex h-[70px] items-center rounded-full border border-gray-200 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.10)] transition hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)]">
               <SearchButton
                 title="Where"
                 value={destination || "Search destinations"}
                 active={activePanel === "where"}
-                className="flex-[1.25]"
-                onClick={() => setActivePanel(activePanel === "where" ? null : "where")}
+                className="flex-[1.35]"
+                onClick={() =>
+                  setActivePanel(activePanel === "where" ? null : "where")
+                }
               />
 
               <Divider />
@@ -169,7 +179,9 @@ export default function Home() {
                 value={checkin ? formatDisplayDate(checkin) : "Add dates"}
                 active={activePanel === "dates"}
                 className="flex-1"
-                onClick={() => setActivePanel(activePanel === "dates" ? null : "dates")}
+                onClick={() =>
+                  setActivePanel(activePanel === "dates" ? null : "dates")
+                }
               />
 
               <Divider />
@@ -184,40 +196,47 @@ export default function Home() {
 
               <Divider />
 
-              <div className="relative flex h-full flex-[1.1] items-center">
+              <div className="relative flex h-full flex-[1.15] items-center">
                 <button
                   type="button"
-                  onClick={() => setActivePanel(activePanel === "guests" ? null : "guests")}
+                  onClick={() =>
+                    setActivePanel(activePanel === "guests" ? null : "guests")
+                  }
                   className={`flex h-full flex-1 flex-col justify-center rounded-full px-6 text-left transition ${
-                    activePanel === "guests" ? "bg-white shadow-lg" : "hover:bg-gray-50"
+                    activePanel === "guests"
+                      ? "bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
+                      : "hover:bg-gray-50"
                   }`}
                 >
-                  <span className="text-xs font-bold text-black">Who</span>
-                  <span className="mt-0.5 text-sm text-[#717171]">
-                    {totalGuests > 0
-                      ? `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`
-                      : "Add guests"}
+                  <span className="text-[12px] font-bold text-gray-950">
+                    Who
+                  </span>
+                  <span className="mt-0.5 truncate text-sm text-gray-500">
+                    {guestLabel}
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex h-12 items-center gap-2 rounded-full bg-[#E21D5B] px-5 font-bold text-white transition hover:bg-[#d61554]"
+                  className="mr-2 flex h-12 w-12 items-center justify-center rounded-full bg-[#7e4ff5] text-white transition hover:scale-105 hover:bg-[#6f43e4]"
+                  aria-label="Search"
                 >
-                  <Search size={18} />
-                  Search
+                  <Search size={19} />
                 </button>
               </div>
             </div>
 
             {activePanel === "where" && (
-              <div className="absolute left-0 top-[82px] z-50 w-[430px] rounded-[32px] border border-gray-100 bg-white p-5 shadow-2xl">
+              <div className="absolute left-0 top-[84px] z-50 w-[440px] rounded-[32px] border border-gray-100 bg-white p-5 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Suggested destinations</h3>
+                  <h3 className="text-sm font-bold text-gray-950">
+                    Suggested destinations
+                  </h3>
+
                   <button
                     onClick={() => setActivePanel(null)}
-                    className="rounded-full p-2 hover:bg-gray-100"
+                    className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
                   >
                     <X size={16} />
                   </button>
@@ -228,17 +247,19 @@ export default function Home() {
                     <button
                       key={place.name}
                       onClick={() => {
-                        setDestination(place.name === "Nearby" ? "Nearby" : place.name);
+                        setDestination(place.name);
                         setActivePanel("dates");
                       }}
-                      className="flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left transition hover:bg-[#F7F7F7]"
+                      className="flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left transition hover:bg-gray-50"
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F1F5F9] text-2xl text-[#4F7DD9]">
-                        {typeof place.icon === "string" ? place.icon : place.icon}
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F0FF] text-2xl text-[#7e4ff5]">
+                        {place.icon}
                       </div>
 
                       <div>
-                        <p className="font-semibold text-gray-900">{place.name}</p>
+                        <p className="font-semibold text-gray-950">
+                          {place.name}
+                        </p>
                         <p className="text-sm text-gray-500">{place.desc}</p>
                       </div>
                     </button>
@@ -260,13 +281,14 @@ export default function Home() {
             )}
 
             {activePanel === "guests" && (
-              <div className="absolute right-0 top-[82px] z-50 w-[430px] rounded-[32px] border border-gray-100 bg-white p-6 shadow-2xl">
+              <div className="absolute right-0 top-[84px] z-50 w-[430px] rounded-[32px] border border-gray-100 bg-white p-6 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
                 <GuestRow
                   title="Adults"
                   subtitle="Ages 13 or above"
                   value={adults}
                   onMinus={() => setAdults(Math.max(1, adults - 1))}
                   onPlus={() => setAdults(adults + 1)}
+                  minusDisabled={adults <= 1}
                 />
 
                 <GuestRow
@@ -275,6 +297,7 @@ export default function Home() {
                   value={children}
                   onMinus={() => setChildren(Math.max(0, children - 1))}
                   onPlus={() => setChildren(children + 1)}
+                  minusDisabled={children <= 0}
                 />
 
                 <GuestRow
@@ -283,6 +306,7 @@ export default function Home() {
                   value={infants}
                   onMinus={() => setInfants(Math.max(0, infants - 1))}
                   onPlus={() => setInfants(infants + 1)}
+                  minusDisabled={infants <= 0}
                 />
 
                 <GuestRow
@@ -291,10 +315,11 @@ export default function Home() {
                   value={pets}
                   onMinus={() => setPets(Math.max(0, pets - 1))}
                   onPlus={() => setPets(pets + 1)}
+                  minusDisabled={pets <= 0}
                   underline
                 />
 
-                <div className="mt-5 flex justify-between">
+                <div className="mt-5 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => {
@@ -303,7 +328,7 @@ export default function Home() {
                       setInfants(0);
                       setPets(0);
                     }}
-                    className="font-semibold underline"
+                    className="text-sm font-semibold underline"
                   >
                     Clear
                   </button>
@@ -311,7 +336,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setActivePanel(null)}
-                    className="rounded-xl bg-[#222] px-5 py-2 font-semibold text-white hover:bg-black"
+                    className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-black"
                   >
                     Done
                   </button>
@@ -324,13 +349,18 @@ export default function Home() {
         <section className="px-4 pb-4 pt-3 md:hidden">
           <button
             onClick={() => setActivePanel("mobile")}
-            className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-4 text-left shadow-md"
+            className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-4 text-left shadow-[0_4px_18px_rgba(0,0,0,0.12)]"
           >
-            <Search size={18} />
-            <div>
-              <p className="text-sm font-bold">{destination || "Where to?"}</p>
-              <p className="text-xs text-gray-500">
-                {dateLabel} · {totalGuests > 0 ? `${totalGuests} guests` : "Add guests"}
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#7e4ff5] text-white">
+              <Search size={18} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">
+                {destination || "Where to?"}
+              </p>
+              <p className="truncate text-xs text-gray-500">
+                {dateLabel} · {guestLabel}
               </p>
             </div>
           </button>
@@ -338,26 +368,33 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-4 py-8 md:px-10 lg:px-20">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-[22px] font-bold tracking-[-.3px]">
-            Popular homes
-          </h2>
+        <div className="mb-7 flex items-end justify-between">
+          <div>
+            <h2 className="text-[24px] font-bold tracking-tight text-gray-950">
+              Popular homes
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Explore handpicked stays for your next trip.
+            </p>
+          </div>
 
           <button
             onClick={() => navigate("/search-results")}
-            className="text-lg text-[#7e4ff5]"
+            className="hidden rounded-full border border-gray-200 px-5 py-2 text-sm font-semibold transition hover:border-gray-950 md:block"
           >
-            →
+            View all
           </button>
         </div>
 
         {properties.length === 0 ? (
-          <div className="rounded-3xl border border-gray-100 bg-[#FAFAFC] p-10 text-center">
+          <div className="rounded-[32px] border border-gray-200 bg-gray-50 p-10 text-center">
             <h2 className="text-2xl font-bold">No properties found</h2>
-            <p className="mt-2 text-gray-500">Add listings from hosting section.</p>
+            <p className="mt-2 text-gray-500">
+              Add listings from the hosting section.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {properties.map((item) => (
               <PropertyCard key={item.id} property={item} />
             ))}
@@ -376,11 +413,13 @@ function SearchButton({ title, value, active, onClick, className }) {
       type="button"
       onClick={onClick}
       className={`flex h-full flex-col justify-center rounded-full px-7 text-left transition ${className} ${
-        active ? "bg-white shadow-lg" : "hover:bg-gray-50"
+        active
+          ? "bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
+          : "hover:bg-gray-50"
       }`}
     >
-      <span className="text-xs font-bold text-black">{title}</span>
-      <span className="mt-0.5 truncate text-sm text-[#717171]">{value}</span>
+      <span className="text-[12px] font-bold text-gray-950">{title}</span>
+      <span className="mt-0.5 truncate text-sm text-gray-500">{value}</span>
     </button>
   );
 }
@@ -397,8 +436,8 @@ function DateRangeDropdown({
   const nextMonth = addMonths(viewMonth, 1);
 
   return (
-    <div className="absolute left-1/2 top-[82px] z-50 w-[780px] -translate-x-1/2 rounded-[32px] border border-gray-100 bg-white p-8 shadow-2xl">
-      <div className="mx-auto mb-6 flex w-[280px] rounded-full bg-gray-100 p-1">
+    <div className="absolute left-1/2 top-[84px] z-50 w-[780px] -translate-x-1/2 rounded-[32px] border border-gray-100 bg-white p-8 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
+      <div className="mx-auto mb-7 flex w-[280px] rounded-full bg-gray-100 p-1">
         <button className="flex-1 rounded-full bg-white py-2 text-sm font-bold shadow-sm">
           Dates
         </button>
@@ -411,7 +450,7 @@ function DateRangeDropdown({
         <button
           type="button"
           onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-          className="rounded-full p-2 hover:bg-gray-100"
+          className="rounded-full p-2 transition hover:bg-gray-100"
         >
           <ChevronLeft size={18} />
         </button>
@@ -419,7 +458,7 @@ function DateRangeDropdown({
         <button
           type="button"
           onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-          className="rounded-full p-2 hover:bg-gray-100"
+          className="rounded-full p-2 transition hover:bg-gray-100"
         >
           <ChevronRight size={18} />
         </button>
@@ -432,6 +471,7 @@ function DateRangeDropdown({
           checkout={checkout}
           onDateClick={onDateClick}
         />
+
         <MonthCalendar
           monthDate={nextMonth}
           checkin={checkin}
@@ -440,36 +480,22 @@ function DateRangeDropdown({
         />
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-5">
         <button
           type="button"
           onClick={onClear}
-          className="rounded-full border border-gray-300 px-5 py-3 text-sm font-semibold hover:border-black"
+          className="text-sm font-semibold underline"
         >
           Clear dates
         </button>
 
-        <div className="flex flex-wrap gap-3">
-          {["+ 1 day", "+ 2 days", "+ 3 days", "+ 7 days", "+ 14 days"].map(
-            (item) => (
-              <button
-                key={item}
-                type="button"
-                className="rounded-full border border-gray-300 px-4 py-2 text-sm hover:border-black"
-              >
-                {item}
-              </button>
-            )
-          )}
-
-          <button
-            type="button"
-            onClick={onDone}
-            className="rounded-full bg-[#222] px-5 py-2 text-sm font-bold text-white"
-          >
-            Done
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onDone}
+          className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-black"
+        >
+          Done
+        </button>
       </div>
     </div>
   );
@@ -495,8 +521,8 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
       </div>
 
       <div className="grid grid-cols-7 gap-y-2 text-center">
-        {days.map((day) => {
-          if (!day) return <div key={Math.random()} className="h-10" />;
+        {days.map((day, index) => {
+          if (!day) return <div key={`blank-${index}`} className="h-10" />;
 
           const iso = toISO(day);
           const past = iso < todayISO;
@@ -518,12 +544,12 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
               onClick={() => onDateClick(day)}
               className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition ${
                 selected
-                  ? "bg-black text-white"
+                  ? "bg-gray-950 text-white"
                   : inRange
-                  ? "bg-gray-100 text-black"
+                  ? "bg-gray-100 text-gray-950"
                   : past
                   ? "cursor-not-allowed text-gray-300"
-                  : "hover:border hover:border-black"
+                  : "hover:bg-gray-100"
               }`}
             >
               {day.getDate()}
@@ -550,11 +576,19 @@ function getMonthDays(monthDate) {
   return [...blanks, ...days];
 }
 
-function GuestRow({ title, subtitle, value, onMinus, onPlus, underline }) {
+function GuestRow({
+  title,
+  subtitle,
+  value,
+  onMinus,
+  onPlus,
+  minusDisabled,
+  underline,
+}) {
   return (
     <div className="flex items-center justify-between border-b border-gray-100 py-5 last:border-b-0">
       <div>
-        <h4 className="font-semibold text-gray-900">{title}</h4>
+        <h4 className="font-semibold text-gray-950">{title}</h4>
         <p className={`text-sm text-gray-500 ${underline ? "underline" : ""}`}>
           {subtitle}
         </p>
@@ -564,19 +598,20 @@ function GuestRow({ title, subtitle, value, onMinus, onPlus, underline }) {
         <button
           type="button"
           onClick={onMinus}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-xl text-gray-500 disabled:opacity-40"
+          disabled={minusDisabled}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          −
+          <Minus size={15} />
         </button>
 
-        <span className="w-5 text-center">{value}</span>
+        <span className="w-5 text-center font-semibold">{value}</span>
 
         <button
           type="button"
           onClick={onPlus}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-800 text-xl text-gray-800"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-400 text-gray-800 transition hover:border-gray-950"
         >
-          +
+          <Plus size={15} />
         </button>
       </div>
     </div>
