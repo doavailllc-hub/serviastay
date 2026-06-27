@@ -373,9 +373,9 @@ export default function Home() {
               Handpicked
             </span>
 
-            <h4 className="font-heading text-[28px] font-black tracking-[-0.045em] text-[var(--text-main)] md:text-[42px]">
-              Popular homes
-            </h4>
+      <h2 className="text-3xl font-bold text-gray-900">
+                Popular Homes
+              </h2>
 
             <p className="mt-3 max-w-xl text-[16px] font-medium leading-7 text-[var(--text-secondary)]">
               Explore beautiful stays selected for comfort, location, and memorable trips.
