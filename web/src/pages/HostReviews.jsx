@@ -160,7 +160,7 @@ export default function HostReviews() {
             </div>
           ) : reviews.length === 0 ? (
             <div className="p-14 text-center">
-              <div className="mb-4 text-6xl">⭐</div>
+              <div className="mb-4 text-6xl">★</div>
 
               <h3 className="text-2xl font-bold">No reviews yet</h3>
 
@@ -229,7 +229,7 @@ function ReviewCard({
             </div>
 
             <div className="rounded-full bg-[#F4F1FF] px-4 py-2 font-semibold text-[#3b71e6]">
-              ⭐ {review.rating}
+              ★ {review.rating}
             </div>
           </div>
 

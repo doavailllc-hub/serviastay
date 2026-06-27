@@ -263,7 +263,7 @@ export default function HostDashboard() {
               />
 
               <QuickAction
-                icon="⭐"
+                icon="★"
                 title="Reviews"
                 desc="Guest feedback"
                 onClick={() => navigate("/host-reviews")}

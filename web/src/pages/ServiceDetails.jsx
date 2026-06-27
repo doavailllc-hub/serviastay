@@ -421,7 +421,7 @@ function Review({ name, text }) {
   return (
     <div className="rounded-2xl border border-gray-100 p-5">
       <div className="mb-2 font-bold">{name}</div>
-      <div className="mb-3 text-sm">⭐⭐⭐⭐⭐</div>
+      <div className="mb-3 text-sm">★★★★★</div>
       <p className="text-gray-700">{text}</p>
     </div>
   );

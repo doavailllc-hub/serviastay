@@ -286,7 +286,9 @@ export default function HostProfile() {
                           </p>
                         </div>
 
-                        <span className="font-bold">⭐ {review.rating}</span>
+                       <span className="font-semibold text-[#717171]">
+  ★ {review.rating}
+</span>
                       </div>
 
                       <p className="text-gray-700">{review.review}</p>

@@ -277,7 +277,7 @@ export default function Reserve() {
                         </div>
 
                         <span className="font-semibold">
-                          ⭐ {review.rating}
+                          ★ {review.rating}
                         </span>
                       </div>
 

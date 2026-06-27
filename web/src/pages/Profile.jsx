@@ -375,7 +375,7 @@ function ReviewsTab() {
   return (
     <>
       <h2 className="mb-8 text-3xl font-bold text-gray-900">Reviews</h2>
-      <Empty icon="⭐" text="Your written reviews will appear here." />
+      <Empty icon="★" text="Your written reviews will appear here." />
     </>
   );
 }

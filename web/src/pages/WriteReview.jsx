@@ -89,7 +89,7 @@ export default function WriteReview() {
 
         <main className="mx-auto max-w-4xl px-4 py-20">
           <div className="rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
-            <div className="mb-4 text-6xl">⭐</div>
+            <div className="mb-4 text-6xl">★</div>
 
             <h1 className="text-3xl font-bold text-gray-900">
               Review not available
