@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Navigation,
   X,
-  MapPin,
   Minus,
   Plus,
 } from "lucide-react";
@@ -17,8 +16,6 @@ import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
 
 const API_URL = "https://stay.dovail.com/api/properties";
-const BRAND = "#3b71e6";
-const BRAND_HOVER = "#6f43e4";
 
 function toISO(date) {
   if (!date) return "";
@@ -160,8 +157,8 @@ export default function Home() {
         <Navbar />
 
         <section className="hidden w-full justify-center bg-white px-4 pb-5 pt-3 md:flex">
-          <div ref={searchRef} className="relative w-full max-w-[960px]">
-            <div className="flex h-[70px] items-center rounded-full border border-gray-200 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.10)] transition hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)]">
+          <div ref={searchRef} className="relative w-full max-w-[980px]">
+            <div className="flex h-[72px] items-center rounded-full border border-gray-200 bg-white shadow-[0_10px_35px_rgba(17,24,39,0.10)] transition hover:shadow-[0_14px_42px_rgba(17,24,39,0.14)]">
               <SearchButton
                 title="Where"
                 value={destination || "Search destinations"}
@@ -204,14 +201,14 @@ export default function Home() {
                   }
                   className={`flex h-full flex-1 flex-col justify-center rounded-full px-6 text-left transition ${
                     activePanel === "guests"
-                      ? "bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
+                      ? "bg-white shadow-[0_8px_24px_rgba(17,24,39,0.14)]"
                       : "hover:bg-gray-50"
                   }`}
                 >
-                  <span className="text-[12px] font-bold text-gray-950">
+                  <span className="text-[12px] font-black text-gray-950">
                     Who
                   </span>
-                  <span className="mt-0.5 truncate text-sm text-gray-500">
+                  <span className="mt-0.5 truncate text-sm font-medium text-gray-500">
                     {guestLabel}
                   </span>
                 </button>
@@ -219,7 +216,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex h-12 w-12 items-center justify-center rounded-full bg-[#3b71e6] text-white transition hover:scale-105 hover:bg-[#6f43e4]"
+                  className="mr-2 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-[0_12px_26px_rgba(59,113,230,0.28)] transition hover:scale-105 hover:bg-[var(--primary-hover)]"
                   aria-label="Search"
                 >
                   <Search size={19} />
@@ -228,9 +225,9 @@ export default function Home() {
             </div>
 
             {activePanel === "where" && (
-              <div className="absolute left-0 top-[84px] z-50 w-[440px] rounded-[32px] border border-gray-100 bg-white p-5 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
+              <div className="absolute left-0 top-[86px] z-50 w-[450px] rounded-[32px] border border-gray-100 bg-white p-5 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-gray-950">
+                  <h3 className="font-heading text-base font-black tracking-[-0.03em] text-gray-950">
                     Suggested destinations
                   </h3>
 
@@ -252,15 +249,17 @@ export default function Home() {
                       }}
                       className="flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left transition hover:bg-gray-50"
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F0FF] text-2xl text-[#3b71e6]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary-light)] text-2xl text-[var(--primary)]">
                         {place.icon}
                       </div>
 
                       <div>
-                        <p className="font-semibold text-gray-950">
+                        <p className="font-bold text-gray-950">
                           {place.name}
                         </p>
-                        <p className="text-sm text-gray-500">{place.desc}</p>
+                        <p className="text-sm font-medium text-gray-500">
+                          {place.desc}
+                        </p>
                       </div>
                     </button>
                   ))}
@@ -281,7 +280,7 @@ export default function Home() {
             )}
 
             {activePanel === "guests" && (
-              <div className="absolute right-0 top-[84px] z-50 w-[430px] rounded-[32px] border border-gray-100 bg-white p-6 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
+              <div className="absolute right-0 top-[86px] z-50 w-[430px] rounded-[32px] border border-gray-100 bg-white p-6 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
                 <GuestRow
                   title="Adults"
                   subtitle="Ages 13 or above"
@@ -328,7 +327,7 @@ export default function Home() {
                       setInfants(0);
                       setPets(0);
                     }}
-                    className="text-sm font-semibold underline"
+                    className="text-sm font-bold underline"
                   >
                     Clear
                   </button>
@@ -336,7 +335,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setActivePanel(null)}
-                    className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-black"
+                    className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-black text-white transition hover:bg-black"
                   >
                     Done
                   </button>
@@ -349,17 +348,17 @@ export default function Home() {
         <section className="px-4 pb-4 pt-3 md:hidden">
           <button
             onClick={() => setActivePanel("mobile")}
-            className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-4 text-left shadow-[0_4px_18px_rgba(0,0,0,0.12)]"
+            className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-4 text-left shadow-[0_8px_25px_rgba(17,24,39,0.12)]"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3b71e6] text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white">
               <Search size={18} />
             </div>
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold">
+              <p className="truncate text-sm font-black">
                 {destination || "Where to?"}
               </p>
-              <p className="truncate text-xs text-gray-500">
+              <p className="truncate text-xs font-medium text-gray-500">
                 {dateLabel} · {guestLabel}
               </p>
             </div>
@@ -367,41 +366,41 @@ export default function Home() {
         </section>
       </header>
 
-     <main className="mx-auto max-w-[1400px] px-4 py-10 md:px-10 lg:px-20">
-  <div className="mb-8 flex items-end justify-between">
-    <div>
-      <h2 className="font-heading text-[28px] font-black tracking-[-0.04em] text-[var(--text-main)]">
-        Popular homes
-      </h2>
+      <main className="mx-auto max-w-[1420px] px-4 py-12 md:px-10 lg:px-20">
+        <div className="mb-10 flex items-end justify-between gap-6">
+          <div>
+            <span className="mb-3 inline-flex rounded-full bg-[var(--primary-light)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--primary)]">
+              Handpicked
+            </span>
 
-      <p className="mt-2 max-w-xl text-[15px] font-medium text-[var(--text-secondary)]">
-        Explore handpicked stays for your next trip.
-      </p>
-    </div>
+            <h2 className="font-heading text-[34px] font-black tracking-[-0.045em] text-[var(--text-main)] md:text-[42px]">
+              Popular homes
+            </h2>
 
-    <button className="btn-outline px-6 py-3 text-sm">
-      View all
-    </button>
-  </div>
-</main>
+            <p className="mt-3 max-w-xl text-[16px] font-medium leading-7 text-[var(--text-secondary)]">
+              Explore beautiful stays selected for comfort, location, and memorable trips.
+            </p>
+          </div>
 
           <button
             onClick={() => navigate("/search-results")}
-            className="hidden rounded-full border border-gray-200 px-5 py-2 text-sm font-semibold transition hover:border-gray-950 md:block"
+            className="hidden rounded-full border border-[var(--border)] bg-white px-6 py-3 text-sm font-black text-[var(--text-main)] shadow-sm transition hover:border-[var(--primary)] hover:text-[var(--primary)] hover:shadow-md md:block"
           >
             View all
           </button>
         </div>
 
         {properties.length === 0 ? (
-          <div className="rounded-[32px] border border-gray-200 bg-gray-50 p-10 text-center">
-            <h2 className="text-2xl font-bold">No properties found</h2>
-            <p className="mt-2 text-gray-500">
+          <div className="rounded-[32px] border border-gray-200 bg-gray-50 p-12 text-center">
+            <h2 className="font-heading text-3xl font-black tracking-[-0.04em]">
+              No properties found
+            </h2>
+            <p className="mt-3 text-gray-500">
               Add listings from the hosting section.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-x-7 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {properties.map((item) => (
               <PropertyCard key={item.id} property={item} />
             ))}
@@ -421,12 +420,14 @@ function SearchButton({ title, value, active, onClick, className }) {
       onClick={onClick}
       className={`flex h-full flex-col justify-center rounded-full px-7 text-left transition ${className} ${
         active
-          ? "bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
+          ? "bg-white shadow-[0_8px_24px_rgba(17,24,39,0.14)]"
           : "hover:bg-gray-50"
       }`}
     >
-      <span className="text-[12px] font-bold text-gray-950">{title}</span>
-      <span className="mt-0.5 truncate text-sm text-gray-500">{value}</span>
+      <span className="text-[12px] font-black text-gray-950">{title}</span>
+      <span className="mt-0.5 truncate text-sm font-medium text-gray-500">
+        {value}
+      </span>
     </button>
   );
 }
@@ -443,12 +444,12 @@ function DateRangeDropdown({
   const nextMonth = addMonths(viewMonth, 1);
 
   return (
-    <div className="absolute left-1/2 top-[84px] z-50 w-[780px] -translate-x-1/2 rounded-[32px] border border-gray-100 bg-white p-8 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
+    <div className="absolute left-1/2 top-[86px] z-50 w-[780px] -translate-x-1/2 rounded-[32px] border border-gray-100 bg-white p-8 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
       <div className="mx-auto mb-7 flex w-[280px] rounded-full bg-gray-100 p-1">
-        <button className="flex-1 rounded-full bg-white py-2 text-sm font-bold shadow-sm">
+        <button className="flex-1 rounded-full bg-white py-2 text-sm font-black shadow-sm">
           Dates
         </button>
-        <button className="flex-1 rounded-full py-2 text-sm font-bold text-gray-500">
+        <button className="flex-1 rounded-full py-2 text-sm font-black text-gray-500">
           Flexible
         </button>
       </div>
@@ -491,7 +492,7 @@ function DateRangeDropdown({
         <button
           type="button"
           onClick={onClear}
-          className="text-sm font-semibold underline"
+          className="text-sm font-bold underline"
         >
           Clear dates
         </button>
@@ -499,7 +500,7 @@ function DateRangeDropdown({
         <button
           type="button"
           onClick={onDone}
-          className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-black"
+          className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-black text-white transition hover:bg-black"
         >
           Done
         </button>
@@ -514,14 +515,14 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
 
   return (
     <div>
-      <h3 className="mb-5 text-center text-base font-bold">
+      <h3 className="font-heading mb-5 text-center text-base font-black">
         {monthDate.toLocaleString("en-IN", {
           month: "long",
           year: "numeric",
         })}
       </h3>
 
-      <div className="mb-3 grid grid-cols-7 text-center text-xs font-bold text-gray-500">
+      <div className="mb-3 grid grid-cols-7 text-center text-xs font-black text-gray-500">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
           <div key={`${d}-${i}`}>{d}</div>
         ))}
@@ -549,7 +550,7 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
               type="button"
               disabled={past}
               onClick={() => onDateClick(day)}
-              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition ${
+              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition ${
                 selected
                   ? "bg-gray-950 text-white"
                   : inRange
@@ -595,8 +596,8 @@ function GuestRow({
   return (
     <div className="flex items-center justify-between border-b border-gray-100 py-5 last:border-b-0">
       <div>
-        <h4 className="font-semibold text-gray-950">{title}</h4>
-        <p className={`text-sm text-gray-500 ${underline ? "underline" : ""}`}>
+        <h4 className="font-heading font-black text-gray-950">{title}</h4>
+        <p className={`text-sm font-medium text-gray-500 ${underline ? "underline" : ""}`}>
           {subtitle}
         </p>
       </div>
@@ -611,7 +612,7 @@ function GuestRow({
           <Minus size={15} />
         </button>
 
-        <span className="w-5 text-center font-semibold">{value}</span>
+        <span className="w-5 text-center font-bold">{value}</span>
 
         <button
           type="button"
