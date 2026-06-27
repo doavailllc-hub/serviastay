@@ -33,7 +33,7 @@ import api from "../api/api";
 import GoogleMapSection from "../components/GoogleMapSection";
 
 const BRAND_COLOR = "#3b71e6";
-const BRAND_HOVER = "#6f43e4";
+const BRAND_HOVER = "#2f5fc2";
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=85";
 
@@ -357,7 +357,7 @@ export default function ResortDetails() {
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="mt-6 rounded-full px-7 py-3 text-sm font-bold text-white transition hover:bg-[#6f43e4]"
+              className="mt-6 rounded-full px-7 py-3 text-sm font-bold text-white transition hover:bg-[#2f5fc2]"
               style={{ backgroundColor: BRAND_COLOR }}
             >
               Back to home
@@ -635,7 +635,7 @@ function ReservationCard({
         type="button"
         onClick={onReserve}
         disabled={dateError}
-        className="mt-5 h-14 w-full rounded-2xl bg-[#3b71e6] text-base font-bold text-white shadow-lg shadow-purple-100 transition-all hover:-translate-y-0.5 hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+        className="mt-5 h-14 w-full rounded-2xl bg-[#3b71e6] text-base font-bold text-white shadow-lg shadow-purple-100 transition-all hover:-translate-y-0.5 hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
       >
         Reserve
       </button>
@@ -1123,7 +1123,7 @@ function GuestDropdown({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="mt-5 w-full rounded-2xl bg-[#3b71e6] py-3 font-bold text-white transition hover:bg-[#6f43e4]"
+            className="mt-5 w-full rounded-2xl bg-[#3b71e6] py-3 font-bold text-white transition hover:bg-[#2f5fc2]"
           >
             Done
           </button>
@@ -1322,7 +1322,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
           <button
             type="button"
             onClick={() => (window.location.href = "/login")}
-            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4]"
+            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#2f5fc2]"
           >
             Log in to review
           </button>
@@ -1359,7 +1359,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
             type="button"
             onClick={submitReview}
             disabled={submitting}
-            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4] disabled:opacity-60"
+            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#2f5fc2] disabled:opacity-60"
           >
             {submitting ? "Submitting..." : "Submit review"}
           </button>
@@ -1552,7 +1552,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onLogin}
-            className="h-12 w-full rounded-2xl bg-[#3b71e6] font-semibold text-white transition hover:bg-[#6f43e4]"
+            className="h-12 w-full rounded-2xl bg-[#3b71e6] font-semibold text-white transition hover:bg-[#2f5fc2]"
           >
             Continue with email
           </button>
