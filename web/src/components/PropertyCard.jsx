@@ -91,13 +91,15 @@ export default function PropertyCard({ property }) {
               {property.title || "Untitled stay"}
             </h3>
 
-            <div className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-[#222222]">
-           <Star
+           <div className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-[#222222]">
+  <Star
     size={10}
-    className="fill-[#484848] text-[#484848]"
- />
-              <span>{property.rating || "5.0"}</span>
-            </div>
+    color="#717171"
+    fill="#717171"
+    strokeWidth={0}
+  />
+  <span>{property.rating || "5.0"}</span>
+</div>
           </div>
 
           <p className="mt-1 line-clamp-1 text-[14px] font-normal leading-5 text-[#717171]">
