@@ -92,13 +92,9 @@ export default function PropertyCard({ property }) {
             </h3>
 
            <div className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-[#222222]">
-  <Star
-    size={10}
-    color="#717171"
-    fill="#717171"
-    strokeWidth={0}
-  />
-  <span>{property.rating || "5.0"}</span>
+  
+  <span className="font-semibold text-[#717171]">
+  ★{property.rating || "5.0"}</span>
 </div>
           </div>
 
