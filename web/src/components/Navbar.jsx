@@ -1,38 +1,53 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Bell,
+  CalendarDays,
+  Gift,
+  Globe,
+  Heart,
+  HelpCircle,
+  Home,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Settings,
+  Sparkles,
+  User,
+  Users,
+  X,
+} from "lucide-react";
+
 import logo from "../assets/logo.png";
 import api from "../api/api";
 import NotificationBell from "./NotificationBell";
 
-import {
-  Menu,
-  User,
-  Globe,
-  Home,
-  Bell,
-  Heart,
-  MessageSquare,
-  CalendarDays,
-  Settings,
-  HelpCircle,
-  LogOut,
-  Sparkles,
-  Gift,
-  Users,
-} from "lucide-react";
+const THEME = "#7e4ff5";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const menuRef = useRef(null);
 
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [user, setUser] = useState(null);
 
   useEffect(() => {
     loadUserState();
   }, [location.pathname]);
+
+  useEffect(() => {
+    const closeOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOutside);
+    return () => document.removeEventListener("mousedown", closeOutside);
+  }, []);
 
   const loadUserState = () => {
     try {
@@ -58,13 +73,11 @@ export default function Navbar() {
   const loadUnreadMessages = async (userId) => {
     try {
       const res = await api.get(`/conversations/${userId}`);
-
-      const totalUnread = (res.data || []).reduce(
+      const total = (res.data || []).reduce(
         (sum, item) => sum + Number(item.unread_count || 0),
         0
       );
-
-      setUnreadCount(totalUnread);
+      setUnreadCount(total);
     } catch {
       setUnreadCount(0);
     }
@@ -73,7 +86,7 @@ export default function Navbar() {
   const loadNotificationCount = async (userId) => {
     try {
       const res = await api.get(`/notifications/${userId}/unread-count`);
-      setNotificationCount(res.data.count || 0);
+      setNotificationCount(res.data?.count || 0);
     } catch {
       setNotificationCount(0);
     }
@@ -88,10 +101,7 @@ export default function Navbar() {
     sessionStorage.removeItem("user");
 
     setUser(null);
-    setUnreadCount(0);
-    setNotificationCount(0);
     setOpen(false);
-
     navigate("/", { replace: true });
   };
 
@@ -101,151 +111,152 @@ export default function Navbar() {
     "U";
 
   const totalBadge = unreadCount + notificationCount;
-const menuRef = useRef(null);
 
-useEffect(() => {
-  const handleClickOutside = (event) => {
-    if (
-      menuRef.current &&
-      !menuRef.current.contains(event.target)
-    ) {
-      setOpen(false);
-    }
-  };
+  return (
+    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-xl">
+      <div className="mx-auto flex h-[82px] max-w-[1500px] items-center justify-between px-5 md:px-10">
+        <Link to="/home" onClick={closeMenu} className="flex items-center">
+          <img
+            src={logo}
+            alt="Dovail Stay"
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
 
-  document.addEventListener("mousedown", handleClickOutside);
+        <div className="hidden h-full items-center gap-10 md:flex">
+          <NavTab
+            to="/home"
+            icon={<Home size={23} />}
+            label="Homes"
+            active={location.pathname === "/home" || location.pathname === "/"}
+          />
+          <NavTab
+            to="/experiences"
+            icon={<Sparkles size={23} />}
+            label="Experiences"
+            active={location.pathname === "/experiences"}
+            badge="NEW"
+          />
+          <NavTab
+            to="/services"
+            icon={<Bell size={23} />}
+            label="Services"
+            active={location.pathname === "/services"}
+            badge="NEW"
+          />
+        </div>
 
-  return () =>
-    document.removeEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-}, []);
-return (
-  <nav className="sticky top-0 z-50 mx-auto flex h-20 max-w-[1500px] items-center justify-between border-b border-gray-200 bg-white/90 px-6 backdrop-blur-md md:px-12">
-    <Link to="/home" onClick={closeMenu} className="flex items-center no-underline">
-      <img src={logo} alt="Dovail Stay" className="h-8 w-auto object-contain" />
-    </Link>
-
-    <div className="hidden h-full items-center justify-center gap-10 md:flex">
-      <NavTab to="/home" icon={<Home size={24} />} label="Homes" active={location.pathname === "/home" || location.pathname === "/"} />
-      <NavTab to="/experiences" icon={<Sparkles size={24} />} label="Experiences" active={location.pathname === "/experiences"} badge="NEW" />
-      <NavTab to="/services" icon={<Bell size={24} />} label="Services" active={location.pathname === "/services"} badge="NEW" />
-    </div>
-
-    <div className="relative flex items-center justify-end gap-[18px]">
-      <Link
-        to="/become-a-host"
-        onClick={closeMenu}
-        className="hidden whitespace-nowrap rounded-full px-4 py-3 text-sm font-semibold text-[#222] no-underline hover:bg-gray-100 md:block"
-      >
-        {user ? "Switch to hosting" : "Become a host"}
-      </Link>
-
-      <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex">
-        <Globe size={18} />
-      </button>
-
-      {user && (
-        <>
-          <NotificationBell />
+        <div ref={menuRef} className="relative flex items-center gap-3">
+          <Link
+            to="/become-a-host"
+            onClick={closeMenu}
+            className="hidden rounded-full px-4 py-3 text-sm font-semibold text-[#222] no-underline transition hover:bg-gray-100 lg:block"
+          >
+            {user ? "Switch to hosting" : "Become a host"}
+          </Link>
 
           <Link
-            to="/messages"
+            to="/language"
             onClick={closeMenu}
-            className="relative hidden h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 md:flex"
+            className="hidden h-10 w-10 items-center justify-center rounded-full text-[#222] transition hover:bg-gray-100 md:flex"
+            title="Languages & currency"
           >
-            <MessageSquare size={19} />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7e4ff5] px-1 text-[11px] font-bold text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            )}
+            <Globe size={18} />
           </Link>
-        </>
-      )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="relative flex h-[44px] w-[72px] cursor-pointer items-center justify-between rounded-full border border-[#ddd] bg-white px-3 text-[#222] hover:shadow-md"
-      >
-        <Menu size={18} />
+          {user && (
+            <>
+              <NotificationBell />
 
-        {user?.profile_image ? (
-          <img src={user.profile_image} alt="" className="h-8 w-8 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#717171] font-bold text-white">
-            {avatarLetter}
-          </div>
-        )}
+              <Link
+                to="/messages"
+                onClick={closeMenu}
+                className="relative hidden h-10 w-10 items-center justify-center rounded-full text-[#222] transition hover:bg-gray-100 md:flex"
+              >
+                <MessageSquare size={19} />
+                {unreadCount > 0 && <Badge count={unreadCount} />}
+              </Link>
+            </>
+          )}
 
-        {user && totalBadge > 0 && (
-          <span className="absolute right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7e4ff5] px-1 text-[10px] font-bold text-white">
-            {totalBadge > 99 ? "99+" : totalBadge}
-          </span>
-        )}
-      </button>
+          <button
+            type="button"
+            onClick={() => setOpen((p) => !p)}
+            className="relative flex h-[46px] w-[76px] items-center justify-between rounded-full border border-gray-300 bg-white px-3 text-[#222] transition hover:shadow-md"
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
 
-      {open && (
-        <div className="absolute right-0 top-[58px] z-[9999] w-[315px] overflow-hidden rounded-2xl border border-gray-100 bg-white py-3 shadow-2xl">
-          {!user ? (
-            <GuestMenu closeMenu={closeMenu} />
-          ) : (
-            <UserMenu
-              user={user}
-              unreadCount={unreadCount}
-              notificationCount={notificationCount}
-              logout={logout}
-              closeMenu={closeMenu}
-            />
+            {user?.profile_image ? (
+              <img
+                src={user.profile_image}
+                alt=""
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#222] text-sm font-bold text-white">
+                {avatarLetter}
+              </div>
+            )}
+
+            {user && totalBadge > 0 && <Badge count={totalBadge} />}
+          </button>
+
+          {open && (
+            <div className="absolute right-0 top-[58px] z-[9999] w-[330px] overflow-hidden rounded-[24px] border border-gray-100 bg-white py-3 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+              {!user ? (
+                <GuestMenu closeMenu={closeMenu} />
+              ) : (
+                <UserMenu
+                  user={user}
+                  unreadCount={unreadCount}
+                  notificationCount={notificationCount}
+                  logout={logout}
+                  closeMenu={closeMenu}
+                />
+              )}
+            </div>
           )}
         </div>
-      )}
-    </div>
-  </nav>
-);
+      </div>
+    </nav>
+  );
 }
 
 function GuestMenu({ closeMenu }) {
   return (
     <>
-      <MenuLink
-        to="/help"
-        icon={<HelpCircle size={18} />}
-        text="Help Center"
-        onClick={closeMenu}
-      />
-
+      <MenuLink to="/login" text="Log in or sign up" strong onClick={closeMenu} />
       <Divider />
-
       <MenuLink
         to="/become-a-host"
         icon={<Home size={18} />}
         text="Become a host"
-        subText="It's easy to start hosting and earn extra income."
+        subText="Earn extra income with Dovail Stay."
         onClick={closeMenu}
       />
-
+      <MenuLink
+        to="/language"
+        icon={<Globe size={18} />}
+        text="Languages & currency"
+        onClick={closeMenu}
+      />
       <MenuLink
         to="/find-co-host"
         icon={<Users size={18} />}
         text="Find a co-host"
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/gift-cards"
         icon={<Gift size={18} />}
         text="Gift cards"
         onClick={closeMenu}
       />
-
       <Divider />
-
       <MenuLink
-        to="/login"
-        text="Log in or sign up"
+        to="/help"
+        icon={<HelpCircle size={18} />}
+        text="Help Center"
         onClick={closeMenu}
       />
     </>
@@ -261,40 +272,40 @@ function UserMenu({
 }) {
   return (
     <>
-      <div className="px-6 py-3">
-        <p className="font-bold text-gray-900">{user.fullname || "User"}</p>
-        <p className="text-sm text-gray-500">{user.email}</p>
+      <div className="px-6 py-4">
+        <p className="text-base font-bold text-gray-950">
+          {user.fullname || "User"}
+        </p>
+        <p className="mt-0.5 truncate text-sm text-gray-500">{user.email}</p>
       </div>
 
       <Divider />
-<MenuLink
-  to="/host-dashboard"
-  icon={<Home size={18} />}
-  text="Host Dashboard"
-  onClick={closeMenu}
-/>
+
+      <MenuLink
+        to="/host-dashboard"
+        icon={<Home size={18} />}
+        text="Host Dashboard"
+        onClick={closeMenu}
+      />
       <MenuLink
         to="/wishlist"
         icon={<Heart size={18} />}
         text="Wishlists"
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/trips"
         icon={<CalendarDays size={18} />}
         text="Trips"
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/messages"
         icon={<MessageSquare size={18} />}
         text="Messages"
-        badge={unreadCount > 0 ? unreadCount : null}
+        badge={unreadCount}
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/profile"
         icon={<User size={18} />}
@@ -308,43 +319,27 @@ function UserMenu({
         to="/notifications"
         icon={<Bell size={18} />}
         text="Notifications"
-        badge={notificationCount > 0 ? notificationCount : null}
+        badge={notificationCount}
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/account-settings"
         icon={<Settings size={18} />}
         text="Account settings"
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/language"
         icon={<Globe size={18} />}
         text="Languages & currency"
         onClick={closeMenu}
       />
-
       <MenuLink
         to="/help"
         icon={<HelpCircle size={18} />}
         text="Help Center"
         onClick={closeMenu}
       />
-
-      <Divider />
-
-      <Link
-        to="/host-dashboard"
-        onClick={closeMenu}
-        className="flex flex-col items-start gap-1 px-6 py-3 text-[#222] no-underline hover:bg-[#f7f7f7]"
-      >
-        <strong>Host dashboard</strong>
-        <span className="text-[13px] leading-snug text-[#717171]">
-          Manage listings, bookings and earnings.
-        </span>
-      </Link>
 
       <Divider />
 
@@ -358,7 +353,7 @@ function UserMenu({
 
       <button
         onClick={logout}
-        className="flex h-[44px] w-full items-center gap-3 px-6 text-left text-[15px] text-[#222] hover:bg-[#f7f7f7]"
+        className="flex h-[46px] w-full items-center gap-3 px-6 text-left text-[15px] text-[#222] transition hover:bg-[#f7f7f7]"
       >
         <LogOut size={18} />
         Log out
@@ -369,43 +364,44 @@ function UserMenu({
 
 function NavTab({ to, icon, label, active, badge }) {
   return (
-    <Link to={to} className="no-underline">
+    <Link to={to} className="h-full no-underline">
       <button
-        className={`relative flex h-full flex-col items-center justify-center px-0 py-2 transition ${
-          active ? "text-[#8363F5]" : "text-gray-500 hover:text-[#8363F5]"
+        className={`relative flex h-full flex-col items-center justify-center px-1 transition ${
+          active ? "text-[#7e4ff5]" : "text-gray-500 hover:text-[#7e4ff5]"
         }`}
       >
         {icon}
-
         <span className="mt-1 whitespace-nowrap text-sm font-semibold">
           {label}
         </span>
 
         {badge && (
-          <span className="absolute right-[-18px] top-1.5 rounded-md bg-slate-500 px-1.5 py-0.5 text-[9px] text-white">
+          <span className="absolute -right-7 top-3 rounded-full bg-[#7e4ff5]/10 px-2 py-0.5 text-[9px] font-black text-[#7e4ff5]">
             {badge}
           </span>
         )}
 
         {active && (
-          <div className="absolute bottom-1 h-[3px] w-8 rounded-full bg-[#8363F5]" />
+          <div className="absolute bottom-0 h-[3px] w-9 rounded-full bg-[#7e4ff5]" />
         )}
       </button>
     </Link>
   );
 }
 
-function MenuLink({ to, icon, text, subText, badge, onClick }) {
+function MenuLink({ to, icon, text, subText, badge, strong, onClick }) {
   return (
     <Link
       to={to}
       onClick={onClick}
-      className="flex min-h-[44px] items-center justify-between px-6 py-2 text-[15px] text-[#222] no-underline hover:bg-[#f7f7f7]"
+      className="flex min-h-[46px] items-center justify-between px-6 py-2.5 text-[15px] text-[#222] no-underline transition hover:bg-[#f7f7f7]"
     >
       <span className="flex items-center gap-3">
         {icon}
         <span>
-          <span className="block">{text}</span>
+          <span className={`block ${strong ? "font-bold" : "font-medium"}`}>
+            {text}
+          </span>
           {subText && (
             <span className="mt-0.5 block text-[13px] leading-snug text-[#717171]">
               {subText}
@@ -414,12 +410,20 @@ function MenuLink({ to, icon, text, subText, badge, onClick }) {
         </span>
       </span>
 
-      {badge && (
-        <b className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8363F5] px-1 text-xs text-white">
-          {badge}
-        </b>
+      {badge > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7e4ff5] px-1 text-xs font-bold text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
       )}
     </Link>
+  );
+}
+
+function Badge({ count }) {
+  return (
+    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7e4ff5] px-1 text-[10px] font-bold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }
 
