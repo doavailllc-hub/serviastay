@@ -34,7 +34,7 @@ export default function PaymentMethods() {
             </p>
           </div>
 
-          <button className="mt-5 md:mt-0 flex items-center gap-2 px-6 py-3 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg">
+          <button className="mt-5 md:mt-0 flex items-center gap-2 px-6 py-3 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg">
             <Plus size={18} />
             Add Card
           </button>
@@ -52,7 +52,7 @@ export default function PaymentMethods() {
                   <div className="w-14 h-14 rounded-2xl bg-[#F4F1FF] flex items-center justify-center">
                     <CreditCard
                       size={28}
-                      className="text-[3b71e6]"
+                      className="text-[#3b71e6]"
                     />
                   </div>
 
@@ -97,7 +97,7 @@ export default function PaymentMethods() {
             <div className="w-14 h-14 rounded-2xl bg-[#F4F1FF] flex items-center justify-center">
               <ShieldCheck
                 size={30}
-                className="text-[3b71e6]"
+                className="text-[#3b71e6]"
               />
             </div>
 
@@ -115,7 +115,7 @@ export default function PaymentMethods() {
         </div>
 
         {/* Bottom Banner */}
-        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
+        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
           <h2 className="text-2xl font-bold">
             Fast & Secure Checkout 💳
           </h2>

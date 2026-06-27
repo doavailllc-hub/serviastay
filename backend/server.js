@@ -1195,7 +1195,7 @@ async function sendBookingConfirmation({
         <br>
 
         <a href="https://stay.dovail.com/trips"
-           style="background:3b71e6;color:#fff;padding:12px 20px;
+           style="background:#3b71e6;color:#fff;padding:12px 20px;
            text-decoration:none;border-radius:8px;">
            View Booking
         </a>
@@ -2179,7 +2179,7 @@ app.get("/api/bookings/:bookingId/receipt", verifyToken, async (req, res) => {
 
     doc
       .fontSize(24)
-      .fillColor("3b71e6")
+      .fillColor("#3b71e6")
       .text("Dovail Stay", { align: "left" });
 
     doc
@@ -2374,7 +2374,7 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
         subject: `Booking ${status} - ${booking.title}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;border:1px solid #eee;border-radius:18px">
-            <h2 style="color:3b71e6;margin-bottom:8px">Booking ${status}</h2>
+            <h2 style="color:#3b71e6;margin-bottom:8px">Booking ${status}</h2>
             <p>Hello ${booking.fullname || "Guest"},</p>
             <p>Your booking status has been updated.</p>
 
@@ -2388,7 +2388,7 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
             </div>
 
             <a href="${process.env.CLIENT_URL}/trips"
-              style="display:inline-block;background:3b71e6;color:#fff;padding:12px 20px;text-decoration:none;border-radius:10px;font-weight:bold">
+              style="display:inline-block;background:#3b71e6;color:#fff;padding:12px 20px;text-decoration:none;border-radius:10px;font-weight:bold">
               View My Trips
             </a>
 

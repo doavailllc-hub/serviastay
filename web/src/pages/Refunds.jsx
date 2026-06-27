@@ -123,7 +123,7 @@ export default function Refunds() {
             icon={<Wallet />}
             title="Total Requests"
             value={stats.total}
-            color="text-[3b71e6]"
+            color="text-[#3b71e6]"
           />
 
           <StatCard
@@ -204,7 +204,7 @@ export default function Refunds() {
 
               <button
                 onClick={() => navigate("/trips")}
-                className="mt-6 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+                className="mt-6 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
               >
                 View Trips
               </button>
@@ -287,7 +287,7 @@ function RefundCard({ refund, formatINR, navigate }) {
         </div>
 
         <div className="flex flex-col gap-3 lg:items-end">
-          <p className="text-2xl font-bold text-[3b71e6]">
+          <p className="text-2xl font-bold text-[#3b71e6]">
             {formatINR(refund.amount)}
           </p>
 
@@ -306,7 +306,7 @@ function RefundCard({ refund, formatINR, navigate }) {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
         {icon}
       </div>
 
@@ -320,7 +320,7 @@ function StatCard({ icon, title, value, color }) {
 function InfoPill({ icon, label, value }) {
   return (
     <div className="rounded-2xl bg-[#FAFAFC] p-4">
-      <div className="mb-1 flex items-center gap-2 text-[3b71e6]">
+      <div className="mb-1 flex items-center gap-2 text-[#3b71e6]">
         {icon}
         <span className="text-xs font-bold uppercase text-gray-500">
           {label}

@@ -229,7 +229,7 @@ const propertyRes = await api.post("/properties", {
               <textarea
                 value={form.description}
                 placeholder="Describe your property, nearby places, guest experience..."
-                className="min-h-36 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:ring-2 focus:ring-[3b71e6]"
+                className="min-h-36 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:ring-2 focus:ring-[#3b71e6]"
                 onChange={(e) => updateForm("description", e.target.value)}
               />
             </div>
@@ -342,8 +342,8 @@ const propertyRes = await api.post("/properties", {
             <div className="md:col-span-2">
               <Label text="Property photos" />
 
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] p-10 text-center transition hover:border-[3b71e6] hover:bg-[#F4F1FF]">
-                <Upload size={38} className="mb-4 text-[3b71e6]" />
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] p-10 text-center transition hover:border-[#3b71e6] hover:bg-[#F4F1FF]">
+                <Upload size={38} className="mb-4 text-[#3b71e6]" />
 
                 <h3 className="text-lg font-bold text-gray-900">
                   Upload multiple photos
@@ -376,7 +376,7 @@ const propertyRes = await api.post("/properties", {
                       />
 
                       {index === 0 && (
-                        <span className="absolute left-3 top-3 rounded-full bg-[3b71e6] px-3 py-1 text-xs font-bold text-white">
+                        <span className="absolute left-3 top-3 rounded-full bg-[#3b71e6] px-3 py-1 text-xs font-bold text-white">
                           Cover
                         </span>
                       )}
@@ -392,8 +392,8 @@ const propertyRes = await api.post("/properties", {
                   ))}
 
                   {files.length < 10 && (
-                    <label className="flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] hover:border-[3b71e6]">
-                      <ImagePlus className="mb-2 text-[3b71e6]" />
+                    <label className="flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] hover:border-[#3b71e6]">
+                      <ImagePlus className="mb-2 text-[#3b71e6]" />
 
                       <span className="text-sm font-semibold">
                         Add more
@@ -425,7 +425,7 @@ const propertyRes = await api.post("/properties", {
             <button
               type="submit"
               disabled={submitting}
-              className="h-14 rounded-xl bg-[3b71e6] px-8 font-semibold text-white shadow-lg hover:bg-[#7152E8] disabled:opacity-60"
+              className="h-14 rounded-xl bg-[#3b71e6] px-8 font-semibold text-white shadow-lg hover:bg-[#7152E8] disabled:opacity-60"
             >
               {submitting ? "Publishing..." : "Publish Listing"}
             </button>

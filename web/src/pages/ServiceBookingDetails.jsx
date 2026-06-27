@@ -105,7 +105,7 @@ export default function ServiceBookingDetails() {
 
           <button
             onClick={printReceipt}
-            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
+            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
           >
             <Download size={18} />
             Print / Download
@@ -178,7 +178,7 @@ export default function ServiceBookingDetails() {
 
             <div className="rounded-3xl bg-[#F4F1FF] p-6">
               <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck className="text-[3b71e6]" />
+                <ShieldCheck className="text-[#3b71e6]" />
                 <h3 className="text-xl font-bold">Service Protection</h3>
               </div>
 
@@ -207,7 +207,7 @@ export default function ServiceBookingDetails() {
 
               <div className="flex justify-between text-xl font-bold">
                 <span>Total paid</span>
-                <span className="text-[3b71e6]">
+                <span className="text-[#3b71e6]">
                   {formatUSD(booking.total)}
                 </span>
               </div>
@@ -215,7 +215,7 @@ export default function ServiceBookingDetails() {
               <div className="mt-6 space-y-3 print:hidden">
                 <button
                   onClick={printReceipt}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8]"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8]"
                 >
                   <Download size={18} />
                   Download Receipt
@@ -255,7 +255,7 @@ export default function ServiceBookingDetails() {
 function InfoBox({ icon, label, value }) {
   return (
     <div className="rounded-2xl bg-[#FAFAFC] p-5">
-      <div className="mb-3 text-[3b71e6]">{icon}</div>
+      <div className="mb-3 text-[#3b71e6]">{icon}</div>
       <p className="text-sm text-gray-500">{label}</p>
       <h3 className="mt-1 font-bold text-gray-900">{value || "-"}</h3>
     </div>
@@ -310,7 +310,7 @@ function Timeline({ status }) {
               step.cancelled
                 ? "bg-red-500 text-white"
                 : step.active
-                ? "bg-[3b71e6] text-white"
+                ? "bg-[#3b71e6] text-white"
                 : "bg-gray-200 text-gray-500"
             }`}
           >

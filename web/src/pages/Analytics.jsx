@@ -157,7 +157,7 @@ export default function Analytics() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="rounded-3xl bg-white px-8 py-6 text-center shadow-sm">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#E9E4FF] border-t-[3b71e6]" />
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#E9E4FF] border-t-[#3b71e6]" />
           <p className="font-semibold text-gray-700">Loading analytics...</p>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function Analytics() {
     <div>
       <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[3b71e6]">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#3b71e6]">
             Admin Analytics
           </p>
 
@@ -197,7 +197,7 @@ export default function Analytics() {
 
           <button
             onClick={exportCSV}
-            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
+            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
           >
             <Download size={18} />
             Export CSV
@@ -210,7 +210,7 @@ export default function Analytics() {
           icon={<Wallet />}
           title="Total Revenue"
           value={formatINR(revenue.totalRevenue)}
-          color="text-[3b71e6]"
+          color="text-[#3b71e6]"
         />
 
         <StatCard
@@ -239,7 +239,7 @@ export default function Analytics() {
               valueKey="revenue"
               labelKey="date"
               valueFormatter={formatINR}
-              barClass="bg-[3b71e6]"
+              barClass="bg-[#3b71e6]"
             />
           )}
         </ChartCard>
@@ -288,7 +288,7 @@ export default function Analytics() {
                   {item.location || "Unknown location"}
                 </p>
 
-                <p className="mt-1 text-sm font-semibold text-[3b71e6]">
+                <p className="mt-1 text-sm font-semibold text-[#3b71e6]">
                   {formatINR(item.revenue)} · {item.bookings || 0} bookings
                 </p>
               </div>
@@ -311,7 +311,7 @@ export default function Analytics() {
                 {item.email || "-"}
               </p>
 
-              <p className="mt-2 text-sm font-semibold text-[3b71e6]">
+              <p className="mt-2 text-sm font-semibold text-[#3b71e6]">
                 {formatINR(item.revenue)} · {item.bookings || 0} bookings
               </p>
             </div>
@@ -332,7 +332,7 @@ export default function Analytics() {
                 <p className="text-sm text-gray-500">Destination</p>
               </div>
 
-              <span className="rounded-full bg-[#F4F1FF] px-4 py-2 text-sm font-bold text-[3b71e6]">
+              <span className="rounded-full bg-[#F4F1FF] px-4 py-2 text-sm font-bold text-[#3b71e6]">
                 {item.total || 0}
               </span>
             </div>
@@ -346,7 +346,7 @@ export default function Analytics() {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm transition hover:shadow-lg">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
         {icon}
       </div>
 
@@ -361,7 +361,7 @@ function ChartCard({ title, icon, children }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
           {icon}
         </div>
 
@@ -409,7 +409,7 @@ function Leaderboard({ title, icon, items, render }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
           {icon}
         </div>
 

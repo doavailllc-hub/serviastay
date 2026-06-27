@@ -149,7 +149,7 @@ export default function HostProfile() {
 
         <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
           <aside className="h-fit rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[3b71e6] text-5xl font-bold text-white">
+            <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#3b71e6] text-5xl font-bold text-white">
               {avatarLetter}
             </div>
 
@@ -167,7 +167,7 @@ export default function HostProfile() {
             </div>
 
             <div className="mt-6 rounded-2xl bg-[#F4F1FF] p-4">
-              <div className="flex items-center justify-center gap-2 font-bold text-[3b71e6]">
+              <div className="flex items-center justify-center gap-2 font-bold text-[#3b71e6]">
                 <BadgeCheck size={20} />
                 Superhost
               </div>
@@ -180,7 +180,7 @@ export default function HostProfile() {
             <button
               onClick={contactHost}
               disabled={chatLoading}
-              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
             >
               <MessageCircle size={18} />
               {chatLoading ? "Opening chat..." : "Message Host"}
@@ -305,7 +305,7 @@ export default function HostProfile() {
 function StatCard({ icon, title, value }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-3 text-[3b71e6]">{icon}</div>
+      <div className="mb-3 text-[#3b71e6]">{icon}</div>
       <p className="text-sm text-gray-500">{title}</p>
       <h3 className="mt-1 text-2xl font-bold text-gray-900">{value}</h3>
     </div>
@@ -315,7 +315,7 @@ function StatCard({ icon, title, value }) {
 function InfoItem({ icon, title }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-[#FAFAFC] p-4">
-      <span className="text-[3b71e6]">{icon}</span>
+      <span className="text-[#3b71e6]">{icon}</span>
       <span className="font-semibold text-gray-800">{title}</span>
     </div>
   );

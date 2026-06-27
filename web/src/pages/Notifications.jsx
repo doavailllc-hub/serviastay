@@ -47,7 +47,7 @@ export default function Notifications() {
 
           <button
             onClick={markAllRead}
-            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg"
+            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg"
           >
             Mark all as read
           </button>
@@ -93,7 +93,7 @@ export default function Notifications() {
                 </div>
 
                 {!item.is_read && (
-                  <div className="w-3 h-3 rounded-full bg-[3b71e6]" />
+                  <div className="w-3 h-3 rounded-full bg-[#3b71e6]" />
                 )}
               </div>
             ))

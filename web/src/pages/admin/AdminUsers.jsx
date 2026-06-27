@@ -129,7 +129,7 @@ function PageHeader({ onRefresh }) {
   return (
     <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
       <div>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#EEE9FF] px-4 py-2 text-sm font-bold text-[3b71e6]">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#EEE9FF] px-4 py-2 text-sm font-bold text-[#3b71e6]">
           <Shield size={16} />
           Admin Controls
         </div>
@@ -145,7 +145,7 @@ function PageHeader({ onRefresh }) {
 
       <button
         onClick={onRefresh}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[3b71e6] px-6 font-bold text-white shadow-lg shadow-[3b71e6]/25 transition hover:bg-[#7152e8] active:scale-[0.98]"
+        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#3b71e6] px-6 font-bold text-white shadow-lg shadow-[#3b71e6]/25 transition hover:bg-[#7152e8] active:scale-[0.98]"
       >
         <RefreshCw size={18} />
         Refresh
@@ -203,7 +203,7 @@ function Filters({ search, setSearch, role, setRole, status, setStatus }) {
 
 function SearchBox({ value, setValue, placeholder }) {
   return (
-    <div className="flex h-13 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[3b71e6] focus-within:bg-white focus-within:ring-4 focus-within:ring-[3b71e6]/10">
+    <div className="flex h-13 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#3b71e6] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#3b71e6]/10">
       <Search size={18} className="text-gray-400" />
       <input
         value={value}
@@ -220,7 +220,7 @@ function SelectBox({ value, onChange, children }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-13 rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-700 outline-none transition focus:border-[3b71e6] focus:bg-white focus:ring-4 focus:ring-[3b71e6]/10"
+      className="h-13 rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-700 outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-4 focus:ring-[#3b71e6]/10"
     >
       {children}
     </select>
@@ -375,7 +375,7 @@ function Avatar({ name }) {
   const letter = name?.trim()?.charAt(0)?.toUpperCase() || "U";
 
   return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEE9FF] text-sm font-black text-[3b71e6]">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEE9FF] text-sm font-black text-[#3b71e6]">
       {letter}
     </div>
   );
@@ -386,7 +386,7 @@ function RoleSelect({ value, onChange, fullWidth = false }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-bold capitalize text-gray-700 outline-none transition focus:border-[3b71e6] focus:bg-white focus:ring-4 focus:ring-[3b71e6]/10 ${
+      className={`h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-bold capitalize text-gray-700 outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-4 focus:ring-[#3b71e6]/10 ${
         fullWidth ? "w-full" : ""
       }`}
     >
@@ -443,7 +443,7 @@ function Empty({ text }) {
   return (
     <div className="flex min-h-[260px] items-center justify-center p-12 text-center">
       <div>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEE9FF] text-[3b71e6]">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEE9FF] text-[#3b71e6]">
           <Users size={24} />
         </div>
         <p className="font-bold text-gray-500">{text}</p>

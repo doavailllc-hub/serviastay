@@ -46,7 +46,7 @@ export default function LanguageCurrency() {
         <div className="grid lg:grid-cols-2 gap-8">
           <PreferenceBox
             title="Languages"
-            icon={<Globe className="text-[3b71e6]" />}
+            icon={<Globe className="text-[#3b71e6]" />}
             items={languages}
             selected={selectedLanguage}
             onSelect={setSelectedLanguage}
@@ -54,7 +54,7 @@ export default function LanguageCurrency() {
 
           <PreferenceBox
             title="Currency"
-            icon={<DollarSign className="text-[3b71e6]" />}
+            icon={<DollarSign className="text-[#3b71e6]" />}
             items={currencies}
             selected={selectedCurrency}
             onSelect={setSelectedCurrency}
@@ -64,7 +64,7 @@ export default function LanguageCurrency() {
         <div className="mt-10 flex justify-end">
           <button
             onClick={savePreferences}
-            className="px-8 py-4 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold shadow-lg transition"
+            className="px-8 py-4 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold shadow-lg transition"
           >
             Save Preferences
           </button>
@@ -92,14 +92,14 @@ function PreferenceBox({ title, icon, items, selected, onSelect }) {
             onClick={() => onSelect(item)}
             className={`w-full flex items-center justify-between rounded-xl border px-5 py-4 transition ${
               selected === item
-                ? "border-[3b71e6] bg-[#F4F1FF]"
-                : "border-gray-200 hover:border-[3b71e6]"
+                ? "border-[#3b71e6] bg-[#F4F1FF]"
+                : "border-gray-200 hover:border-[#3b71e6]"
             }`}
           >
             <span className="font-medium">{item}</span>
 
             {selected === item && (
-              <Check size={20} className="text-[3b71e6]" />
+              <Check size={20} className="text-[#3b71e6]" />
             )}
           </button>
         ))}

@@ -80,7 +80,7 @@ export default function RecentlyViewed() {
 
             <button
               onClick={() => navigate("/home")}
-              className="mt-6 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+              className="mt-6 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
             >
               Explore stays
             </button>
@@ -148,7 +148,7 @@ export default function RecentlyViewed() {
 
                   <button
                     onClick={() => navigate(`/reserve/${item.id}`)}
-                    className="mt-5 h-12 w-full rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8]"
+                    className="mt-5 h-12 w-full rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8]"
                   >
                     View Again
                   </button>

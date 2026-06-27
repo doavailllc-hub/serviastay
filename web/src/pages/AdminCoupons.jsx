@@ -187,7 +187,7 @@ export default function AdminCoupons() {
 
           <button
             onClick={createCoupon}
-            className="flex items-center justify-center gap-2 rounded-xl bg-[3b71e6] p-3 font-bold text-white"
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#3b71e6] p-3 font-bold text-white"
           >
             <Plus size={18} />
             Create

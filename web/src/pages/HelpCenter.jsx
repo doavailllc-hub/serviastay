@@ -46,7 +46,7 @@ export default function HelpCenter() {
 
           <input
             placeholder="Search help articles"
-            className="w-full h-16 pl-14 pr-5 rounded-2xl border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[3b71e6] focus:border-[3b71e6]"
+            className="w-full h-16 pl-14 pr-5 rounded-2xl border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3b71e6] focus:border-[#3b71e6]"
           />
         </div>
 
@@ -82,7 +82,7 @@ export default function HelpCenter() {
             </p>
           </div>
 
-          <button className="px-8 h-14 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg">
+          <button className="px-8 h-14 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg">
             Contact Support
           </button>
         </div>

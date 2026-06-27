@@ -131,7 +131,7 @@ export default function SearchResults() {
 
             <button
               onClick={() => setFilterOpen(!filterOpen)}
-              className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[3b71e6] text-white"
+              className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#3b71e6] text-white"
             >
               <SlidersHorizontal size={18} />
             </button>
@@ -167,7 +167,7 @@ export default function SearchResults() {
               <Dropdown left="left-[260px]" width="w-[420px]">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="font-bold">Choose date</h3>
-                  <CalendarDays size={20} className="text-[3b71e6]" />
+                  <CalendarDays size={20} className="text-[#3b71e6]" />
                 </div>
 
                 <div className="grid grid-cols-7 gap-2 text-center">
@@ -191,7 +191,7 @@ export default function SearchResults() {
                         }}
                         className={`h-10 rounded-full text-sm font-semibold ${
                           active
-                            ? "bg-[3b71e6] text-white"
+                            ? "bg-[#3b71e6] text-white"
                             : "hover:bg-[#F4F1FF]"
                         }`}
                       >
@@ -216,7 +216,7 @@ export default function SearchResults() {
                 <div className="mt-5 flex justify-end">
                   <button
                     onClick={() => setGuestOpen(false)}
-                    className="rounded-xl bg-[3b71e6] px-5 py-2 font-semibold text-white"
+                    className="rounded-xl bg-[#3b71e6] px-5 py-2 font-semibold text-white"
                   >
                     Done
                   </button>
@@ -308,7 +308,7 @@ export default function SearchResults() {
 
                     <button
                       onClick={() => setFilterOpen(false)}
-                      className="rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white"
+                      className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white"
                     >
                       Show results
                     </button>
@@ -368,7 +368,7 @@ function SearchBox({ icon, label, value, onClick }) {
       onClick={onClick}
       className="flex h-full flex-1 items-center gap-3 rounded-full px-6 text-left hover:bg-gray-50"
     >
-      <span className="text-[3b71e6]">{icon}</span>
+      <span className="text-[#3b71e6]">{icon}</span>
 
       <div>
         <p className="text-xs font-bold text-black">{label}</p>
@@ -421,7 +421,7 @@ function FilterChip({ text, clear }) {
   return (
     <button
       onClick={clear}
-      className="rounded-full bg-[#F4F1FF] px-4 py-2 text-sm font-semibold text-[3b71e6]"
+      className="rounded-full bg-[#F4F1FF] px-4 py-2 text-sm font-semibold text-[#3b71e6]"
     >
       {text} ×
     </button>

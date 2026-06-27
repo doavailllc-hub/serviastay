@@ -82,7 +82,7 @@ export default function AdminKyc() {
 
         <button
           onClick={loadKyc}
-          className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-bold text-white hover:bg-[#6f43e4]"
+          className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-bold text-white hover:bg-[#6f43e4]"
         >
           <RefreshCw size={18} />
           Refresh
@@ -168,7 +168,7 @@ function KycCard({ item, note, setNote, onApprove, onReject, onPending }) {
         onChange={(e) => setNote(e.target.value)}
         rows={3}
         placeholder="Admin note for host..."
-        className="mt-5 w-full resize-none rounded-2xl border border-gray-300 p-4 text-sm outline-none focus:border-[3b71e6] focus:ring-2 focus:ring-[3b71e6]/20"
+        className="mt-5 w-full resize-none rounded-2xl border border-gray-300 p-4 text-sm outline-none focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/20"
       />
 
       <div className="mt-5 flex flex-wrap gap-3">
@@ -202,7 +202,7 @@ function DocumentBox({ title, url }) {
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-[#FAFAFC] p-5">
-      <div className="mb-4 flex items-center gap-2 text-[3b71e6]">
+      <div className="mb-4 flex items-center gap-2 text-[#3b71e6]">
         <FileText size={18} />
         <h4 className="font-bold text-gray-900">{title}</h4>
       </div>
@@ -214,7 +214,7 @@ function DocumentBox({ title, url }) {
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl bg-[3b71e6] px-4 py-2 text-sm font-bold text-white hover:bg-[#6f43e4]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#3b71e6] px-4 py-2 text-sm font-bold text-white hover:bg-[#6f43e4]"
         >
           <Eye size={16} />
           View PDF

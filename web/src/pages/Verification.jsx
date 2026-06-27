@@ -112,7 +112,7 @@ export default function Verification() {
           <button
             type="button"
             onClick={loadKyc}
-            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -122,7 +122,7 @@ export default function Verification() {
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
           <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
             <div className="mb-8 flex items-start gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[3b71e6]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[#3b71e6]">
                 <ShieldCheck size={28} />
               </div>
 
@@ -171,7 +171,7 @@ export default function Verification() {
                   type="button"
                   onClick={submitKyc}
                   disabled={uploading}
-                  className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[3b71e6] font-bold text-white shadow-lg hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-8"
+                  className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] font-bold text-white shadow-lg hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-8"
                 >
                   <Upload size={18} />
                   {uploading ? "Submitting..." : "Submit for Verification"}
@@ -199,7 +199,7 @@ export default function Verification() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6f43e4] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6f43e4] p-6 text-white shadow-xl">
               <h2 className="text-2xl font-bold">Why verify?</h2>
 
               <ul className="mt-4 space-y-3 text-sm leading-6 text-white/90">
@@ -212,7 +212,7 @@ export default function Verification() {
               <button
                 type="button"
                 onClick={() => navigate("/host-dashboard")}
-                className="mt-6 flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-[3b71e6]"
+                className="mt-6 flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-[#3b71e6]"
               >
                 <Home size={18} />
                 Host Dashboard
@@ -227,7 +227,7 @@ export default function Verification() {
 
 function UploadBox({ title, description, file, onChange }) {
   return (
-    <label className="group cursor-pointer rounded-3xl border-2 border-dashed border-gray-200 bg-[#FAFAFC] p-6 transition hover:border-[3b71e6] hover:bg-[#f7f4ff]">
+    <label className="group cursor-pointer rounded-3xl border-2 border-dashed border-gray-200 bg-[#FAFAFC] p-6 transition hover:border-[#3b71e6] hover:bg-[#f7f4ff]">
       <input
         type="file"
         accept="image/*,.pdf"
@@ -235,7 +235,7 @@ function UploadBox({ title, description, file, onChange }) {
         onChange={(event) => onChange(event.target.files?.[0] || null)}
       />
 
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[3b71e6] shadow-sm">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#3b71e6] shadow-sm">
         <FileText size={26} />
       </div>
 

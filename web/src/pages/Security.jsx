@@ -94,7 +94,7 @@ export default function Security() {
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
           <section className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
             <div className="mb-8 flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
                 <KeyRound />
               </div>
 
@@ -138,7 +138,7 @@ export default function Security() {
               <button
                 type="button"
                 onClick={() => setShow(!show)}
-                className="flex items-center gap-2 text-sm font-semibold text-[3b71e6]"
+                className="flex items-center gap-2 text-sm font-semibold text-[#3b71e6]"
               >
                 {show ? <EyeOff size={18} /> : <Eye size={18} />}
                 {show ? "Hide passwords" : "Show passwords"}
@@ -147,7 +147,7 @@ export default function Security() {
               <button
                 onClick={changePassword}
                 disabled={saving}
-                className="h-14 w-full rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+                className="h-14 w-full rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
               >
                 {saving ? "Updating..." : "Update Password"}
               </button>
@@ -171,7 +171,7 @@ export default function Security() {
             </div>
 
             <div className="rounded-3xl bg-[#F4F1FF] p-6">
-              <Lock className="mb-4 text-[3b71e6]" />
+              <Lock className="mb-4 text-[#3b71e6]" />
 
               <h3 className="text-xl font-bold text-gray-900">
                 Account Protection
@@ -200,7 +200,7 @@ function PasswordField({ label, value, onChange, show }) {
         type={show ? "text" : "password"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 outline-none focus:ring-2 focus:ring-[3b71e6]"
+        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 outline-none focus:ring-2 focus:ring-[#3b71e6]"
       />
     </div>
   );

@@ -67,7 +67,7 @@ export default function AdminSignup() {
       <div className="flex min-h-screen items-center justify-center px-5 py-10">
         <div className="w-full max-w-lg">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[3b71e6]">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#3b71e6]">
               <ShieldCheck size={30} />
             </div>
 
@@ -108,7 +108,7 @@ export default function AdminSignup() {
               <div>
                 <Label text="Password" />
 
-                <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[3b71e6]">
+                <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[#3b71e6]">
                   <Lock size={18} className="text-gray-400" />
 
                   <input
@@ -150,7 +150,7 @@ export default function AdminSignup() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-14 w-full rounded-xl bg-[3b71e6] text-lg font-bold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
+                className="h-14 w-full rounded-xl bg-[#3b71e6] text-lg font-bold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
               >
                 {loading ? "Creating admin..." : "Create Admin"}
               </button>
@@ -159,7 +159,7 @@ export default function AdminSignup() {
             <button
               type="button"
               onClick={() => navigate("/admin/login")}
-              className="mt-6 w-full text-sm font-semibold text-[3b71e6]"
+              className="mt-6 w-full text-sm font-semibold text-[#3b71e6]"
             >
               Already have admin access? Sign in
             </button>
@@ -174,7 +174,7 @@ function InputBox({ icon, label, value, onChange, placeholder, type = "text" }) 
   return (
     <div>
       <Label text={label} />
-      <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[3b71e6]">
+      <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[#3b71e6]">
         <span className="text-gray-400">{icon}</span>
         <input
           type={type}

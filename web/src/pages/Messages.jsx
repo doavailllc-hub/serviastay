@@ -271,7 +271,7 @@ export default function Messages() {
   }`}
 >
               <div className="border-b border-gray-100 p-4">
-                <div className="flex h-11 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[3b71e6] focus-within:bg-white">
+                <div className="flex h-11 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#3b71e6] focus-within:bg-white">
                   <Search size={17} className="text-gray-400" />
                   <input
                     value={search}
@@ -338,7 +338,7 @@ export default function Messages() {
                             </p>
 
                             {Number(item.unread_count) > 0 && (
-                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[3b71e6] px-1.5 text-[11px] font-bold text-white">
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3b71e6] px-1.5 text-[11px] font-bold text-white">
                                 {item.unread_count}
                               </span>
                             )}
@@ -424,7 +424,7 @@ export default function Messages() {
                             <div
                               className={`max-w-[420px] rounded-[22px] px-4 py-3 shadow-none ${
                                 mine
-                                  ? "bg-[3b71e6] text-white"
+                                  ? "bg-[#3b71e6] text-white"
                                   : "border border-gray-200 bg-white text-gray-800"
                               }`}
                             >
@@ -481,13 +481,13 @@ export default function Messages() {
                           }
                         }}
                         placeholder="Write a message..."
-                        className="h-12 flex-1 rounded-full border border-gray-200 bg-gray-50 px-5 text-sm outline-none transition focus:border-[3b71e6] focus:bg-white focus:ring-2 focus:ring-[3b71e6]/10"
+                        className="h-12 flex-1 rounded-full border border-gray-200 bg-gray-50 px-5 text-sm outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-2 focus:ring-[#3b71e6]/10"
                       />
 
                       <button
                         onClick={sendMessage}
                         disabled={!text.trim()}
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[3b71e6] text-white transition-all duration-200 hover:scale-105 hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:scale-100"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#3b71e6] text-white transition-all duration-200 hover:scale-105 hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:scale-100"
                       >
                         <Send size={18} />
                       </button>
@@ -528,7 +528,7 @@ function EmptyChat() {
     <div className="flex flex-1 items-center justify-center px-6 text-center">
       <div>
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#F4F0FF]">
-          <MessageCircle size={32} className="text-[3b71e6]" />
+          <MessageCircle size={32} className="text-[#3b71e6]" />
         </div>
         <h2 className="text-xl font-bold text-gray-950">
           Select a conversation

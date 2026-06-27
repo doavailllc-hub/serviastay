@@ -22,7 +22,7 @@ import logo from "../assets/logo.png";
 import api from "../api/api";
 import NotificationBell from "./NotificationBell";
 
-const THEME = "3b71e6";
+const THEME = "#3b71e6";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -367,7 +367,7 @@ function NavTab({ to, icon, label, active, badge }) {
     <Link to={to} className="h-full no-underline">
       <button
         className={`relative flex h-full flex-col items-center justify-center px-1 transition ${
-          active ? "text-[3b71e6]" : "text-gray-500 hover:text-[3b71e6]"
+          active ? "text-[#3b71e6]" : "text-gray-500 hover:text-[#3b71e6]"
         }`}
       >
         {icon}
@@ -376,13 +376,13 @@ function NavTab({ to, icon, label, active, badge }) {
         </span>
 
         {badge && (
-          <span className="absolute -right-7 top-3 rounded-full bg-[3b71e6]/10 px-2 py-0.5 text-[9px] font-black text-[3b71e6]">
+          <span className="absolute -right-7 top-3 rounded-full bg-[#3b71e6]/10 px-2 py-0.5 text-[9px] font-black text-[#3b71e6]">
             {badge}
           </span>
         )}
 
         {active && (
-          <div className="absolute bottom-0 h-[3px] w-9 rounded-full bg-[3b71e6]" />
+          <div className="absolute bottom-0 h-[3px] w-9 rounded-full bg-[#3b71e6]" />
         )}
       </button>
     </Link>
@@ -411,7 +411,7 @@ function MenuLink({ to, icon, text, subText, badge, strong, onClick }) {
       </span>
 
       {badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[3b71e6] px-1 text-xs font-bold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3b71e6] px-1 text-xs font-bold text-white">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -421,7 +421,7 @@ function MenuLink({ to, icon, text, subText, badge, strong, onClick }) {
 
 function Badge({ count }) {
   return (
-    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[3b71e6] px-1 text-[10px] font-bold text-white">
+    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3b71e6] px-1 text-[10px] font-bold text-white">
       {count > 99 ? "99+" : count}
     </span>
   );

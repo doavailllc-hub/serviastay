@@ -70,7 +70,7 @@ export default function HostListings() {
 
           <button
             onClick={() => navigate("/become-a-host")}
-            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg"
+            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg"
           >
             + Add New Listing
           </button>
@@ -88,7 +88,7 @@ export default function HostListings() {
 
             <button
               onClick={() => navigate("/become-a-host")}
-              className="mt-6 px-6 py-3 rounded-xl bg-[3b71e6] text-white font-semibold"
+              className="mt-6 px-6 py-3 rounded-xl bg-[#3b71e6] text-white font-semibold"
             >
               Add Listing
             </button>
@@ -134,7 +134,7 @@ export default function HostListings() {
                       </div>
 
                       <div className="mt-6">
-                        <span className="text-2xl font-bold text-[3b71e6]">
+                        <span className="text-2xl font-bold text-[#3b71e6]">
                           {formatINR(listing.price)} / night
                         </span>
                       </div>
@@ -143,7 +143,7 @@ export default function HostListings() {
                     <div className="flex flex-wrap gap-3 mt-8">
                       <button
                         onClick={() => navigate(`/edit-listing/${listing.id}`)}
-                        className="px-5 py-3 rounded-xl bg-[3b71e6] text-white font-semibold hover:bg-[#7152E8] transition"
+                        className="px-5 py-3 rounded-xl bg-[#3b71e6] text-white font-semibold hover:bg-[#7152E8] transition"
                       >
                         Edit
                       </button>
@@ -169,7 +169,7 @@ export default function HostListings() {
           </div>
         )}
 
-        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
+        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
           <h2 className="text-2xl font-bold">
             You're doing great! 🎉
           </h2>

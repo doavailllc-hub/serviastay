@@ -169,7 +169,7 @@ export default function PaymentHistory() {
 
             <button
               onClick={exportCSV}
-              className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
+              className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
             >
               <Download size={18} />
               Export CSV
@@ -190,7 +190,7 @@ export default function PaymentHistory() {
             icon={<Wallet />}
             title="Total Paid"
             value={formatINR(totalPaid)}
-            color="text-[3b71e6]"
+            color="text-[#3b71e6]"
           />
 
           <StatCard
@@ -345,7 +345,7 @@ function PaymentCard({ payment, formatINR }) {
       </div>
 
       <div className="flex flex-col gap-3 md:items-end">
-        <p className="text-2xl font-bold text-[3b71e6]">
+        <p className="text-2xl font-bold text-[#3b71e6]">
           {formatINR(payment.amount)}
         </p>
 
@@ -358,7 +358,7 @@ function PaymentCard({ payment, formatINR }) {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
         {icon}
       </div>
 

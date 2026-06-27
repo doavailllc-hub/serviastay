@@ -139,31 +139,31 @@ export default function AccountSettings() {
 
   const settings = [
     {
-      icon: <User size={24} className="text-[3b71e6]" />,
+      icon: <User size={24} className="text-[#3b71e6]" />,
       title: "Personal information",
       desc: "Update your name, email and phone number",
       action: () => setEditOpen(true),
     },
     {
-      icon: <Shield size={24} className="text-[3b71e6]" />,
+      icon: <Shield size={24} className="text-[#3b71e6]" />,
       title: "Login & security",
       desc: "Password, devices, and account protection",
       action: () => navigate("/security"),
     },
     {
-      icon: <CreditCard size={24} className="text-[3b71e6]" />,
+      icon: <CreditCard size={24} className="text-[#3b71e6]" />,
       title: "Payments & payouts",
       desc: "Manage payment methods and payment history",
       action: () => navigate("/payment-methods"),
     },
     {
-      icon: <Bell size={24} className="text-[3b71e6]" />,
+      icon: <Bell size={24} className="text-[#3b71e6]" />,
       title: "Notifications",
       desc: "Booking, payment and message alerts",
       action: () => navigate("/notifications"),
     },
     {
-      icon: <Globe size={24} className="text-[3b71e6]" />,
+      icon: <Globe size={24} className="text-[#3b71e6]" />,
       title: "Language & currency",
       desc: "Choose your preferred language and currency",
       action: () => navigate("/language"),
@@ -203,7 +203,7 @@ export default function AccountSettings() {
 
         <div className="mb-8 flex flex-col gap-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[3b71e6] text-3xl font-bold text-white">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#3b71e6] text-3xl font-bold text-white">
               {avatarLetter}
             </div>
 
@@ -218,7 +218,7 @@ export default function AccountSettings() {
                 {user?.phone || "No phone number"}
               </p>
 
-              <span className="mt-2 inline-flex rounded-full bg-[#F4F1FF] px-3 py-1 text-xs font-bold capitalize text-[3b71e6]">
+              <span className="mt-2 inline-flex rounded-full bg-[#F4F1FF] px-3 py-1 text-xs font-bold capitalize text-[#3b71e6]">
                 {user?.role || "guest"}
               </span>
             </div>
@@ -226,7 +226,7 @@ export default function AccountSettings() {
 
           <button
             onClick={() => setEditOpen(true)}
-            className="rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
+            className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
           >
             Edit Profile
           </button>
@@ -338,7 +338,7 @@ export default function AccountSettings() {
               <button
                 onClick={saveProfile}
                 disabled={saving}
-                className="h-14 flex-1 rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+                className="h-14 flex-1 rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
@@ -362,7 +362,7 @@ function Field({ label, value, onChange, placeholder, type = "text" }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6]"
+        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#3b71e6]"
       />
     </div>
   );

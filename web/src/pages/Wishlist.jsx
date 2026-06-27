@@ -114,7 +114,7 @@ export default function Wishlist() {
                       removeWishlist(item.id);
                     }}
                     disabled={removingId === item.id}
-                    className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[3b71e6] shadow-sm backdrop-blur transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#3b71e6] shadow-sm backdrop-blur transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {removingId === item.id ? (
                       <Loader2 size={18} className="animate-spin" />
@@ -167,7 +167,7 @@ function EmptyWishlist({ navigate }) {
   return (
     <div className="mx-auto flex min-h-[480px] max-w-xl items-center justify-center text-center">
       <div>
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#F4F0FF] text-[3b71e6]">
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#F4F0FF] text-[#3b71e6]">
           <Heart size={34} />
         </div>
 
@@ -182,7 +182,7 @@ function EmptyWishlist({ navigate }) {
 
         <button
           onClick={() => navigate("/home")}
-          className="mt-7 rounded-full bg-[3b71e6] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#6F42EA]"
+          className="mt-7 rounded-full bg-[#3b71e6] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#6F42EA]"
         >
           Start exploring
         </button>

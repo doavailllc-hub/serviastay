@@ -32,7 +32,7 @@ import Footer from "../components/Footer";
 import api from "../api/api";
 import GoogleMapSection from "../components/GoogleMapSection";
 
-const BRAND_COLOR = "3b71e6";
+const BRAND_COLOR = "#3b71e6";
 const BRAND_HOVER = "#6f43e4";
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=85";
@@ -635,7 +635,7 @@ function ReservationCard({
         type="button"
         onClick={onReserve}
         disabled={dateError}
-        className="mt-5 h-14 w-full rounded-2xl bg-[3b71e6] text-base font-bold text-white shadow-lg shadow-purple-100 transition-all hover:-translate-y-0.5 hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+        className="mt-5 h-14 w-full rounded-2xl bg-[#3b71e6] text-base font-bold text-white shadow-lg shadow-purple-100 transition-all hover:-translate-y-0.5 hover:bg-[#6f43e4] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
       >
         Reserve
       </button>
@@ -1123,7 +1123,7 @@ function GuestDropdown({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="mt-5 w-full rounded-2xl bg-[3b71e6] py-3 font-bold text-white transition hover:bg-[#6f43e4]"
+            className="mt-5 w-full rounded-2xl bg-[#3b71e6] py-3 font-bold text-white transition hover:bg-[#6f43e4]"
           >
             Done
           </button>
@@ -1202,7 +1202,7 @@ function HostSection({ property, onMessageHost }) {
       <div className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[3b71e6]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[#3b71e6]">
               {(property?.host_name || "D").charAt(0).toUpperCase()}
             </div>
 
@@ -1322,7 +1322,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
           <button
             type="button"
             onClick={() => (window.location.href = "/login")}
-            className="mt-4 rounded-2xl bg-[3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4]"
+            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4]"
           >
             Log in to review
           </button>
@@ -1337,7 +1337,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
                 key={star}
                 type="button"
                 onClick={() => setRating(star)}
-                className="text-[3b71e6]"
+                className="text-[#3b71e6]"
               >
                 <Star
                   size={26}
@@ -1352,14 +1352,14 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
             onChange={(e) => setReview(e.target.value)}
             rows={4}
             placeholder="Share your experience..."
-            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none transition focus:border-[3b71e6] focus:ring-2 focus:ring-[3b71e6]/20"
+            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/20"
           />
 
           <button
             type="button"
             onClick={submitReview}
             disabled={submitting}
-            className="mt-4 rounded-2xl bg-[3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4] disabled:opacity-60"
+            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#6f43e4] disabled:opacity-60"
           >
             {submitting ? "Submitting..." : "Submit review"}
           </button>
@@ -1379,7 +1379,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
 
                 <div>
                   <p className="font-bold">{item.guest_name || "Guest"}</p>
-                  <div className="mt-1 flex text-[3b71e6]">
+                  <div className="mt-1 flex text-[#3b71e6]">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
@@ -1537,7 +1537,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <X size={20} />
         </button>
 
-        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[3b71e6]">
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[#3b71e6]">
           <Lock size={26} />
         </div>
 
@@ -1552,7 +1552,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onLogin}
-            className="h-12 w-full rounded-2xl bg-[3b71e6] font-semibold text-white transition hover:bg-[#6f43e4]"
+            className="h-12 w-full rounded-2xl bg-[#3b71e6] font-semibold text-white transition hover:bg-[#6f43e4]"
           >
             Continue with email
           </button>

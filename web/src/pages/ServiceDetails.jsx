@@ -234,7 +234,7 @@ export default function ServiceDetails() {
                   </p>
                 </div>
 
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[3b71e6] text-xl font-bold text-white">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#3b71e6] text-xl font-bold text-white">
                   {service.provider.charAt(0)}
                 </div>
               </div>
@@ -363,7 +363,7 @@ export default function ServiceDetails() {
               <button
                 onClick={bookService}
                 disabled={saving}
-                className="mt-6 h-14 w-full rounded-xl bg-[3b71e6] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
+                className="mt-6 h-14 w-full rounded-xl bg-[#3b71e6] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
               >
                 {saving ? "Booking..." : "Book service"}
               </button>
@@ -406,7 +406,7 @@ export default function ServiceDetails() {
 function Feature({ icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <span className="text-[3b71e6]">{icon}</span>
+      <span className="text-[#3b71e6]">{icon}</span>
 
       <div>
         <h4 className="font-semibold">{title}</h4>

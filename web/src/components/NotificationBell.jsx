@@ -109,7 +109,7 @@ export default function NotificationBell() {
         <Bell size={19} />
 
         {count > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[3b71e6] px-1 text-[11px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#3b71e6] px-1 text-[11px] font-bold text-white">
             {count > 9 ? "9+" : count}
           </span>
         )}
@@ -146,7 +146,7 @@ export default function NotificationBell() {
                     item.is_read ? "bg-white" : "bg-[#f6f2ff]"
                   }`}
                 >
-                  <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[3b71e6] shadow-sm">
+                  <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#3b71e6] shadow-sm">
                     {iconFor(item.type)}
                   </div>
 
@@ -172,7 +172,7 @@ export default function NotificationBell() {
             <button
               type="button"
               onClick={markRead}
-              className="h-12 w-full border-t border-gray-100 text-sm font-bold text-[3b71e6] hover:bg-gray-50"
+              className="h-12 w-full border-t border-gray-100 text-sm font-bold text-[#3b71e6] hover:bg-gray-50"
             >
               Mark all as read
             </button>
