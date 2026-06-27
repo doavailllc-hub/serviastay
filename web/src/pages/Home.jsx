@@ -17,7 +17,7 @@ import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
 
 const API_URL = "https://stay.dovail.com/api/properties";
-const BRAND = "#7e4ff5";
+const BRAND = "3b71e6";
 const BRAND_HOVER = "#6f43e4";
 
 function toISO(date) {
@@ -219,7 +219,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex h-12 w-12 items-center justify-center rounded-full bg-[#7e4ff5] text-white transition hover:scale-105 hover:bg-[#6f43e4]"
+                  className="mr-2 flex h-12 w-12 items-center justify-center rounded-full bg-[3b71e6] text-white transition hover:scale-105 hover:bg-[#6f43e4]"
                   aria-label="Search"
                 >
                   <Search size={19} />
@@ -252,7 +252,7 @@ export default function Home() {
                       }}
                       className="flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left transition hover:bg-gray-50"
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F0FF] text-2xl text-[#7e4ff5]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F0FF] text-2xl text-[3b71e6]">
                         {place.icon}
                       </div>
 
@@ -351,7 +351,7 @@ export default function Home() {
             onClick={() => setActivePanel("mobile")}
             className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-4 text-left shadow-[0_4px_18px_rgba(0,0,0,0.12)]"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#7e4ff5] text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[3b71e6] text-white">
               <Search size={18} />
             </div>
 

@@ -434,7 +434,7 @@ function TripCard({ trip, navigate, formatINR, downloadInvoice }) {
               />
             </div>
 
-            <p className="mt-5 text-lg font-bold text-[#8363F5]">
+            <p className="mt-5 text-lg font-bold text-[3b71e6]">
               Total Paid: {formatINR(trip.total)}
             </p>
           </div>
@@ -442,7 +442,7 @@ function TripCard({ trip, navigate, formatINR, downloadInvoice }) {
           <div className="mt-8 flex flex-wrap gap-3">
             <button
               onClick={() => navigate(`/trip/${trip.id}`)}
-              className="flex items-center gap-2 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
+              className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
             >
               <Eye size={18} />
               View Details
@@ -465,7 +465,7 @@ function TripCard({ trip, navigate, formatINR, downloadInvoice }) {
 function InfoPill({ icon, label, value, capitalize }) {
   return (
     <div className="rounded-2xl bg-[#FAFAFC] p-4">
-      <div className="mb-2 flex items-center gap-2 text-[#8363F5]">
+      <div className="mb-2 flex items-center gap-2 text-[3b71e6]">
         {icon}
         <span className="text-xs font-bold uppercase text-gray-500">
           {label}
@@ -513,7 +513,7 @@ function EmptyTrips({ navigate }) {
 
       <button
         onClick={() => navigate("/home")}
-        className="mt-6 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+        className="mt-6 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
       >
         Explore stays
       </button>

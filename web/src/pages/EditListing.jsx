@@ -272,7 +272,7 @@ export default function EditListing() {
                       />
 
                       {form.image === item.image_url && (
-                        <span className="absolute left-3 top-3 rounded-full bg-[#8363F5] px-3 py-1 text-xs font-bold text-white">
+                        <span className="absolute left-3 top-3 rounded-full bg-[3b71e6] px-3 py-1 text-xs font-bold text-white">
                           Cover
                         </span>
                       )}
@@ -293,8 +293,8 @@ export default function EditListing() {
             <div className="md:col-span-2">
               <Label text="Add New Images" />
 
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] p-10 text-center transition hover:border-[#8363F5] hover:bg-[#F4F1FF]">
-                <Upload size={38} className="mb-4 text-[#8363F5]" />
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] p-10 text-center transition hover:border-[3b71e6] hover:bg-[#F4F1FF]">
+                <Upload size={38} className="mb-4 text-[3b71e6]" />
 
                 <h3 className="text-lg font-bold text-gray-900">
                   Upload more photos
@@ -336,8 +336,8 @@ export default function EditListing() {
                     </div>
                   ))}
 
-                  <label className="flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] hover:border-[#8363F5]">
-                    <ImagePlus className="mb-2 text-[#8363F5]" />
+                  <label className="flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-[#FAFAFC] hover:border-[3b71e6]">
+                    <ImagePlus className="mb-2 text-[3b71e6]" />
                     <span className="text-sm font-semibold">
                       Add more
                     </span>
@@ -361,7 +361,7 @@ export default function EditListing() {
                 rows={6}
                 value={form.description || ""}
                 onChange={(e) => updateForm("description", e.target.value)}
-                className="w-full resize-none rounded-xl border border-gray-300 p-4 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                className="w-full resize-none rounded-xl border border-gray-300 p-4 outline-none focus:ring-2 focus:ring-[3b71e6]"
               />
             </div>
           </div>
@@ -377,7 +377,7 @@ export default function EditListing() {
             <button
               onClick={saveChanges}
               disabled={saving}
-              className="h-12 rounded-xl bg-[#8363F5] px-8 font-semibold text-white shadow-lg hover:bg-[#7152E8] disabled:opacity-60"
+              className="h-12 rounded-xl bg-[3b71e6] px-8 font-semibold text-white shadow-lg hover:bg-[#7152E8] disabled:opacity-60"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>

@@ -186,7 +186,7 @@ export default function HostCalendar() {
                 loadBookedDates(selectedPropertyId);
               }
             }}
-            className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -194,7 +194,7 @@ export default function HostCalendar() {
         </div>
 
         <div className="mb-8 grid gap-6 md:grid-cols-4">
-          <Stat title="Available" value={stats.available} color="text-[#7e4ff5]" />
+          <Stat title="Available" value={stats.available} color="text-[3b71e6]" />
           <Stat title="Booked" value={stats.booked} color="text-green-600" />
           <Stat title="Blocked" value={stats.blocked} color="text-red-500" />
           <Stat title="Month Days" value={stats.total} color="text-gray-900" />
@@ -210,7 +210,7 @@ export default function HostCalendar() {
               <select
                 value={selectedPropertyId}
                 onChange={(e) => setSelectedPropertyId(e.target.value)}
-                className="mt-2 h-12 w-full rounded-xl border border-gray-300 bg-white px-4 outline-none focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
+                className="mt-2 h-12 w-full rounded-xl border border-gray-300 bg-white px-4 outline-none focus:border-[3b71e6] focus:ring-2 focus:ring-[3b71e6]/20"
               >
                 {properties.length === 0 ? (
                   <option value="">No properties found</option>
@@ -226,7 +226,7 @@ export default function HostCalendar() {
 
             <div className="rounded-2xl bg-[#FAFAFC] p-4">
               <p className="text-sm text-gray-500">Base price</p>
-              <h3 className="mt-1 text-2xl font-bold text-[#7e4ff5]">
+              <h3 className="mt-1 text-2xl font-bold text-[3b71e6]">
                 {formatINR(selectedProperty?.price)}
               </h3>
             </div>
@@ -237,7 +237,7 @@ export default function HostCalendar() {
           <div className="flex flex-col justify-between gap-4 border-b p-6 md:flex-row md:items-center">
             <div>
               <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                <CalendarDays className="text-[#7e4ff5]" />
+                <CalendarDays className="text-[3b71e6]" />
                 {viewDate.toLocaleString("en-IN", {
                   month: "long",
                   year: "numeric",
@@ -313,7 +313,7 @@ export default function HostCalendar() {
                           ? "border-red-200 bg-red-50 text-red-600"
                           : past
                           ? "bg-gray-50 text-gray-300"
-                          : "border-gray-200 bg-white hover:border-[#7e4ff5] hover:bg-[#f7f4ff]"
+                          : "border-gray-200 bg-white hover:border-[3b71e6] hover:bg-[#f7f4ff]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">

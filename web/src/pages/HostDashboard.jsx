@@ -114,7 +114,7 @@ export default function HostDashboard() {
 
           <button
             onClick={() => navigate("/become-a-host")}
-            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white font-semibold shadow-lg transition"
+            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold shadow-lg transition"
           >
             + Add Listing
           </button>
@@ -161,7 +161,7 @@ export default function HostDashboard() {
 
                 <button
                   onClick={() => navigate("/host-listings")}
-                  className="text-[#8363F5] font-semibold hover:underline"
+                  className="text-[3b71e6] font-semibold hover:underline"
                 >
                   View all
                 </button>
@@ -176,7 +176,7 @@ export default function HostDashboard() {
 
                   <button
                     onClick={() => navigate("/become-a-host")}
-                    className="mt-5 px-6 py-3 rounded-xl bg-[#8363F5] text-white font-semibold"
+                    className="mt-5 px-6 py-3 rounded-xl bg-[3b71e6] text-white font-semibold"
                   >
                     Add Listing
                   </button>
@@ -210,7 +210,7 @@ export default function HostDashboard() {
                       </div>
 
                       <div className="flex items-center gap-6 mt-4 md:mt-0">
-                        <span className="font-bold text-[#8363F5]">
+                        <span className="font-bold text-[3b71e6]">
                           {formatINR(listing.price)} / night
                         </span>
 
@@ -222,7 +222,7 @@ export default function HostDashboard() {
                           onClick={() =>
                             navigate(`/edit-listing/${listing.id}`)
                           }
-                          className="px-5 py-2 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white transition"
+                          className="px-5 py-2 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white transition"
                         >
                           Edit
                         </button>
@@ -270,7 +270,7 @@ export default function HostDashboard() {
               />
             </div>
 
-            <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#8363F5] to-[#6D4EEB] p-8 text-white shadow-xl">
+            <div className="mt-10 rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
               <h2 className="text-2xl font-bold">
                 You're doing great! 🎉
               </h2>
@@ -295,7 +295,7 @@ function StatCard({ title, value, subtitle, highlight }) {
 
       <h2
         className={`text-4xl font-bold mt-3 ${
-          highlight ? "text-[#8363F5]" : "text-gray-900"
+          highlight ? "text-[3b71e6]" : "text-gray-900"
         }`}
       >
         {value}

@@ -215,7 +215,7 @@ export default function Services() {
 
                 <button
                   onClick={scrollToServices}
-                  className="h-14 rounded-2xl bg-[#8363F5] px-8 font-bold text-white transition hover:bg-[#7152E8]"
+                  className="h-14 rounded-2xl bg-[3b71e6] px-8 font-bold text-white transition hover:bg-[#7152E8]"
                 >
                   Search
                 </button>
@@ -232,15 +232,15 @@ export default function Services() {
                 onClick={() => setActiveCategory(item)}
                 className={`whitespace-nowrap rounded-full border px-5 py-3 text-sm font-semibold transition ${
                   activeCategory === item
-                    ? "border-[#8363F5] bg-[#F4F1FF] text-[#8363F5]"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-[#8363F5] hover:text-[#8363F5]"
+                    ? "border-[3b71e6] bg-[#F4F1FF] text-[3b71e6]"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-[3b71e6] hover:text-[3b71e6]"
                 }`}
               >
                 {item}
               </button>
             ))}
 
-            <button className="ml-auto flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 px-5 py-3 text-sm font-semibold hover:border-[#8363F5] hover:text-[#8363F5]">
+            <button className="ml-auto flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 px-5 py-3 text-sm font-semibold hover:border-[3b71e6] hover:text-[3b71e6]">
               <SlidersHorizontal size={17} />
               Filters
             </button>
@@ -332,7 +332,7 @@ function ServiceCard({ item }) {
       </div>
 
       <div className="p-5">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#8363F5]">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[3b71e6]">
           {item.icon}
           {item.category}
         </div>
@@ -374,7 +374,7 @@ function ServiceCard({ item }) {
             <span className="text-gray-500">/ service</span>
           </p>
 
-          <button className="rounded-xl bg-[#8363F5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#7152E8]">
+          <button className="rounded-xl bg-[3b71e6] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#7152E8]">
             Book
           </button>
         </div>

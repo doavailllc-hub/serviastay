@@ -25,7 +25,7 @@ import {
   ScrollView,
 } from "react-native";
 
-const THEME = "#7e4ff5";
+const THEME = "3b71e6";
 
 const categories = [
   { name: "Homes", icon: Home },

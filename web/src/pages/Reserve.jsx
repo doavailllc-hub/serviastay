@@ -185,7 +185,7 @@ export default function Reserve() {
                   </p>
                 </div>
 
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#8363F5] text-xl font-bold text-white">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[3b71e6] text-xl font-bold text-white">
                   S
                 </div>
               </div>
@@ -244,7 +244,7 @@ export default function Reserve() {
                 <div className="text-center">
                   <MapPin
                     size={42}
-                    className="mx-auto mb-3 text-[#8363F5]"
+                    className="mx-auto mb-3 text-[3b71e6]"
                   />
                   <h3 className="text-xl font-bold">{property.location}</h3>
                   <p className="mt-2 text-gray-500">
@@ -407,7 +407,7 @@ export default function Reserve() {
                     },
                   })
                 }
-                className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8]"
+                className="h-14 w-full rounded-xl bg-[3b71e6] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8]"
               >
                 Reserve
               </button>
@@ -462,7 +462,7 @@ function DateBox({ label, date, open, setOpen, setDate, closeOther, border }) {
         <div className="absolute left-0 top-full z-50 mt-2 w-[320px] rounded-3xl border bg-white p-5 shadow-2xl">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-bold">Select {label}</h3>
-            <CalendarDays size={20} className="text-[#8363F5]" />
+            <CalendarDays size={20} className="text-[3b71e6]" />
           </div>
 
           <div className="grid grid-cols-7 gap-2 text-center">
@@ -485,7 +485,7 @@ function DateBox({ label, date, open, setOpen, setDate, closeOther, border }) {
                   }}
                   className={`h-9 rounded-full text-sm font-semibold ${
                     active
-                      ? "bg-[#8363F5] text-white"
+                      ? "bg-[3b71e6] text-white"
                       : "hover:bg-[#F4F1FF]"
                   }`}
                 >

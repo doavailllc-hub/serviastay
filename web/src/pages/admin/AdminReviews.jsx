@@ -51,7 +51,7 @@ export default function AdminReviews() {
 
         <button
           onClick={loadReviews}
-          className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-5 py-3 font-bold text-white hover:bg-[#6f43e4]"
+          className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-bold text-white hover:bg-[#6f43e4]"
         >
           <RefreshCw size={18} />
           Refresh
@@ -83,7 +83,7 @@ export default function AdminReviews() {
                     By {review.guest_name || "Guest"} · {review.guest_email}
                   </p>
 
-                  <div className="mt-3 flex text-[#7e4ff5]">
+                  <div className="mt-3 flex text-[3b71e6]">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
@@ -121,7 +121,7 @@ export default function AdminReviews() {
                 }
                 rows={2}
                 placeholder="Admin note..."
-                className="mt-5 w-full resize-none rounded-2xl border border-gray-300 p-4 text-sm outline-none focus:border-[#7e4ff5] focus:ring-2 focus:ring-[#7e4ff5]/20"
+                className="mt-5 w-full resize-none rounded-2xl border border-gray-300 p-4 text-sm outline-none focus:border-[3b71e6] focus:ring-2 focus:ring-[3b71e6]/20"
               />
 
               <div className="mt-5 flex flex-wrap gap-3">

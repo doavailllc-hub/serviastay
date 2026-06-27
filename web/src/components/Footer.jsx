@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
         <div className="grid gap-10 md:grid-cols-4">
           <div>
-            <h2 className="text-2xl font-black text-[#8363F5]">
+            <h2 className="text-2xl font-black text-[3b71e6]">
               Dovail Stay
             </h2>
 
@@ -76,23 +76,23 @@ export default function Footer() {
           <p>© {new Date().getFullYear()} Dovail Stay. All rights reserved.</p>
 
           <div className="flex flex-wrap gap-5">
-            <Link to="/help" className="hover:text-[#8363F5]">
+            <Link to="/help" className="hover:text-[3b71e6]">
               Help
             </Link>
 
-            <Link to="/support" className="hover:text-[#8363F5]">
+            <Link to="/support" className="hover:text-[3b71e6]">
               Support
             </Link>
 
-            <Link to="/account-settings" className="hover:text-[#8363F5]">
+            <Link to="/account-settings" className="hover:text-[3b71e6]">
               Settings
             </Link>
 
-            <Link to="/privacy" className="hover:text-[#8363F5]">
+            <Link to="/privacy" className="hover:text-[3b71e6]">
               Privacy
             </Link>
 
-            <Link to="/terms" className="hover:text-[#8363F5]">
+            <Link to="/terms" className="hover:text-[3b71e6]">
               Terms
             </Link>
           </div>
@@ -112,7 +112,7 @@ function FooterColumn({ title, links }) {
           <Link
             key={to}
             to={to}
-            className="block text-sm text-gray-500 hover:text-[#8363F5]"
+            className="block text-sm text-gray-500 hover:text-[3b71e6]"
           >
             {label}
           </Link>
@@ -126,7 +126,7 @@ function SocialIcon({ label }) {
   return (
     <button
       type="button"
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F1FF] text-sm font-black text-[#8363F5] transition hover:bg-[#8363F5] hover:text-white"
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F1FF] text-sm font-black text-[3b71e6] transition hover:bg-[3b71e6] hover:text-white"
     >
       {label}
     </button>

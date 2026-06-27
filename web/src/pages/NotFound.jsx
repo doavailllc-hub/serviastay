@@ -11,7 +11,7 @@ export default function NotFound() {
           🏡
         </div>
 
-        <h1 className="text-6xl font-black text-[#8363F5]">404</h1>
+        <h1 className="text-6xl font-black text-[3b71e6]">404</h1>
 
         <h2 className="mt-4 text-3xl font-bold text-gray-900">
           Page not found
@@ -32,7 +32,7 @@ export default function NotFound() {
 
           <button
             onClick={() => navigate("/home")}
-            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#8363F5] px-6 font-semibold text-white hover:bg-[#7152E8]"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[3b71e6] px-6 font-semibold text-white hover:bg-[#7152E8]"
           >
             <Home size={18} />
             Go Home

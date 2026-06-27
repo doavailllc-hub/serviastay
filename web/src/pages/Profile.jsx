@@ -142,7 +142,7 @@ export default function Profile() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[320px_1fr]">
           <aside className="h-fit rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[#8363F5] text-4xl font-bold text-white">
+              <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[3b71e6] text-4xl font-bold text-white">
                 {avatarLetter}
               </div>
 
@@ -152,7 +152,7 @@ export default function Profile() {
 
               <p className="mt-1 text-sm text-gray-500">{user?.email}</p>
 
-              <span className="mt-3 inline-flex rounded-full bg-[#F4F1FF] px-4 py-2 text-xs font-bold capitalize text-[#8363F5]">
+              <span className="mt-3 inline-flex rounded-full bg-[#F4F1FF] px-4 py-2 text-xs font-bold capitalize text-[3b71e6]">
                 {user?.role || "guest"}
               </span>
             </div>
@@ -164,8 +164,8 @@ export default function Profile() {
                   onClick={() => setTab(item.id)}
                   className={`flex w-full items-center gap-4 rounded-2xl px-4 py-4 text-left font-semibold transition ${
                     tab === item.id
-                      ? "bg-[#8363F5] text-white shadow-md"
-                      : "text-gray-700 hover:bg-[#F4F1FF] hover:text-[#8363F5]"
+                      ? "bg-[3b71e6] text-white shadow-md"
+                      : "text-gray-700 hover:bg-[#F4F1FF] hover:text-[3b71e6]"
                   }`}
                 >
                   {item.icon}
@@ -231,7 +231,7 @@ function AboutTab({ user, avatarLetter, stats, formatINR, navigate }) {
 
         <button
           onClick={() => navigate("/account-settings")}
-          className="rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+          className="rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
         >
           Edit profile
         </button>
@@ -239,7 +239,7 @@ function AboutTab({ user, avatarLetter, stats, formatINR, navigate }) {
 
       <div className="mb-8 grid gap-6 md:grid-cols-[300px_1fr]">
         <div className="rounded-3xl border border-gray-100 p-8 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#8363F5] text-5xl font-bold text-white">
+          <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[3b71e6] text-5xl font-bold text-white">
             {avatarLetter}
           </div>
 
@@ -249,7 +249,7 @@ function AboutTab({ user, avatarLetter, stats, formatINR, navigate }) {
 
           <p className="mt-1 text-gray-500">{user?.email}</p>
 
-          <p className="mt-3 text-sm font-semibold capitalize text-[#8363F5]">
+          <p className="mt-3 text-sm font-semibold capitalize text-[3b71e6]">
             {user?.role || "guest"}
           </p>
         </div>
@@ -306,14 +306,14 @@ function TripsTab({ trips, navigate, formatINR }) {
                 <p className="mt-1 text-gray-500">
                   {trip.checkin} to {trip.checkout}
                 </p>
-                <p className="mt-2 font-bold text-[#8363F5]">
+                <p className="mt-2 font-bold text-[3b71e6]">
                   {formatINR(trip.total)}
                 </p>
               </div>
 
               <button
                 onClick={() => navigate(`/trip/${trip.id}`)}
-                className="rounded-xl bg-[#8363F5] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
+                className="rounded-xl bg-[3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
               >
                 View Details
               </button>
@@ -358,7 +358,7 @@ function WishlistTab({ wishlist, navigate }) {
 
                 <button
                   onClick={() => navigate(`/reserve/${item.id}`)}
-                  className="mt-4 h-11 w-full rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8]"
+                  className="mt-4 h-11 w-full rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8]"
                 >
                   View Property
                 </button>
@@ -452,7 +452,7 @@ function InfoCard({ label, value, capitalize }) {
 function StatBox({ title, value, icon }) {
   return (
     <div className="rounded-2xl border border-gray-100 p-5">
-      <div className="mb-3 text-[#8363F5]">{icon}</div>
+      <div className="mb-3 text-[3b71e6]">{icon}</div>
       <p className="text-sm text-gray-500">{title}</p>
       <h3 className="mt-1 text-2xl font-bold text-gray-900">{value}</h3>
     </div>
@@ -477,7 +477,7 @@ function AccountAction({ icon, title, text, onClick }) {
       onClick={onClick}
       className="rounded-2xl border border-gray-100 p-5 text-left transition hover:shadow-md"
     >
-      <div className="mb-3 text-[#8363F5]">{icon}</div>
+      <div className="mb-3 text-[3b71e6]">{icon}</div>
       <h3 className="font-bold text-gray-900">{title}</h3>
       <p className="mt-2 text-sm text-gray-500">{text}</p>
     </button>

@@ -87,7 +87,7 @@ export default function Earnings() {
 
           <button
             onClick={() => navigate("/host-dashboard")}
-            className="rounded-xl bg-[#7e4ff5] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
           >
             Back to Dashboard
           </button>
@@ -98,7 +98,7 @@ export default function Earnings() {
             icon={<Wallet />}
             title="Total Revenue"
             value={formatINR(totalRevenue)}
-            color="text-[#7e4ff5]"
+            color="text-[3b71e6]"
           />
 
           <StatCard
@@ -184,7 +184,7 @@ export default function Earnings() {
                         </p>
                       </div>
 
-                      <p className="text-lg font-bold text-[#7e4ff5]">
+                      <p className="text-lg font-bold text-[3b71e6]">
                         {formatINR(item.revenue)}
                       </p>
                     </div>
@@ -196,7 +196,7 @@ export default function Earnings() {
 
           <aside className="space-y-6">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#7e4ff5]">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
                 <CalendarDays />
               </div>
 
@@ -207,7 +207,7 @@ export default function Earnings() {
 
               <div className="mt-6 rounded-2xl bg-[#FAFAFC] p-5">
                 <p className="text-sm text-gray-500">Amount</p>
-                <h3 className="mt-1 text-3xl font-bold text-[#7e4ff5]">
+                <h3 className="mt-1 text-3xl font-bold text-[3b71e6]">
                   {formatINR(pendingPayout)}
                 </h3>
               </div>
@@ -221,7 +221,7 @@ export default function Earnings() {
             </div>
 
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#7e4ff5]">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
                 <BarChart3 />
               </div>
 
@@ -230,7 +230,7 @@ export default function Earnings() {
               {bestMonth ? (
                 <>
                   <p className="mt-2 text-gray-500">{bestMonth.month}</p>
-                  <h3 className="mt-4 text-3xl font-bold text-[#7e4ff5]">
+                  <h3 className="mt-4 text-3xl font-bold text-[3b71e6]">
                     {formatINR(bestMonth.revenue)}
                   </h3>
                 </>
@@ -241,7 +241,7 @@ export default function Earnings() {
               )}
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[#7e4ff5] to-[#6f43e4] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6f43e4] p-6 text-white shadow-xl">
               <h2 className="text-2xl font-bold">Keep earning 🚀</h2>
 
               <p className="mt-3 text-white/90">
@@ -251,7 +251,7 @@ export default function Earnings() {
 
               <button
                 onClick={() => navigate("/host-listings")}
-                className="mt-6 rounded-xl bg-white px-5 py-3 font-semibold text-[#7e4ff5]"
+                className="mt-6 rounded-xl bg-white px-5 py-3 font-semibold text-[3b71e6]"
               >
                 Manage Listings
               </button>
@@ -288,7 +288,7 @@ function PropertyRow({ item, formatINR }) {
         </div>
       </div>
 
-      <span className="text-xl font-bold text-[#7e4ff5]">
+      <span className="text-xl font-bold text-[3b71e6]">
         {formatINR(item.revenue)}
       </span>
     </div>
@@ -310,7 +310,7 @@ function EmptyState() {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#7e4ff5]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
         {icon}
       </div>
 

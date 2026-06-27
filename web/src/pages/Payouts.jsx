@@ -114,7 +114,7 @@ export default function Payouts() {
 
           <button
             onClick={loadPayouts}
-            className="flex items-center gap-2 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -126,7 +126,7 @@ export default function Payouts() {
             icon={<Wallet />}
             title="Total Earnings"
             value={formatINR(data?.totalEarnings)}
-            color="text-[#8363F5]"
+            color="text-[3b71e6]"
           />
 
           <StatCard
@@ -200,7 +200,7 @@ export default function Payouts() {
 
           <aside className="space-y-6">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
                 <Send />
               </div>
 
@@ -208,7 +208,7 @@ export default function Payouts() {
 
               <p className="mt-2 text-gray-500">
                 Available balance:{" "}
-                <span className="font-bold text-[#8363F5]">
+                <span className="font-bold text-[3b71e6]">
                   {formatINR(data?.availableBalance)}
                 </span>
               </p>
@@ -220,13 +220,13 @@ export default function Payouts() {
                   min="1"
                   placeholder="Enter amount"
                   onChange={(e) => setAmount(e.target.value)}
-                  className="h-14 w-full rounded-xl border border-gray-300 px-4 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                  className="h-14 w-full rounded-xl border border-gray-300 px-4 outline-none focus:ring-2 focus:ring-[3b71e6]"
                 />
 
                 <select
                   value={method}
                   onChange={(e) => setMethod(e.target.value)}
-                  className="h-14 w-full rounded-xl border border-gray-300 px-4 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                  className="h-14 w-full rounded-xl border border-gray-300 px-4 outline-none focus:ring-2 focus:ring-[3b71e6]"
                 >
                   <option>Bank Transfer</option>
                   <option>UPI</option>
@@ -236,14 +236,14 @@ export default function Payouts() {
                 <button
                   onClick={requestPayout}
                   disabled={requesting}
-                  className="h-14 w-full rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+                  className="h-14 w-full rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
                 >
                   {requesting ? "Submitting..." : "Submit Request"}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[#8363F5] to-[#6D4EEB] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6D4EEB] p-6 text-white shadow-xl">
               <h2 className="text-2xl font-bold">Payout Notes</h2>
 
               <p className="mt-3 text-white/90">
@@ -261,7 +261,7 @@ export default function Payouts() {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
         {icon}
       </div>
 

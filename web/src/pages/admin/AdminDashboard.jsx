@@ -106,7 +106,7 @@ const token = localStorage.getItem("adminToken");
       title: "Users",
       value: stats?.totalUsers || 0,
       icon: <Users />,
-      color: "text-[#8363F5]",
+      color: "text-[3b71e6]",
     },
     {
       title: "Listings",
@@ -157,7 +157,7 @@ const token = localStorage.getItem("adminToken");
 
           <button
             onClick={loadAdminData}
-            className="flex items-center gap-2 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -170,7 +170,7 @@ const token = localStorage.getItem("adminToken");
               key={item.title}
               className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm transition hover:shadow-lg"
             >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
                 {item.icon}
               </div>
 
@@ -249,7 +249,7 @@ const token = localStorage.getItem("adminToken");
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <span className="font-bold text-[#8363F5]">
+                        <span className="font-bold text-[3b71e6]">
                           {formatINR(booking.total)}
                         </span>
 
@@ -267,7 +267,7 @@ const token = localStorage.getItem("adminToken");
               <div className="space-y-3">
                 <button
                   onClick={() => setTab("users")}
-                  className="h-12 w-full rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8]"
+                  className="h-12 w-full rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8]"
                 >
                   Manage Users
                 </button>
@@ -288,7 +288,7 @@ const token = localStorage.getItem("adminToken");
               </div>
 
               <div className="mt-8 rounded-2xl bg-[#F4F1FF] p-5">
-                <Shield className="mb-3 text-[#8363F5]" />
+                <Shield className="mb-3 text-[3b71e6]" />
 
                 <h3 className="font-bold">Admin Access</h3>
 
@@ -387,7 +387,7 @@ const token = localStorage.getItem("adminToken");
                           {property.host_email || ""}
                         </p>
 
-                        <p className="mt-2 font-bold text-[#8363F5]">
+                        <p className="mt-2 font-bold text-[3b71e6]">
                           {formatINR(property.price)} / night
                         </p>
                       </div>
@@ -437,7 +437,7 @@ const token = localStorage.getItem("adminToken");
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <span className="font-bold text-[#8363F5]">
+                      <span className="font-bold text-[3b71e6]">
                         {formatINR(booking.total)}
                       </span>
 
@@ -460,8 +460,8 @@ function TabButton({ text, active, onClick }) {
       onClick={onClick}
       className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
         active
-          ? "bg-[#8363F5] text-white"
-          : "border border-gray-300 bg-white text-gray-700 hover:border-[#8363F5]"
+          ? "bg-[3b71e6] text-white"
+          : "border border-gray-300 bg-white text-gray-700 hover:border-[3b71e6]"
       }`}
     >
       {text}
@@ -516,7 +516,7 @@ function RoleBadge({ role }) {
     value === "admin"
       ? "bg-red-100 text-red-600"
       : value === "host"
-      ? "bg-[#F4F1FF] text-[#8363F5]"
+      ? "bg-[#F4F1FF] text-[3b71e6]"
       : "bg-gray-100 text-gray-600";
 
   return (

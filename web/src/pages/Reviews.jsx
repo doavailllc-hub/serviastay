@@ -46,7 +46,7 @@ export default function Reviews() {
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 mb-8">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div>
-              <h2 className="text-5xl font-bold text-[#8363F5]">
+              <h2 className="text-5xl font-bold text-[3b71e6]">
                 4.9 ★
               </h2>
 
@@ -56,7 +56,7 @@ export default function Reviews() {
             </div>
 
             <div className="mt-6 md:mt-0">
-              <button className="px-6 py-3 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white font-semibold transition">
+              <button className="px-6 py-3 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold transition">
                 View All Reviews
               </button>
             </div>
@@ -72,7 +72,7 @@ export default function Reviews() {
             >
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-[#8363F5] text-white flex items-center justify-center font-bold text-lg">
+                  <div className="w-14 h-14 rounded-full bg-[3b71e6] text-white flex items-center justify-center font-bold text-lg">
                     {review.name.charAt(0)}
                   </div>
 
@@ -87,7 +87,7 @@ export default function Reviews() {
                   </div>
                 </div>
 
-                <span className="font-bold text-[#8363F5]">
+                <span className="font-bold text-[3b71e6]">
                   ★ {review.rating}
                 </span>
               </div>

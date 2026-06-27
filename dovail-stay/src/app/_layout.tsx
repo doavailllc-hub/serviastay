@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Heart, Home, MessageCircle, Search, User } from "lucide-react-native";
 
-const THEME = "#7e4ff5";
+const THEME = "3b71e6";
 
 export default function RootLayout() {
   return (

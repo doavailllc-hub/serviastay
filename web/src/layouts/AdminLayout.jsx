@@ -62,7 +62,7 @@ export default function AdminLayout() {
             onClick={() => navigate("/admin/dashboard")}
             className="flex items-center gap-3"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7E4FF5] text-white shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[3b71e6] text-white shadow-sm">
               <ShieldCheck size={23} />
             </div>
 
@@ -93,8 +93,8 @@ export default function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? "bg-[#7E4FF5] text-white shadow-sm"
-                    : "text-gray-600 hover:bg-[#F4F0FF] hover:text-[#7E4FF5]"
+                    ? "bg-[3b71e6] text-white shadow-sm"
+                    : "text-gray-600 hover:bg-[#F4F0FF] hover:text-[3b71e6]"
                 }`
               }
             >
@@ -144,12 +144,12 @@ export default function AdminLayout() {
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
-            <button className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:bg-[#F4F0FF] hover:text-[#7E4FF5]">
+            <button className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:bg-[#F4F0FF] hover:text-[3b71e6]">
               <Settings size={19} />
             </button>
 
             <div className="flex items-center gap-3 rounded-full border border-gray-200 bg-white py-1.5 pl-2 pr-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7E4FF5] text-sm font-bold text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[3b71e6] text-sm font-bold text-white">
                 {adminUser?.fullname?.charAt(0)?.toUpperCase() || "A"}
               </div>
 

@@ -31,7 +31,7 @@ export default function CategorySelect() {
               onClick={() => setSelected(cat.id)}
               className={`h-36 rounded-3xl border-2 bg-white p-5 flex flex-col items-start justify-between text-left transition-all ${
                 selected === cat.id
-                  ? "border-[#8363F5] shadow-lg scale-[1.02]"
+                  ? "border-[3b71e6] shadow-lg scale-[1.02]"
                   : "border-gray-200 hover:border-gray-900 hover:shadow-md"
               }`}
             >
@@ -63,7 +63,7 @@ export default function CategorySelect() {
             }
             className={`px-10 py-4 rounded-xl font-semibold transition ${
               selected
-                ? "bg-[#8363F5] hover:bg-[#7152E8] text-white"
+                ? "bg-[3b71e6] hover:bg-[#7152E8] text-white"
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >

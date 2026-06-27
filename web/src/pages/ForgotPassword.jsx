@@ -106,14 +106,14 @@ export default function ForgotPassword() {
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="mb-6 flex items-center gap-2 text-sm font-semibold text-[#8363F5]"
+              className="mb-6 flex items-center gap-2 text-sm font-semibold text-[3b71e6]"
             >
               <ArrowLeft size={18} />
               Back to login
             </button>
 
             <div className="mb-7">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
                 {step === "email" ? <Mail /> : <KeyRound />}
               </div>
 
@@ -140,7 +140,7 @@ export default function ForgotPassword() {
                   disabled={step === "reset"}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#8363F5] disabled:bg-gray-100"
+                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6] disabled:bg-gray-100"
                 />
               </div>
 
@@ -157,7 +157,7 @@ export default function ForgotPassword() {
                       onChange={(e) => setOtp(e.target.value)}
                       placeholder="Enter 6 digit OTP"
                       maxLength={6}
-                      className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                      className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6]"
                     />
                   </div>
 
@@ -172,13 +172,13 @@ export default function ForgotPassword() {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Enter new password"
-                        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 pr-20 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 pr-20 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6]"
                       />
 
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8363F5]"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[3b71e6]"
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
@@ -206,7 +206,7 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
+                className="h-14 w-full rounded-xl bg-[3b71e6] text-lg font-semibold text-white shadow-lg transition hover:bg-[#7152E8] disabled:opacity-60"
               >
                 {loading
                   ? "Please wait..."

@@ -26,7 +26,7 @@ export default function Signup() {
         return;
       }
 
-      await axios.post("https://44.212.49.157:5000/api/register", {
+      await axios.post("https://stay.dovail.com/api/register", {
         fullname,
         email,
         password,
@@ -43,7 +43,7 @@ export default function Signup() {
     <div className="min-h-screen flex bg-[#FAFAFC]">
       <div className="w-full lg:w-[42%] flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-md">
-          <h1 className="text-4xl font-bold text-[#8363F5] mb-10">
+          <h1 className="text-4xl font-bold text-[3b71e6] mb-10">
             Staybnb
           </h1>
 
@@ -62,7 +62,7 @@ export default function Signup() {
                 placeholder="Full Name"
                 value={fullname}
                 onChange={(e) => setFullname(e.target.value)}
-                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
+                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[3b71e6]"
               />
 
               <input
@@ -70,7 +70,7 @@ export default function Signup() {
                 placeholder="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
+                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[3b71e6]"
               />
 
               <input
@@ -78,7 +78,7 @@ export default function Signup() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
+                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[3b71e6]"
               />
 
               <input
@@ -86,7 +86,7 @@ export default function Signup() {
                 placeholder="Confirm Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8363F5]"
+                className="w-full h-14 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[3b71e6]"
               />
 
               {error && (
@@ -97,7 +97,7 @@ export default function Signup() {
 
               <button
                 onClick={handleSignup}
-                className="w-full h-14 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white font-semibold text-lg shadow-lg transition"
+                className="w-full h-14 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold text-lg shadow-lg transition"
               >
                 Create Account
               </button>
@@ -107,7 +107,7 @@ export default function Signup() {
               Already have an account?{" "}
               <Link
                 to="/"
-                className="text-[#8363F5] font-semibold hover:underline"
+                className="text-[3b71e6] font-semibold hover:underline"
               >
                 Login
               </Link>

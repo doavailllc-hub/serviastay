@@ -97,7 +97,7 @@ export default function TripDetails() {
             .brand {
               font-size: 30px;
               font-weight: 800;
-              color: #8363F5;
+              color: 3b71e6;
             }
             .muted {
               color: #666;
@@ -121,7 +121,7 @@ export default function TripDetails() {
               margin-top: 16px;
               font-size: 22px;
               font-weight: 800;
-              color: #8363F5;
+              color: 3b71e6;
             }
             .badge {
               display: inline-block;
@@ -137,7 +137,7 @@ export default function TripDetails() {
               padding: 12px 18px;
               border: none;
               border-radius: 10px;
-              background: #8363F5;
+              background: 3b71e6;
               color: #fff;
               font-weight: 700;
               cursor: pointer;
@@ -347,7 +347,7 @@ export default function TripDetails() {
               <h2 className="mb-6 text-2xl font-bold">Host Details</h2>
 
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#8363F5] text-2xl font-bold text-white">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[3b71e6] text-2xl font-bold text-white">
                   {trip.host_name?.charAt(0)?.toUpperCase() || "H"}
                 </div>
 
@@ -420,7 +420,7 @@ export default function TripDetails() {
 
               <div className="flex justify-between text-xl font-bold">
                 <span>Total paid</span>
-                <span className="text-[#8363F5]">
+                <span className="text-[3b71e6]">
                   {formatINR(trip.total)}
                 </span>
               </div>
@@ -465,7 +465,7 @@ export default function TripDetails() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[#8363F5] to-[#6D4EEB] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-gradient-to-r from-[3b71e6] to-[#6D4EEB] p-6 text-white shadow-xl">
               <ReceiptText className="mb-3" />
 
               <h3 className="text-xl font-bold">Need help?</h3>
@@ -485,7 +485,7 @@ export default function TripDetails() {
 function InfoBox({ icon, label, value }) {
   return (
     <div className="rounded-2xl bg-[#FAFAFC] p-5">
-      <div className="mb-3 text-[#8363F5]">{icon}</div>
+      <div className="mb-3 text-[3b71e6]">{icon}</div>
       <p className="text-sm text-gray-500">{label}</p>
       <h3 className="mt-1 font-bold text-gray-900">{value}</h3>
     </div>
@@ -563,7 +563,7 @@ function Timeline({ status }) {
               step.cancelled
                 ? "bg-red-500 text-white"
                 : step.active
-                ? "bg-[#8363F5] text-white"
+                ? "bg-[3b71e6] text-white"
                 : "bg-gray-200 text-gray-500"
             }`}
           >

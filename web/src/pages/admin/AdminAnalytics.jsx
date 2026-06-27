@@ -142,7 +142,7 @@ if (user.role !== "admin") {
 
             <button
               onClick={exportCSV}
-              className="flex items-center gap-2 rounded-xl bg-[#8363F5] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
+              className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
             >
               <Download size={18} />
               Export CSV
@@ -155,7 +155,7 @@ if (user.role !== "admin") {
             icon={<Wallet />}
             title="Total Revenue"
             value={formatINR(revenue.totalRevenue)}
-            color="text-[#8363F5]"
+            color="text-[3b71e6]"
           />
 
           <StatCard
@@ -189,7 +189,7 @@ if (user.role !== "admin") {
                       className="flex flex-1 flex-col items-center gap-2"
                     >
                       <div
-                        className="w-full rounded-t-xl bg-[#8363F5]"
+                        className="w-full rounded-t-xl bg-[3b71e6]"
                         style={{ height: `${Math.max(height, 5)}%` }}
                         title={formatINR(item.revenue)}
                       />
@@ -258,7 +258,7 @@ if (user.role !== "admin") {
                   <p className="truncate text-sm text-gray-500">
                     {item.location}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-[#8363F5]">
+                  <p className="mt-1 text-sm font-semibold text-[3b71e6]">
                     {formatINR(item.revenue)} · {item.bookings} bookings
                   </p>
                 </div>
@@ -277,7 +277,7 @@ if (user.role !== "admin") {
               >
                 <h3 className="font-bold">{item.fullname || "Host"}</h3>
                 <p className="text-sm text-gray-500">{item.email}</p>
-                <p className="mt-2 text-sm font-semibold text-[#8363F5]">
+                <p className="mt-2 text-sm font-semibold text-[3b71e6]">
                   {formatINR(item.revenue)} · {item.bookings} bookings
                 </p>
               </div>
@@ -298,7 +298,7 @@ if (user.role !== "admin") {
                   <p className="text-sm text-gray-500">Destination</p>
                 </div>
 
-                <span className="rounded-full bg-[#F4F1FF] px-4 py-2 text-sm font-bold text-[#8363F5]">
+                <span className="rounded-full bg-[#F4F1FF] px-4 py-2 text-sm font-bold text-[3b71e6]">
                   {item.total}
                 </span>
               </div>
@@ -313,7 +313,7 @@ if (user.role !== "admin") {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
         {icon}
       </div>
 
@@ -330,7 +330,7 @@ function ChartCard({ title, icon, children }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
           {icon}
         </div>
 
@@ -346,7 +346,7 @@ function Leaderboard({ title, icon, items, render }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
           {icon}
         </div>
 

@@ -82,7 +82,7 @@ function FallbackMap({ title, text, property }) {
   return (
     <div className="flex h-80 items-center justify-center rounded-3xl bg-[#F4F1FF] md:h-[420px]">
       <div className="px-6 text-center">
-        <MapPin size={42} className="mx-auto mb-3 text-[#8363F5]" />
+        <MapPin size={42} className="mx-auto mb-3 text-[3b71e6]" />
 
         <h3 className="text-xl font-bold">
           {property?.location || title}

@@ -216,7 +216,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
       },
 
       theme: {
-        color: "#8363F5",
+        color: "3b71e6",
       },
 
       modal: {
@@ -282,7 +282,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
         id: "razorpay",
         name: "Razorpay Secure Checkout",
         desc: "Cards, UPI, NetBanking, Wallets",
-        icon: <Wallet size={22} className="text-[#8363F5]" />,
+        icon: <Wallet size={22} className="text-[3b71e6]" />,
       },
       {
         id: "upi",
@@ -310,7 +310,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
           </p>
           <button
             onClick={() => navigate("/")}
-            className="mt-6 rounded-xl bg-[#8363F5] px-6 py-3 font-bold text-white"
+            className="mt-6 rounded-xl bg-[3b71e6] px-6 py-3 font-bold text-white"
           >
             Go home
           </button>
@@ -385,7 +385,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
                   }}
                   disabled={Boolean(coupon)}
                   placeholder="WELCOME10"
-                  className="h-12 flex-1 rounded-xl border border-gray-300 bg-white px-4 font-semibold uppercase outline-none focus:ring-2 focus:ring-[#8363F5] disabled:bg-gray-100"
+                  className="h-12 flex-1 rounded-xl border border-gray-300 bg-white px-4 font-semibold uppercase outline-none focus:ring-2 focus:ring-[3b71e6] disabled:bg-gray-100"
                 />
 
                 {coupon ? (
@@ -400,7 +400,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
                   <button
                     onClick={validateCoupon}
                     disabled={couponLoading}
-                    className="h-12 rounded-xl bg-[#8363F5] px-6 font-bold text-white hover:bg-[#7152E8] disabled:opacity-60"
+                    className="h-12 rounded-xl bg-[3b71e6] px-6 font-bold text-white hover:bg-[#7152E8] disabled:opacity-60"
                   >
                     {couponLoading ? "Checking..." : "Apply"}
                   </button>
@@ -433,7 +433,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
             <button
               onClick={handlePayment}
               disabled={loading}
-              className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-black text-white shadow-lg shadow-purple-200 transition hover:bg-[#7152E8] disabled:opacity-60"
+              className="h-14 w-full rounded-xl bg-[3b71e6] text-lg font-black text-white shadow-lg shadow-purple-200 transition hover:bg-[#7152E8] disabled:opacity-60"
             >
               {loading ? "Processing..." : `Pay ${formatINR(total)}`}
             </button>
@@ -492,7 +492,7 @@ const total = Math.max(beforeDiscountTotal - discount, 0);
               </div>
 
               <div className="mt-5 flex items-start gap-3 rounded-xl bg-[#F4F1FF] p-4">
-                <ShieldCheck size={22} className="mt-0.5 text-[#8363F5]" />
+                <ShieldCheck size={22} className="mt-0.5 text-[3b71e6]" />
                 <p className="text-sm leading-6 text-gray-600">
                   Your payment is verified securely before booking confirmation.
                 </p>
@@ -518,7 +518,7 @@ function PaymentOption({ option, active, onClick }) {
       type="button"
       onClick={onClick}
       className={`flex w-full items-center justify-between py-5 text-left transition ${
-        active ? "text-[#8363F5]" : "text-gray-900 hover:text-[#8363F5]"
+        active ? "text-[3b71e6]" : "text-gray-900 hover:text-[3b71e6]"
       }`}
     >
       <div className="flex items-center gap-5">
@@ -541,10 +541,10 @@ function Radio({ checked }) {
   return (
     <div
       className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-        checked ? "border-[#8363F5]" : "border-gray-400"
+        checked ? "border-[3b71e6]" : "border-gray-400"
       }`}
     >
-      {checked && <div className="h-3 w-3 rounded-full bg-[#8363F5]" />}
+      {checked && <div className="h-3 w-3 rounded-full bg-[3b71e6]" />}
     </div>
   );
 }

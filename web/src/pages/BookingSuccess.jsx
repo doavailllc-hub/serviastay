@@ -17,7 +17,7 @@ export default function BookingSuccess() {
   return (
     <div className="min-h-screen bg-[#FAFAFC] flex items-center justify-center px-4">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl p-10 text-center border border-gray-100">
-        <div className="w-24 h-24 mx-auto rounded-full bg-[#8363F5]/10 flex items-center justify-center mb-6">
+        <div className="w-24 h-24 mx-auto rounded-full bg-[3b71e6]/10 flex items-center justify-center mb-6">
           <span className="text-5xl">🎉</span>
         </div>
 
@@ -45,21 +45,21 @@ export default function BookingSuccess() {
 
           <div className="flex justify-between py-2 border-t mt-2 pt-4">
             <span className="font-semibold">Total</span>
-            <span className="font-bold text-[#8363F5]">
+            <span className="font-bold text-[3b71e6]">
               {formatINR(total)}
             </span>
           </div>
         </div>
 
         <Link to="/trips">
-          <button className="w-full mt-8 h-14 rounded-xl bg-[#8363F5] hover:bg-[#7152E8] text-white font-semibold text-lg transition shadow-lg">
+          <button className="w-full mt-8 h-14 rounded-xl bg-[3b71e6] hover:bg-[#7152E8] text-white font-semibold text-lg transition shadow-lg">
             View My Trips
           </button>
         </Link>
 
         <Link
           to="/home"
-          className="block mt-5 text-[#8363F5] font-medium hover:underline"
+          className="block mt-5 text-[3b71e6] font-medium hover:underline"
         >
           Continue Exploring
         </Link>

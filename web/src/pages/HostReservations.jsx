@@ -19,7 +19,7 @@ import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import api from "../api/api";
 
-const BRAND = "#7e4ff5";
+const BRAND = "3b71e6";
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
@@ -134,7 +134,7 @@ export default function HostReservations() {
           <button
             type="button"
             onClick={loadReservations}
-            className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#6f43e4]"
           >
             <RefreshCw size={18} />
             Refresh
@@ -142,10 +142,10 @@ export default function HostReservations() {
         </div>
 
         <div className="mb-10 grid gap-6 md:grid-cols-5">
-          <StatCard title="Revenue" value={formatINR(activeRevenue)} color="text-[#7e4ff5]" />
+          <StatCard title="Revenue" value={formatINR(activeRevenue)} color="text-[3b71e6]" />
           <StatCard title="Pending" value={pendingCount} color="text-yellow-600" />
           <StatCard title="Confirmed" value={confirmedCount} color="text-green-600" />
-          <StatCard title="Checked-in" value={checkedInCount} color="text-[#7e4ff5]" />
+          <StatCard title="Checked-in" value={checkedInCount} color="text-[3b71e6]" />
           <StatCard title="Closed" value={checkedOutCount + cancelledCount} color="text-blue-600" />
         </div>
 
@@ -301,7 +301,7 @@ function ReservationCard({
         </div>
 
         <div className="flex flex-col gap-3 xl:items-end">
-          <p className="text-xl font-bold text-[#7e4ff5]">
+          <p className="text-xl font-bold text-[3b71e6]">
             {formatINR(booking.total)}
           </p>
 
@@ -382,7 +382,7 @@ function ReservationCard({
 function InfoItem({ icon, label, value, subValue, capitalize }) {
   return (
     <div className="rounded-2xl bg-[#FAFAFC] p-4">
-      <div className="mb-2 flex items-center gap-2 text-[#7e4ff5]">
+      <div className="mb-2 flex items-center gap-2 text-[3b71e6]">
         {icon}
         <span className="text-xs font-bold uppercase text-gray-500">
           {label}
@@ -421,7 +421,7 @@ function ActionButton({ icon, label, onClick, disabled, type }) {
   const styles = {
     success: "border-green-300 text-green-700 hover:bg-green-50",
     danger: "border-red-300 text-red-600 hover:bg-red-50",
-    purple: "border-[#d8ccff] text-[#7e4ff5] hover:bg-[#f7f4ff]",
+    purple: "border-[#d8ccff] text-[3b71e6] hover:bg-[#f7f4ff]",
     blue: "border-blue-300 text-blue-700 hover:bg-blue-50",
   };
 
@@ -449,7 +449,7 @@ function StatusBadge({ status }) {
       : status === "Pending"
       ? "bg-yellow-100 text-yellow-700"
       : status === "Checked-in"
-      ? "bg-[#f4f0ff] text-[#7e4ff5]"
+      ? "bg-[#f4f0ff] text-[3b71e6]"
       : status === "Checked-out"
       ? "bg-blue-100 text-blue-700"
       : "bg-green-100 text-green-700";

@@ -56,7 +56,7 @@ font-size:32px;
 
 font-weight:700;
 
-color:#8363f5;
+color:3b71e6;
 
 cursor:pointer;
 
@@ -223,7 +223,7 @@ cursor:pointer;
 .menu-dot{
   width:8px;
   height:8px;
-  background:#8363f5;
+  background:3b71e6;
   border-radius:50%;
   position:absolute;
   top:3px;
@@ -395,7 +395,7 @@ font-size:14px;
 
 /* Premium circular action button icon element */
 .search-action-btn {
-  background-color: #8363f5;
+  background-color: 3b71e6;
   border: none;
   outline: none;
   width: 48px;
@@ -722,7 +722,7 @@ margin:auto;
 }
 
 .account-menu b{
-  background:#8363f5;
+  background:3b71e6;
   color:white;
   width:20px;
   height:20px;
@@ -751,7 +751,7 @@ margin:auto;
 .menu-dot{
   width:8px;
   height:8px;
-  background:#8363f5;
+  background:3b71e6;
   border-radius:50%;
   position:absolute;
   top:4px;

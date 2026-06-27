@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import logo from "../assets/logo.png";
 
-const BRAND = "#7e4ff5";
+const BRAND = "3b71e6";
 const BRAND_DARK = "#6f43e4";
 
 export default function Login() {
@@ -281,7 +281,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#7e4ff5] font-bold text-white transition hover:bg-[#6d43e5] disabled:cursor-not-allowed disabled:opacity-60"              >
+className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[3b71e6] font-bold text-white transition hover:bg-[#6d43e5] disabled:cursor-not-allowed disabled:opacity-60"              >
                 {loading && <Loader2 size={18} className="animate-spin" />}
                 {loading ? "Sending code..." : "Continue"}
               </button>

@@ -72,7 +72,7 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-[#0F172A] text-white">
       <div className="grid min-h-screen lg:grid-cols-[1fr_520px]">
         <section className="relative hidden overflow-hidden lg:block">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#8363F5] via-[#4F46E5] to-[#0F172A]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[3b71e6] via-[#4F46E5] to-[#0F172A]" />
 
           <div className="absolute inset-0 opacity-20">
             <div className="absolute left-20 top-20 h-72 w-72 rounded-full bg-white blur-3xl" />
@@ -107,7 +107,7 @@ export default function AdminLogin() {
         <section className="flex items-center justify-center px-5 py-10">
           <div className="w-full max-w-md">
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#8363F5] shadow-lg shadow-purple-900/30">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[3b71e6] shadow-lg shadow-purple-900/30">
                 <Lock size={30} />
               </div>
 
@@ -132,7 +132,7 @@ export default function AdminLogin() {
                 <div>
                   <Label text="Admin email" />
 
-                  <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[#8363F5]">
+                  <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[3b71e6]">
                     <Mail size={18} className="text-gray-400" />
 
                     <input
@@ -149,7 +149,7 @@ export default function AdminLogin() {
                 <div>
                   <Label text="Password" />
 
-                  <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[#8363F5]">
+                  <div className="flex h-14 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 focus-within:ring-2 focus-within:ring-[3b71e6]">
                     <Lock size={18} className="text-gray-400" />
 
                     <input
@@ -174,7 +174,7 @@ export default function AdminLogin() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-14 w-full rounded-xl bg-[#8363F5] text-lg font-bold text-white shadow-lg shadow-purple-200 transition hover:bg-[#7152E8] disabled:opacity-60"
+                  className="h-14 w-full rounded-xl bg-[3b71e6] text-lg font-bold text-white shadow-lg shadow-purple-200 transition hover:bg-[#7152E8] disabled:opacity-60"
                 >
                   {loading ? "Signing in..." : "Sign in to Admin"}
                 </button>

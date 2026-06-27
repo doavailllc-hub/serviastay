@@ -137,7 +137,7 @@ export default function Support() {
             icon={<Ticket />}
             title="Total Tickets"
             value={stats.total}
-            color="text-[#8363F5]"
+            color="text-[3b71e6]"
           />
 
           <StatCard
@@ -158,7 +158,7 @@ export default function Support() {
         <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
           <section className="h-fit rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
                 <Headphones />
               </div>
 
@@ -191,7 +191,7 @@ export default function Support() {
                   onChange={(e) =>
                     setForm({ ...form, category: e.target.value })
                   }
-                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 outline-none focus:ring-2 focus:ring-[3b71e6]"
                 >
                   <option>Booking</option>
                   <option>Payment</option>
@@ -215,14 +215,14 @@ export default function Support() {
                     setForm({ ...form, message: e.target.value })
                   }
                   placeholder="Describe your issue clearly..."
-                  className="min-h-36 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#8363F5]"
+                  className="min-h-36 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6]"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#8363F5] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
               >
                 <Send size={18} />
                 {submitting ? "Submitting..." : "Submit Ticket"}
@@ -290,7 +290,7 @@ function Field({ label, value, onChange, placeholder }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#8363F5]"
+        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6]"
       />
     </div>
   );
@@ -330,7 +330,7 @@ function TicketCard({ ticket }) {
 function StatCard({ icon, title, value, color }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#8363F5]">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[3b71e6]">
         {icon}
       </div>
 
@@ -349,7 +349,7 @@ function StatusBadge({ status }) {
       ? "bg-green-100 text-green-700"
       : value === "Pending"
       ? "bg-yellow-100 text-yellow-700"
-      : "bg-[#F4F1FF] text-[#8363F5]";
+      : "bg-[#F4F1FF] text-[3b71e6]";
 
   return (
     <span className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${style}`}>

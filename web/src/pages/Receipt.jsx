@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import api from "../api/api";
 
-const BRAND = "#7e4ff5";
+const BRAND = "3b71e6";
 
 export default function Receipt() {
   const navigate = useNavigate();
@@ -106,7 +106,7 @@ export default function Receipt() {
           <button
             type="button"
             onClick={printReceipt}
-            className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-5 py-3 font-semibold text-white hover:bg-[#6f43e4]"
+            className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#6f43e4]"
           >
             <Printer size={18} />
             Print / Download
@@ -114,7 +114,7 @@ export default function Receipt() {
         </div>
 
         <section className="overflow-hidden rounded-[32px] border border-gray-100 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-          <div className="bg-gradient-to-r from-[#7e4ff5] to-[#6f43e4] p-8 text-white print:bg-white print:text-gray-900">
+          <div className="bg-gradient-to-r from-[3b71e6] to-[#6f43e4] p-8 text-white print:bg-white print:text-gray-900">
             <div className="flex flex-col justify-between gap-8 md:flex-row md:items-start">
               <div>
                 <div className="flex items-center gap-3">
@@ -239,14 +239,14 @@ export default function Receipt() {
 
                 <div className="flex justify-between gap-5 text-2xl font-black">
                   <span>Total Paid</span>
-                  <span className="text-[#7e4ff5]">
+                  <span className="text-[3b71e6]">
                     {formatINR(trip.total)}
                   </span>
                 </div>
               </ReceiptBox>
 
               <div className="rounded-3xl border border-[#e8e2ff] bg-[#f7f4ff] p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#7e4ff5]">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[3b71e6]">
                   <ShieldCheck size={24} />
                 </div>
 
@@ -271,7 +271,7 @@ export default function Receipt() {
               <button
                 type="button"
                 onClick={printReceipt}
-                className="flex items-center gap-2 rounded-xl bg-[#7e4ff5] px-6 py-3 font-bold text-white hover:bg-[#6f43e4]"
+                className="flex items-center gap-2 rounded-xl bg-[3b71e6] px-6 py-3 font-bold text-white hover:bg-[#6f43e4]"
               >
                 <Download size={18} />
                 Download Receipt
@@ -288,7 +288,7 @@ function ReceiptBox({ icon, title, children }) {
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-6">
       <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[#7e4ff5]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[3b71e6]">
           {icon}
         </div>
 

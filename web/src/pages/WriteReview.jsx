@@ -101,7 +101,7 @@ export default function WriteReview() {
 
             <button
               onClick={() => navigate(`/trip/${bookingId}`)}
-              className="mt-8 rounded-xl bg-[#8363F5] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
+              className="mt-8 rounded-xl bg-[3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
             >
               Back to Trip
             </button>
@@ -164,7 +164,7 @@ export default function WriteReview() {
               ))}
             </div>
 
-            <p className="mt-3 text-sm font-semibold text-[#8363F5]">
+            <p className="mt-3 text-sm font-semibold text-[3b71e6]">
               {rating} out of 5 stars
             </p>
           </div>
@@ -178,7 +178,7 @@ export default function WriteReview() {
               value={review}
               onChange={(e) => setReview(e.target.value)}
               placeholder="Tell guests what you liked about the stay, location, host communication, cleanliness, and comfort..."
-              className="min-h-44 w-full resize-none rounded-2xl border border-gray-300 bg-white p-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#8363F5]"
+              className="min-h-44 w-full resize-none rounded-2xl border border-gray-300 bg-white p-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[3b71e6]"
             />
           </div>
 
@@ -193,7 +193,7 @@ export default function WriteReview() {
             <button
               onClick={submitReview}
               disabled={submitting}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#8363F5] px-6 font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[3b71e6] px-6 font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
             >
               <Send size={18} />
               {submitting ? "Submitting..." : "Submit Review"}
