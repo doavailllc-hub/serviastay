@@ -36,10 +36,10 @@ export default function Checkout() {
 
   const price = Number(property?.price || 0);
   const subtotal = price * nights;
-  const taxes = Math.round(subtotal * 0.12);
+
 const beforeDiscountTotal = subtotal;
-  const discount = Number(coupon?.discount || 0);
-  const total = Math.max(beforeDiscountTotal - discount, 0);
+const discount = Number(coupon?.discount || 0);
+const total = Math.max(beforeDiscountTotal - discount, 0);
 
   const formatINR = (amount) =>
     `₹${Number(amount || 0).toLocaleString("en-IN")}`;
@@ -227,12 +227,11 @@ const beforeDiscountTotal = subtotal;
       },
 
       handler: async (response) => {
-        await api.post("/payments/verify", {
-         booking_id: bookingId,
+       await api.post("/payments/verify", {
   razorpay_order_id: response.razorpay_order_id,
   razorpay_payment_id: response.razorpay_payment_id,
   razorpay_signature: response.razorpay_signature,
-        });
+});
 
         await createBooking({
           method: "razorpay",

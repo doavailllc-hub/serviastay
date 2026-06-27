@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Settings,
   ShieldCheck,
+  Tag,
   Users,
   X,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const menuItems = [
   { label: "Properties", path: "/admin/properties", icon: <Building2 size={19} /> },
   { label: "Bookings", path: "/admin/bookings", icon: <CalendarDays size={19} /> },
   { label: "Payments", path: "/admin/payments", icon: <CreditCard size={19} /> },
+  { label: "Coupons", path: "/admin/coupons", icon: <Tag size={19} /> },
   { label: "Reviews", path: "/admin/reviews", icon: <MessageSquare size={19} /> },
   { label: "Analytics", path: "/admin/analytics", icon: <BarChart3 size={19} /> },
 ];

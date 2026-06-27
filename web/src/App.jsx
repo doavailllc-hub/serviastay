@@ -56,6 +56,8 @@ import AdminProperties from "./pages/admin/AdminProperties";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminKyc from "./pages/admin/AdminKyc";
+import AdminCoupons from "./pages/admin/AdminCoupons";
+
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -324,6 +326,7 @@ export default function App() {
 <Route path="bookings" element={<AdminBookings />} />
 <Route path="reviews" element={<AdminReviews />} />
 <Route path="payments" element={<PaymentHistory />} />
+<Route path="coupons" element={<AdminCoupons />} />
 
 </Route>
 

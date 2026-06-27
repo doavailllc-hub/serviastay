@@ -1216,7 +1216,9 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
       checkout,
       guests,
       total,
-      payment_method,
+     payment_method,
+coupon_code,
+discount,
     } = req.body;
 
     const existing = await query(
@@ -1239,8 +1241,8 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
     const result = await query(
       `
       INSERT INTO servia_bookings
-      (property_id, user_id, checkin, checkout, guests, total, status, payment_method, payment_status, razorpay_order_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ (property_id, user_id, checkin, checkout, guests, total, status, payment_method, payment_status, razorpay_order_id, coupon_code, discount)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
 [
   property_id,
@@ -1253,6 +1255,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   payment_method || "cash",
   payment_method === "razorpay" ? "Pending" : "Paid",
   req.body.razorpay_order_id || null,
+  coupon_code || null,
+  Number(discount || 0),
 ]
     );
 
@@ -1311,7 +1315,16 @@ app.post("/api/wishlist", verifyToken, async (req, res) => {
       "INSERT INTO servia_wishlist (user_id, property_id) VALUES (?, ?)",
       [user_id, property_id]
     );
-
+if (coupon_code) {
+  await query(
+    `
+    UPDATE servia_coupons
+    SET used_count = used_count + 1
+    WHERE UPPER(code) = UPPER(?)
+    `,
+    [coupon_code]
+  );
+}
     res.json({
       success: true,
       wishlistId: result.insertId,
@@ -2640,7 +2653,154 @@ app.post("/api/host/calendar", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Calendar update failed", error: err.message });
   }
 });
+app.post("/api/coupons/validate", verifyToken, async (req, res) => {
+  try {
+    const { code, amount } = req.body;
 
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_coupons
+      WHERE UPPER(code) = UPPER(?)
+      LIMIT 1
+      `,
+      [code]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Invalid coupon code" });
+    }
+
+    const coupon = rows[0];
+
+    if (coupon.status !== "Active") {
+      return res.status(400).json({ message: "Coupon is not active" });
+    }
+
+    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+      return res.status(400).json({ message: "Coupon expired" });
+    }
+
+    if (Number(amount) < Number(coupon.min_amount || 0)) {
+      return res.status(400).json({
+        message: `Minimum booking amount is ₹${Number(
+          coupon.min_amount || 0
+        ).toLocaleString("en-IN")}`,
+      });
+    }
+
+    if (
+      coupon.usage_limit &&
+      Number(coupon.used_count || 0) >= Number(coupon.usage_limit)
+    ) {
+      return res.status(400).json({ message: "Coupon usage limit reached" });
+    }
+
+    let discount = 0;
+
+    if (coupon.discount_type === "percentage") {
+      discount = Math.round((Number(amount) * Number(coupon.discount_value)) / 100);
+
+      if (coupon.max_discount) {
+        discount = Math.min(discount, Number(coupon.max_discount));
+      }
+    } else {
+      discount = Number(coupon.discount_value);
+    }
+
+    discount = Math.min(discount, Number(amount));
+
+    res.json({
+      success: true,
+      code: coupon.code,
+      discount,
+      final_amount: Number(amount) - discount,
+      coupon,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Coupon validation failed", error: err.message });
+  }
+});
+
+app.get("/api/admin/coupons", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const rows = await query(`
+      SELECT *
+      FROM servia_coupons
+      ORDER BY id DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Coupons load failed", error: err.message });
+  }
+});
+
+app.post("/api/admin/coupons", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const {
+      code,
+      discount_type,
+      discount_value,
+      min_amount,
+      max_discount,
+      usage_limit,
+      expires_at,
+    } = req.body;
+
+    await query(
+      `
+      INSERT INTO servia_coupons
+      (code, discount_type, discount_value, min_amount, max_discount, usage_limit, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        String(code || "").trim().toUpperCase(),
+        discount_type || "percentage",
+        discount_value || 0,
+        min_amount || 0,
+        max_discount || null,
+        usage_limit || null,
+        expires_at || null,
+      ]
+    );
+
+    res.json({ success: true, message: "Coupon created" });
+  } catch (err) {
+    res.status(500).json({ message: "Coupon create failed", error: err.message });
+  }
+});
+
+app.put("/api/admin/coupons/:id/status", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const { status } = req.body;
+
+    await query(
+      `
+      UPDATE servia_coupons
+      SET status = ?
+      WHERE id = ?
+      `,
+      [status, req.params.id]
+    );
+
+    res.json({ success: true, message: "Coupon status updated" });
+  } catch (err) {
+    res.status(500).json({ message: "Coupon update failed", error: err.message });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
