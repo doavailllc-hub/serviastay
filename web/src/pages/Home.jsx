@@ -369,13 +369,11 @@ export default function Home() {
       <main className="mx-auto max-w-[1420px] px-4 py-12 md:px-10 lg:px-20">
         <div className="mb-10 flex items-end justify-between gap-6">
           <div>
-            <span className="mb-3 inline-flex rounded-full bg-[var(--primary-light)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--primary)]">
-              Handpicked
-            </span>
+          
 
-      <h2 className="text-3xl font-bold text-gray-900">
+      <h4 className="text-3xl font-bold text-gray-900">
                 Popular Homes
-              </h2>
+              </h4>
 
             <p className="mt-3 max-w-xl text-[16px] font-medium leading-7 text-[var(--text-secondary)]">
               Explore beautiful stays selected for comfort, location, and memorable trips.
