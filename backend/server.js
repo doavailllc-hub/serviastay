@@ -1815,20 +1815,32 @@ app.put("/api/messages/read/:userId/:otherUserId", verifyToken, async (req, res)
     });
   }
 });
-
 app.get("/api/properties/:id/booked-dates", async (req, res) => {
   try {
-    const rows = await query(
+    const bookingRows = await query(
       `
-      SELECT checkin, checkout
+      SELECT checkin, checkout, 'Booked' AS type
       FROM servia_bookings
       WHERE property_id = ?
-      AND status != 'Cancelled'
+      AND status NOT IN ('Cancelled', 'Declined')
       `,
       [req.params.id]
     );
 
-    res.json(rows);
+    const blockedRows = await query(
+      `
+      SELECT 
+        calendar_date AS checkin,
+        DATE_ADD(calendar_date, INTERVAL 1 DAY) AS checkout,
+        'Blocked' AS type
+      FROM servia_property_calendar
+      WHERE property_id = ?
+      AND status = 'Blocked'
+      `,
+      [req.params.id]
+    );
+
+    res.json([...bookingRows, ...blockedRows]);
   } catch (err) {
     console.log("BOOKED DATES ERROR:", err.message);
     res.status(500).json({
@@ -2550,7 +2562,84 @@ app.put("/api/admin/kyc/:userId/status", verifyToken, async (req, res) => {
     res.status(500).json({ message: "KYC update failed", error: err.message });
   }
 });
+app.get("/api/host/calendar/:propertyId", verifyToken, async (req, res) => {
+  try {
+    const propertyId = Number(req.params.propertyId);
+    const userId = Number(req.user.id);
 
+    const ownerRows = await query(
+      "SELECT id FROM servia_properties WHERE id = ? AND user_id = ? LIMIT 1",
+      [propertyId, userId]
+    );
+
+    if (!ownerRows.length && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_property_calendar
+      WHERE property_id = ?
+      ORDER BY calendar_date ASC
+      `,
+      [propertyId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Calendar load failed", error: err.message });
+  }
+});
+
+app.post("/api/host/calendar", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    const { property_id, calendar_date, status, custom_price, note } = req.body;
+
+    const allowed = ["Available", "Blocked"];
+
+    if (!property_id || !calendar_date) {
+      return res.status(400).json({ message: "Property and date are required" });
+    }
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid calendar status" });
+    }
+
+    const ownerRows = await query(
+      "SELECT id FROM servia_properties WHERE id = ? AND user_id = ? LIMIT 1",
+      [property_id, userId]
+    );
+
+    if (!ownerRows.length && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    await query(
+      `
+      INSERT INTO servia_property_calendar
+      (property_id, calendar_date, status, custom_price, note)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        status = VALUES(status),
+        custom_price = VALUES(custom_price),
+        note = VALUES(note)
+      `,
+      [
+        property_id,
+        calendar_date,
+        status,
+        custom_price || null,
+        note || null,
+      ]
+    );
+
+    res.json({ success: true, message: "Calendar updated" });
+  } catch (err) {
+    res.status(500).json({ message: "Calendar update failed", error: err.message });
+  }
+});
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
