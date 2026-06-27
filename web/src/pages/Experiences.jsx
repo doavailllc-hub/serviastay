@@ -1,363 +1,520 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
-  CalendarDays,
+  ChevronLeft,
   ChevronRight,
-  Clock,
+  Globe2,
   Heart,
-  MapPin,
+  Home,
+  Hotel,
+  Menu,
   Search,
+  Share,
   SlidersHorizontal,
+  Sparkles,
   Star,
   Users,
+  X,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+const CURRENCY = "SR";
 
-const experiences = [
+const tabs = [
+  { id: "all", label: "All", icon: "🌍" },
+  { id: "homes", label: "Homes", icon: "🏡" },
+  { id: "experiences", label: "Experiences", icon: "🎈" },
+  { id: "services", label: "Services", icon: "🛎️" },
+];
+
+const sections = [
   {
-    id: 1,
-    title: "Desert Safari Adventure",
-    location: "Riyadh, Saudi Arabia",
-    price: 95,
-    rating: "4.96",
-    reviews: 128,
-    duration: "4 hours",
-    groupSize: "Up to 6 guests",
-    category: "Adventure",
-    image:
-      "https://images.unsplash.com/photo-1509316785289-025f5b846b35?auto=format&fit=crop&w=1400&q=80",
-    tag: "Guest favorite",
+    id: "originals",
+    title: "Airbnb Originals",
+    subtitle: "Hosted by the world’s most interesting people",
+    chip: "Original",
+    items: [
+      {
+        id: 1,
+        title: "Swim with a triathlete during the Tour de France",
+        location: "Aix-les-Bains, France",
+        price: 428,
+        rating: 4.98,
+        image:
+          "https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 2,
+        title: "Play a match with soccer pros in Miami Stadium",
+        location: "Miami Gardens, United States",
+        price: 938,
+        rating: 4.95,
+        image:
+          "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 3,
+        title: "Youth training day with soccer pro Christine Press",
+        location: "Glendale, United States",
+        price: 563,
+        rating: 4.97,
+        image:
+          "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 4,
+        title: "Youth training day with soccer pro Ian Wright",
+        location: "New York, United States",
+        price: 563,
+        rating: 4.99,
+        image:
+          "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 5,
+        title: "Tour de France-inspired tasting menu at Frenchie",
+        location: "Paris, France",
+        price: 641,
+        rating: 4.96,
+        image:
+          "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 6,
+        title: "Carve marble with a third-generation sculptor",
+        location: "Athens, Greece",
+        price: 257,
+        rating: 5.0,
+        image:
+          "https://images.unsplash.com/photo-1599032909756-5deb82fea3b8?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 7,
+        title: "Craft a Georgia peach with a pro glassblower",
+        location: "Atlanta, United States",
+        price: 315,
+        rating: 4.99,
+        image:
+          "https://images.unsplash.com/photo-1493106819501-66d381c466f1?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
   },
   {
-    id: 2,
-    title: "Saudi Coffee Tasting",
-    location: "Diriyah, Saudi Arabia",
-    price: 45,
-    rating: "4.91",
-    reviews: 84,
-    duration: "2 hours",
-    groupSize: "Up to 8 guests",
-    category: "Food",
-    image:
-      "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=1400&q=80",
-    tag: "Cultural",
+    id: "dubai",
+    title: "Experiences in Dubai",
+    subtitle: "Popular with travelers from your area",
+    chip: "Popular",
+    items: [
+      {
+        id: 8,
+        title: "Premium desert safari with dinner and live shows",
+        location: "Dubai, United Arab Emirates",
+        price: 179,
+        rating: 4.92,
+        image:
+          "https://images.unsplash.com/photo-1509316785289-025f5b846b35?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 9,
+        title: "Private Dubai dunes photoshoot experience",
+        location: "Dubai, United Arab Emirates",
+        price: 220,
+        rating: 4.91,
+        image:
+          "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 10,
+        title: "Old Dubai, souks, abra ride and street food walk",
+        location: "Dubai, United Arab Emirates",
+        price: 115,
+        rating: 4.89,
+        image:
+          "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 11,
+        title: "Luxury yacht cruise around Dubai Marina",
+        location: "Dubai, United Arab Emirates",
+        price: 340,
+        rating: 4.96,
+        image:
+          "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 12,
+        title: "Abu Dhabi grand mosque day trip",
+        location: "Abu Dhabi, United Arab Emirates",
+        price: 150,
+        rating: 4.88,
+        image:
+          "https://images.unsplash.com/photo-1512632578888-169bbbc64f33?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 13,
+        title: "Sunrise hot air balloon over the desert",
+        location: "Dubai, United Arab Emirates",
+        price: 399,
+        rating: 4.97,
+        image:
+          "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
   },
   {
-    id: 3,
-    title: "Private City Night Tour",
-    location: "Riyadh, Saudi Arabia",
-    price: 70,
-    rating: "4.88",
-    reviews: 96,
-    duration: "3 hours",
-    groupSize: "Private group",
-    category: "City tour",
-    image:
-      "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1400&q=80",
-    tag: "Popular",
-  },
-  {
-    id: 4,
-    title: "Old Town Heritage Walk",
-    location: "Jeddah, Saudi Arabia",
-    price: 60,
-    rating: "4.94",
-    reviews: 72,
-    duration: "2.5 hours",
-    groupSize: "Up to 10 guests",
-    category: "Culture",
-    image:
-      "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1400&q=80",
-    tag: "Local expert",
-  },
-  {
-    id: 5,
-    title: "Luxury Red Sea Boat Trip",
-    location: "Jeddah, Saudi Arabia",
-    price: 140,
-    rating: "4.98",
-    reviews: 51,
-    duration: "5 hours",
-    groupSize: "Up to 5 guests",
-    category: "Premium",
-    image:
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80",
-    tag: "Premium",
-  },
-  {
-    id: 6,
-    title: "Traditional Cooking Class",
-    location: "Riyadh, Saudi Arabia",
-    price: 55,
-    rating: "4.90",
-    reviews: 63,
-    duration: "3 hours",
-    groupSize: "Up to 7 guests",
-    category: "Food",
-    image:
-      "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1400&q=80",
-    tag: "Family friendly",
+    id: "riyadh",
+    title: "Experiences in Riyadh",
+    subtitle: "Local culture, food and adventure",
+    chip: "Guest favorite",
+    items: [
+      {
+        id: 14,
+        title: "Traditional Saudi coffee tasting in Diriyah",
+        location: "Riyadh, Saudi Arabia",
+        price: 89,
+        rating: 4.94,
+        image:
+          "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 15,
+        title: "Riyadh night city tour with local guide",
+        location: "Riyadh, Saudi Arabia",
+        price: 120,
+        rating: 4.86,
+        image:
+          "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 16,
+        title: "Edge of the World private adventure",
+        location: "Riyadh, Saudi Arabia",
+        price: 260,
+        rating: 4.98,
+        image:
+          "https://images.unsplash.com/photo-1682687982501-1e58ab814714?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        id: 17,
+        title: "Saudi home cooking class with dinner",
+        location: "Riyadh, Saudi Arabia",
+        price: 135,
+        rating: 4.9,
+        image:
+          "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
   },
 ];
 
-const categories = ["All", "Adventure", "Food", "Culture", "City tour", "Premium"];
-
 export default function Experiences() {
-  const [query, setQuery] = useState("");
-  const [date, setDate] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [sort, setSort] = useState("recommended");
+  const [activeTab, setActiveTab] = useState("experiences");
+  const [where, setWhere] = useState("");
+  const [when, setWhen] = useState("");
+  const [guests, setGuests] = useState("");
+  const [wishlist, setWishlist] = useState([]);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
-  const filteredExperiences = useMemo(() => {
-    let data = [...experiences];
+  const filteredSections = useMemo(() => {
+    const q = where.trim().toLowerCase();
 
-    if (activeCategory !== "All") {
-      data = data.filter((item) => item.category === activeCategory);
-    }
+    if (!q) return sections;
 
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      data = data.filter((item) =>
-        `${item.title} ${item.location} ${item.category}`.toLowerCase().includes(q)
-      );
-    }
+    return sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) =>
+          `${item.title} ${item.location}`.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [where]);
 
-    if (sort === "price-low") data.sort((a, b) => a.price - b.price);
-    if (sort === "rating") data.sort((a, b) => Number(b.rating) - Number(a.rating));
-
-    return data;
-  }, [query, activeCategory, sort]);
-
-  const scrollToResults = () => {
-    document.getElementById("popular-experiences")?.scrollIntoView({
-      behavior: "smooth",
-    });
+  const toggleWish = (id) => {
+    setWishlist((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#222]">
-      <Navbar />
-
-      <main>
-        <section className="mx-auto max-w-[1500px] px-4 py-6 md:px-8">
-          <div className="relative overflow-hidden rounded-[36px] bg-black">
-            <img
-              src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=2200&q=85"
-              alt="Experiences"
-              className="h-[560px] w-full object-cover opacity-75"
-            />
-
-            <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
-
-            <div className="absolute inset-0 flex items-center">
-              <div className="max-w-3xl px-6 md:px-14">
-                <p className="text-sm font-black uppercase tracking-[0.25em] text-white/80">
-                  Dovail Experiences
-                </p>
-
-                <h1 className="mt-4 text-4xl font-black leading-tight text-white md:text-7xl">
-                  Book unforgettable things to do.
-                </h1>
-
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-white/90">
-                  Explore local tours, food tastings, cultural walks, desert trips,
-                  private activities, and premium experiences hosted by experts.
-                </p>
-
-                <button
-                  onClick={scrollToResults}
-                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-black transition hover:bg-gray-100"
-                >
-                  Explore experiences
-                  <ChevronRight size={18} />
-                </button>
-              </div>
+    <div className="min-h-screen bg-white text-[#222222]">
+      <header className="sticky top-0 z-50 border-b border-[#eeeeee] bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6">
+          <Link to="/" className="flex items-center gap-2 text-[#ff385c]">
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#ff385c] text-white">
+              <Home size={19} />
             </div>
+            <span className="hidden text-2xl font-black tracking-tight sm:block">
+              staybnb
+            </span>
+          </Link>
 
-            <div className="absolute bottom-6 left-4 right-4 md:bottom-10 md:left-14 md:right-14">
-              <div className="grid gap-3 rounded-[28px] bg-white p-3 shadow-2xl md:grid-cols-[1fr_230px_190px_auto]">
-                <SearchField
-                  icon={<Search size={20} />}
-                  value={query}
-                  onChange={setQuery}
-                  placeholder="Search destination or experience"
-                />
-
-                <div className="flex items-center gap-3 rounded-2xl bg-[#F7F7F7] px-4">
-                  <CalendarDays size={20} className="text-gray-400" />
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="h-14 flex-1 bg-transparent text-sm font-semibold outline-none"
-                  />
-                </div>
-
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  className="h-14 rounded-2xl bg-[#F7F7F7] px-4 text-sm font-semibold outline-none"
-                >
-                  <option value="recommended">Recommended</option>
-                  <option value="price-low">Lowest price</option>
-                  <option value="rating">Top rated</option>
-                </select>
-
-                <button
-                  onClick={scrollToResults}
-                  className="h-14 rounded-2xl bg-[#E21D5B] px-8 font-black text-white transition hover:bg-[#d61554]"
-                >
-                  Search
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="sticky top-[82px] z-30 border-y border-gray-100 bg-white/95 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-[1500px] items-center gap-3 overflow-x-auto px-4 py-4 md:px-8">
-            {categories.map((item) => (
+          <nav className="hidden items-center gap-8 lg:flex">
+            {tabs.map((tab) => (
               <button
-                key={item}
-                onClick={() => setActiveCategory(item)}
-                className={`whitespace-nowrap rounded-full border px-5 py-3 text-sm font-bold transition ${
-                  activeCategory === item
-                    ? "border-black bg-black text-white"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-black hover:text-black"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-2 pb-4 pt-4 text-[15px] font-semibold transition ${
+                  activeTab === tab.id
+                    ? "text-black"
+                    : "text-[#6a6a6a] hover:text-black"
                 }`}
               >
-                {item}
+                <span className="text-3xl">{tab.icon}</span>
+                {tab.label}
+                {activeTab === tab.id && (
+                  <span className="absolute bottom-0 left-0 h-[3px] w-full rounded-full bg-black" />
+                )}
               </button>
             ))}
+          </nav>
 
-            <button className="ml-auto flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 px-5 py-3 text-sm font-bold hover:border-black">
-              <SlidersHorizontal size={17} />
-              Filters
+          <div className="flex items-center gap-3">
+            <Link
+              to="/host"
+              className="hidden rounded-full px-4 py-3 text-sm font-bold hover:bg-[#f7f7f7] md:block"
+            >
+              Become a host
+            </Link>
+
+            <button className="grid h-11 w-11 place-items-center rounded-full bg-[#f7f7f7] hover:bg-[#eeeeee]">
+              <Globe2 size={18} />
+            </button>
+
+            <button className="flex h-11 items-center gap-3 rounded-full bg-[#f7f7f7] px-4 hover:bg-[#eeeeee]">
+              <Menu size={20} />
             </button>
           </div>
-        </section>
+        </div>
 
-        <section id="popular-experiences" className="mx-auto max-w-[1500px] px-4 py-12 md:px-8">
-          <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="mx-auto hidden max-w-[880px] px-4 pb-7 md:block">
+          <SearchBar
+            where={where}
+            setWhere={setWhere}
+            when={when}
+            setWhen={setWhen}
+            guests={guests}
+            setGuests={setGuests}
+          />
+        </div>
+
+        <div className="px-5 pb-4 md:hidden">
+          <button
+            onClick={() => setShowMobileSearch(true)}
+            className="flex h-14 w-full items-center gap-4 rounded-full border border-gray-200 px-5 text-left shadow-md"
+          >
+            <Search size={18} />
             <div>
-              <h2 className="text-3xl font-black tracking-tight text-gray-900">
-                Popular experiences
-              </h2>
-              <p className="mt-2 text-gray-500">
-                Handpicked activities loved by guests.
-              </p>
+              <p className="text-sm font-bold">Where to?</p>
+              <p className="text-xs text-gray-500">Anywhere · Any week · Add guests</p>
             </div>
+          </button>
+        </div>
+      </header>
 
-            <p className="text-sm font-bold text-gray-500">
-              Showing {filteredExperiences.length} experiences
-            </p>
+      {showMobileSearch && (
+        <div className="fixed inset-0 z-[100] bg-white p-5 md:hidden">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-xl font-black">Search experiences</h2>
+            <button
+              onClick={() => setShowMobileSearch(false)}
+              className="grid h-10 w-10 place-items-center rounded-full bg-gray-100"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          {filteredExperiences.length === 0 ? (
-            <div className="rounded-[32px] border border-gray-100 bg-[#FAFAFC] p-14 text-center">
-              <div className="mb-4 text-6xl">🧭</div>
-              <h3 className="text-2xl font-black">No experiences found</h3>
-              <p className="mt-2 text-gray-500">Try another destination or category.</p>
-            </div>
-          ) : (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredExperiences.map((item) => (
-                <ExperienceCard key={item.id} item={item} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mx-auto max-w-[1500px] px-4 pb-16 md:px-8">
-          <div className="grid gap-6 rounded-[36px] bg-[#F7F7F7] p-8 md:grid-cols-3 md:p-10">
-            <Feature title="Hosted by experts" text="Local hosts bring personal knowledge, hidden spots, and real stories." />
-            <Feature title="Easy booking" text="Choose your date, group size, and reserve securely in a few clicks." />
-            <Feature title="Guest support" text="Get help before, during, and after your experience." />
+          <div className="space-y-3">
+            <MobileInput label="Where" value={where} onChange={setWhere} />
+            <MobileInput label="When" value={when} onChange={setWhen} />
+            <MobileInput label="Who" value={guests} onChange={setGuests} />
+            <button
+              onClick={() => setShowMobileSearch(false)}
+              className="mt-4 h-14 w-full rounded-full bg-[#ff385c] font-black text-white"
+            >
+              Search
+            </button>
           </div>
-        </section>
+        </div>
+      )}
+
+      <main className="mx-auto max-w-[1760px] px-5 py-12 md:px-10">
+        {filteredSections.length === 0 ? (
+          <div className="rounded-[32px] border border-gray-200 p-16 text-center">
+            <Sparkles className="mx-auto mb-4" size={38} />
+            <h2 className="text-2xl font-black">No experiences found</h2>
+            <p className="mt-2 text-gray-500">Try another city or landmark.</p>
+          </div>
+        ) : (
+          filteredSections.map((section, index) => (
+            <ExperienceSection
+              key={section.id}
+              section={section}
+              showLargeTitle={index === 1}
+              wishlist={wishlist}
+              toggleWish={toggleWish}
+            />
+          ))
+        )}
       </main>
-
-      <Footer />
     </div>
   );
 }
 
-function SearchField({ icon, value, onChange, placeholder }) {
+function SearchBar({ where, setWhere, when, setWhen, guests, setGuests }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-[#F7F7F7] px-4">
-      <span className="text-gray-400">{icon}</span>
+    <div className="grid h-[68px] grid-cols-[1fr_1fr_1fr_64px] items-center rounded-full border border-gray-200 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.12)]">
+      <SearchCell label="Where" placeholder="Search by city or landmark" value={where} onChange={setWhere} />
+      <SearchCell label="When" placeholder="Add dates" value={when} onChange={setWhen} />
+      <SearchCell label="Who" placeholder="Add guests" value={guests} onChange={setGuests} />
+
+      <button className="mr-2 grid h-12 w-12 place-items-center rounded-full bg-[#ff385c] text-white transition hover:scale-105 hover:bg-[#e31c5f]">
+        <Search size={20} strokeWidth={3} />
+      </button>
+    </div>
+  );
+}
+
+function SearchCell({ label, placeholder, value, onChange }) {
+  return (
+    <div className="border-r border-gray-200 px-7 last:border-r-0">
+      <p className="text-xs font-black text-black">{label}</p>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-14 flex-1 bg-transparent text-sm font-semibold text-gray-900 outline-none placeholder:text-gray-400"
+        className="mt-1 w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-500"
       />
     </div>
   );
 }
 
-function ExperienceCard({ item }) {
+function ExperienceSection({ section, showLargeTitle, wishlist, toggleWish }) {
+  const rowRef = useRef(null);
+
+  const scroll = (direction) => {
+    rowRef.current?.scrollBy({
+      left: direction === "left" ? -700 : 700,
+      behavior: "smooth",
+    });
+  };
+
   return (
-    <article className="group cursor-pointer">
-      <div className="relative overflow-hidden rounded-[26px] bg-gray-100">
+    <section className="mb-12">
+      {showLargeTitle && (
+        <h1 className="mb-8 text-3xl font-black tracking-tight md:text-4xl">
+          Popular with travelers from your area
+        </h1>
+      )}
+
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black md:text-2xl">{section.title}</h2>
+            <button className="grid h-8 w-8 place-items-center rounded-full bg-[#f7f7f7] hover:bg-[#eeeeee]">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-gray-500">{section.subtitle}</p>
+        </div>
+
+        <div className="hidden gap-2 md:flex">
+          <button
+            onClick={() => scroll("left")}
+            className="grid h-9 w-9 place-items-center rounded-full bg-[#f7f7f7] hover:bg-[#eeeeee]"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            className="grid h-9 w-9 place-items-center rounded-full bg-[#f7f7f7] hover:bg-[#eeeeee]"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={rowRef}
+        className="flex gap-4 overflow-x-auto scroll-smooth pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {section.items.map((item) => (
+          <ExperienceCard
+            key={item.id}
+            item={item}
+            chip={section.chip}
+            liked={wishlist.includes(item.id)}
+            onWish={() => toggleWish(item.id)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ExperienceCard({ item, chip, liked, onWish }) {
+  return (
+    <article className="group w-[245px] shrink-0 cursor-pointer sm:w-[260px] md:w-[270px]">
+      <div className="relative overflow-hidden rounded-[18px] bg-gray-100">
         <img
           src={item.image}
           alt={item.title}
           loading="lazy"
-          className="aspect-[4/4.5] w-full object-cover transition duration-500 group-hover:scale-105"
+          className="aspect-[1.05/1] w-full object-cover transition duration-500 group-hover:scale-105"
         />
 
-        <span className="absolute left-4 top-4 rounded-full bg-white px-3 py-1 text-xs font-black shadow">
-          {item.tag}
+        <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-bold shadow-sm">
+          {chip === "Original" ? "🏅 Original" : chip}
         </span>
 
-        <button className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white">
-          <Heart size={18} />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onWish();
+          }}
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full text-white"
+        >
+          <Heart
+            size={24}
+            fill={liked ? "#ff385c" : "rgba(0,0,0,0.25)"}
+            className={liked ? "text-[#ff385c]" : "text-white"}
+          />
+        </button>
+
+        <button className="absolute right-3 top-14 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-black shadow-sm opacity-0 transition group-hover:opacity-100">
+          <Share size={15} />
         </button>
       </div>
 
       <div className="pt-3">
-        <div className="flex justify-between gap-3">
-          <h3 className="line-clamp-2 font-black text-gray-900">{item.title}</h3>
-          <span className="flex shrink-0 items-center gap-1 text-sm font-bold">
-            <Star size={14} fill="black" />
-            {item.rating}
+        <h3 className="line-clamp-2 text-[15px] font-bold leading-5 text-black">
+          {item.title}
+        </h3>
+
+        <p className="mt-1 text-sm text-gray-500">{item.location}</p>
+
+        <div className="mt-1 flex items-center gap-1 text-sm text-gray-600">
+          <span>
+            From {CURRENCY} {item.price} / guest
           </span>
+          <span>·</span>
+          <Star size={13} fill="currentColor" />
+          <span>{item.rating}</span>
         </div>
-
-        <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
-          <MapPin size={14} />
-          {item.location}
-        </p>
-
-        <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-gray-600">
-          <span className="inline-flex items-center gap-1">
-            <Clock size={13} />
-            {item.duration}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Users size={13} />
-            {item.groupSize}
-          </span>
-        </div>
-
-        <p className="mt-2 text-sm text-gray-500">{item.reviews} reviews</p>
-
-        <p className="mt-2">
-          <span className="font-black text-gray-900">${item.price}</span>{" "}
-          <span className="text-gray-500">/ person</span>
-        </p>
       </div>
     </article>
   );
 }
 
-function Feature({ title, text }) {
+function MobileInput({ label, value, onChange }) {
   return (
-    <div className="rounded-[28px] bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-black text-gray-900">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-gray-500">{text}</p>
-    </div>
+    <label className="block rounded-2xl border border-gray-200 p-4">
+      <span className="text-xs font-black">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Add details"
+        className="mt-2 w-full outline-none"
+      />
+    </label>
   );
 }
