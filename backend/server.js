@@ -2802,88 +2802,44 @@ app.put("/api/admin/coupons/:id/status", verifyToken, async (req, res) => {
   }
 });
 
+/* EXPERIENCES */
+
 app.get("/api/experiences", async (req, res) => {
   try {
-    const { search, category } = req.query;
+    const { search = "", category = "All" } = req.query;
 
     let sql = `
-      SELECT 
+      SELECT
         e.*,
-        COALESCE(
-          (
-            SELECT image_url 
-            FROM experience_images 
-            WHERE experience_id = e.id 
-            ORDER BY is_cover DESC, sort_order ASC 
-            LIMIT 1
-          ),
-          ''
+        (
+          SELECT image_url
+          FROM experience_images
+          WHERE experience_id = e.id
+          ORDER BY is_cover DESC, sort_order ASC
+          LIMIT 1
         ) AS image
       FROM experiences e
       WHERE e.status = 'active'
     `;
 
-    const params = [];
+    const values = [];
 
     if (category && category !== "All") {
       sql += " AND e.category = ?";
-      params.push(category);
-    }
-
-    if (search) {
-      sql += " AND (e.title LIKE ? OR e.location LIKE ? OR e.city LIKE ? OR e.category LIKE ?)";
-      const q = `%${search}%`;
-      params.push(q, q, q, q);
-    }
-
-    sql += " ORDER BY e.created_at DESC";
-
-    const [rows] = await db.query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    console.error("Experiences load error:", err);
-    res.status(500).json({ message: "Failed to load experiences" });
-  }
-});
-/* EXPERIENCES */
-
-app.get("/api/experiences", async (req, res) => {
-  try {
-    const { search = "", category = "All" } = req.query;
-
-    let sql = `
-      SELECT
-        e.*,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image
-      FROM experiences e
-      WHERE e.status='active'
-    `;
-
-    const values = [];
-
-    if (category !== "All") {
-      sql += " AND e.category = ?";
       values.push(category);
     }
 
     if (search) {
       sql += `
-      AND (
-        e.title LIKE ?
-        OR e.location LIKE ?
-        OR e.city LIKE ?
-        OR e.category LIKE ?
-      )
+        AND (
+          e.title LIKE ?
+          OR e.location LIKE ?
+          OR e.city LIKE ?
+          OR e.category LIKE ?
+        )
       `;
 
       const q = `%${search}%`;
-
       values.push(q, q, q, q);
     }
 
@@ -2893,98 +2849,14 @@ app.get("/api/experiences", async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    console.log("EXPERIENCE LOAD ERROR:", err);
+    console.log("Experiences load error:", err.message);
 
     res.status(500).json({
-      message: "Unable to load experiences",
+      message: "Failed to load experiences",
       error: err.message,
     });
   }
 });
-/* EXPERIENCES */
-
-app.get("/api/experiences", async (req, res) => {
-  try {
-    const { search = "", category = "All" } = req.query;
-
-    let sql = `
-      SELECT
-        e.*,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image
-      FROM experiences e
-      WHERE e.status='active'
-    `;
-
-    const values = [];
-
-    if (category !== "All") {
-      sql += " AND e.category = ?";
-      values.push(category);
-    }
-
-    if (search) {
-      sql += `
-      AND (
-        e.title LIKE ?
-        OR e.location LIKE ?
-        OR e.city LIKE ?
-        OR e.category LIKE ?
-      )
-      `;
-
-      const q = `%${search}%`;
-
-      values.push(q, q, q, q);
-    }
-
-    sql += " ORDER BY e.created_at DESC";
-
-    const rows = await query(sql, values);
-
-    res.json(rows);
-  } catch (err) {
-    console.log("EXPERIENCE LOAD ERROR:", err);
-
-    res.status(500).json({
-      message: "Unable to load experiences",
-      error: err.message,
-    });
-  }
-});
-
-app.get("/api/experiences/:id", async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      "SELECT * FROM experiences WHERE id = ? AND status = 'active'",
-      [req.params.id]
-    );
-
-    if (!rows.length) {
-      return res.status(404).json({ message: "Experience not found" });
-    }
-
-    const [images] = await db.query(
-      "SELECT * FROM experience_images WHERE experience_id = ? ORDER BY is_cover DESC, sort_order ASC",
-      [req.params.id]
-    );
-
-    res.json({
-      ...rows[0],
-      images,
-    });
-  } catch (err) {
-    console.error("Experience detail error:", err);
-    res.status(500).json({ message: "Failed to load experience" });
-  }
-});
-
-
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
