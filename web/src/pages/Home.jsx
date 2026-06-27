@@ -367,16 +367,23 @@ export default function Home() {
         </section>
       </header>
 
-      <main className="mx-auto max-w-[1400px] px-4 py-8 md:px-10 lg:px-20">
-        <div className="mb-7 flex items-end justify-between">
-          <div>
-            <h2 className="text-[24px] font-bold tracking-tight text-gray-950">
-              Popular homes
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Explore handpicked stays for your next trip.
-            </p>
-          </div>
+     <main className="mx-auto max-w-[1400px] px-4 py-10 md:px-10 lg:px-20">
+  <div className="mb-8 flex items-end justify-between">
+    <div>
+      <h2 className="font-heading text-[28px] font-black tracking-[-0.04em] text-[var(--text-main)]">
+        Popular homes
+      </h2>
+
+      <p className="mt-2 max-w-xl text-[15px] font-medium text-[var(--text-secondary)]">
+        Explore handpicked stays for your next trip.
+      </p>
+    </div>
+
+    <button className="btn-outline px-6 py-3 text-sm">
+      View all
+    </button>
+  </div>
+</main>
 
           <button
             onClick={() => navigate("/search-results")}
