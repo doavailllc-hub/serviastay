@@ -133,17 +133,11 @@ export default function Navbar() {
           <NavTab
             to="/experiences"
             icon={<Sparkles size={23} />}
-            label="Experiences"
+            label="Trips"
             active={location.pathname === "/experiences"}
             badge="NEW"
           />
-          <NavTab
-            to="/services"
-            icon={<Bell size={23} />}
-            label="Services"
-            active={location.pathname === "/services"}
-            badge="NEW"
-          />
+         
         </div>
 
         <div ref={menuRef} className="relative flex items-center gap-3">
