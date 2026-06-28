@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
+import { MapPin, Plus, Trash2 } from "lucide-react";
+
+import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+const BRAND = "#3b71e6";
 
 export default function HostListings() {
   const navigate = useNavigate();
+
   const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadListings();
@@ -16,7 +22,9 @@ export default function HostListings() {
 
   const loadListings = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
+      setLoading(true);
+
+      const user = JSON.parse(localStorage.getItem("user") || "null");
       const token = localStorage.getItem("token");
 
       if (!user || !token) {
@@ -33,6 +41,8 @@ export default function HostListings() {
       localStorage.removeItem("token");
 
       navigate("/");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,133 +63,160 @@ export default function HostListings() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-10">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Your Listings
+            <p className="text-sm font-medium text-gray-500">Host</p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+              Your listings
             </h1>
 
-            <p className="text-gray-500 mt-2">
-              Manage and monitor the homes you host.
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+              Manage the homes you host and keep your property details updated.
             </p>
           </div>
 
           <button
             onClick={() => navigate("/become-a-host")}
-            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold transition shadow-lg"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
-            + Add New Listing
+            <Plus size={17} />
+            Add listing
           </button>
-        </div>
+        </header>
 
-        {listings.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-gray-100 p-10 text-center">
-            <h2 className="text-2xl font-bold text-gray-900">
-              No listings yet
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              Add your first property and start hosting.
-            </p>
-
-            <button
-              onClick={() => navigate("/become-a-host")}
-              className="mt-6 px-6 py-3 rounded-xl bg-[#3b71e6] text-white font-semibold"
-            >
-              Add Listing
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {listings.map((listing) => (
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((item) => (
               <div
+                key={item}
+                className="h-40 animate-pulse rounded-2xl bg-gray-100"
+              />
+            ))}
+          </div>
+        ) : listings.length === 0 ? (
+          <EmptyState navigate={navigate} />
+        ) : (
+          <div className="space-y-4">
+            {listings.map((listing) => (
+              <article
                 key={listing.id}
-                className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl transition overflow-hidden"
+                className="overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:bg-gray-50"
               >
-                <div className="flex flex-col lg:flex-row">
+                <div className="flex flex-col md:flex-row">
                   <img
                     src={
                       listing.image ||
                       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
                     }
-                    alt={listing.title}
-                    className="w-full lg:w-72 h-56 object-cover"
+                    alt={listing.title || "Listing"}
+                    className="h-56 w-full object-cover md:h-auto md:w-64"
                   />
 
-                  <div className="flex-1 p-6 flex flex-col justify-between">
+                  <div className="flex flex-1 flex-col justify-between p-5">
                     <div>
-                      <div className="flex justify-between items-start gap-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <h2 className="text-2xl font-bold text-gray-900">
-                            {listing.title}
+                          <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+                            {listing.title || "Untitled listing"}
                           </h2>
 
-                          <p className="text-gray-500 mt-2">
-                            📍 {listing.location}
+                          <p className="mt-2 flex items-center gap-1 text-sm text-gray-500">
+                            <MapPin size={15} />
+                            {listing.location || "Location unavailable"}
                           </p>
 
-                          <p className="text-gray-500 mt-2">
-                            {listing.guests} guests · {listing.bedrooms} bedroom ·{" "}
-                            {listing.bathrooms} bath
+                          <p className="mt-2 text-sm text-gray-500">
+                            {listing.guests || 1} guests ·{" "}
+                            {listing.bedrooms || 1} bedroom ·{" "}
+                            {listing.bathrooms || 1} bath
                           </p>
                         </div>
 
-                        <span className="px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-700">
+                        <span className="w-fit rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
                           Active
                         </span>
                       </div>
 
-                      <div className="mt-6">
-                        <span className="text-2xl font-bold text-[#3b71e6]">
-                          {formatINR(listing.price)} / night
+                      <p className="mt-5 text-lg font-semibold text-gray-950">
+                        {formatINR(listing.price)}{" "}
+                        <span className="text-sm font-normal text-gray-500">
+                          / night
                         </span>
-                      </div>
+                      </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 mt-8">
+                    <div className="mt-6 flex flex-wrap gap-3">
                       <button
                         onClick={() => navigate(`/edit-listing/${listing.id}`)}
-                        className="px-5 py-3 rounded-xl bg-[#3b71e6] text-white font-semibold hover:bg-[#7152E8] transition"
+                        className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
                       >
                         Edit
                       </button>
 
                       <button
                         onClick={() => navigate(`/reserve/${listing.id}`)}
-                        className="px-5 py-3 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50 transition"
+                        className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-white hover:text-[#3b71e6]"
                       >
                         View
                       </button>
 
                       <button
                         onClick={() => deleteListing(listing.id)}
-                        className="px-5 py-3 rounded-xl border border-red-300 text-red-600 font-semibold hover:bg-red-50 transition"
+                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
                       >
+                        <Trash2 size={16} />
                         Delete
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
 
-        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
-          <h2 className="text-2xl font-bold">
-            You're doing great! 🎉
-          </h2>
+        {!loading && listings.length > 0 && (
+          <section className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+            <h2 className="text-base font-semibold text-gray-950">
+              Hosting tip
+            </h2>
 
-          <p className="mt-3 text-white/90 max-w-2xl">
-            Keep your listings updated with attractive photos, accurate pricing,
-            and detailed descriptions to increase bookings and earnings.
-          </p>
-        </div>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+              Keep photos, pricing and descriptions accurate to improve guest
+              trust and booking quality.
+            </p>
+          </section>
+        )}
       </main>
+    </div>
+  );
+}
+
+function EmptyState({ navigate }) {
+  return (
+    <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight text-gray-950">
+          No listings yet
+        </h2>
+
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+          Add your first property and start hosting.
+        </p>
+
+        <button
+          onClick={() => navigate("/become-a-host")}
+          className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+        >
+          <Plus size={17} />
+          Add listing
+        </button>
+      </div>
     </div>
   );
 }
