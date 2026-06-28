@@ -31,6 +31,8 @@ export default function ExperienceDetails() {
   const [pkg, setPkg] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [similar, setSimilar] = useState([]);
+  const [departures, setDepartures] = useState([]);
+  const [selectedDeparture, setSelectedDeparture] = useState(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -51,6 +53,26 @@ export default function ExperienceDetails() {
       setPkg(detailRes.data);
 
       try {
+        const departureRes = await api.get(`/trip-packages/${id}/departures`);
+        const list = Array.isArray(departureRes.data) ? departureRes.data : [];
+        setDepartures(list);
+
+        const firstAvailable = list.find((d) => {
+          const remaining =
+            Number(d.total_seats || 0) - Number(d.booked_seats || 0);
+
+          return d.status === "Available" && remaining > 0;
+        });
+
+        if (firstAvailable) {
+          setSelectedDeparture(firstAvailable);
+          setSelectedDate(formatInputDate(firstAvailable.departure_date));
+        }
+      } catch {
+        setDepartures([]);
+      }
+
+      try {
         const reviewRes = await api.get(`/experience-reviews/${id}`);
         setReviews(Array.isArray(reviewRes.data) ? reviewRes.data : []);
       } catch {
@@ -65,7 +87,9 @@ export default function ExperienceDetails() {
         });
 
         const list = Array.isArray(similarRes.data) ? similarRes.data : [];
-        setSimilar(list.filter((item) => Number(item.id) !== Number(id)).slice(0, 4));
+        setSimilar(
+          list.filter((item) => Number(item.id) !== Number(id)).slice(0, 4)
+        );
       } catch {
         setSimilar([]);
       }
@@ -78,7 +102,8 @@ export default function ExperienceDetails() {
   };
 
   const images = useMemo(() => {
-    const dbImages = pkg?.images?.map((img) => img.image_url).filter(Boolean) || [];
+    const dbImages =
+      pkg?.images?.map((img) => img.image_url).filter(Boolean) || [];
 
     if (dbImages.length) return dbImages;
     if (pkg?.image) return [pkg.image];
@@ -108,8 +133,23 @@ export default function ExperienceDetails() {
   const itinerary = parseItinerary(pkg?.itinerary);
 
   const handleBookPackage = () => {
+    if (departures.length > 0 && !selectedDeparture) {
+      alert("Please select an available departure date.");
+      return;
+    }
+
     if (!selectedDate) {
       alert("Please select a travel date first.");
+      return;
+    }
+
+    const remainingSeats = selectedDeparture
+      ? Number(selectedDeparture.total_seats || 0) -
+        Number(selectedDeparture.booked_seats || 0)
+      : 999;
+
+    if (travelers > remainingSeats) {
+      alert(`Only ${remainingSeats} seats left for this departure.`);
       return;
     }
 
@@ -118,6 +158,8 @@ export default function ExperienceDetails() {
         experience: pkg,
         selectedDate,
         guests: travelers,
+        departureId: selectedDeparture?.id || null,
+        selectedDeparture,
         subtotal,
         serviceFee,
         total,
@@ -266,16 +308,20 @@ export default function ExperienceDetails() {
               <div className="flex items-start justify-between gap-5">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900">
-                    Trip package by {pkg.host_name || pkg.host || "Dovail Travel"}
+                    Trip package by{" "}
+                    {pkg.host_name || pkg.host || "Dovail Travel"}
                   </h2>
 
                   <p className="mt-2 text-gray-500">
                     {days} Days · {nights} Nights ·{" "}
-                    {pkg.group_size || `Up to ${pkg.max_people || 10} travelers`}
+                    {pkg.group_size ||
+                      `Up to ${pkg.max_people || 10} travelers`}
                   </p>
                 </div>
 
-                <HostAvatar name={pkg.host_name || pkg.host || "Dovail Travel"} />
+                <HostAvatar
+                  name={pkg.host_name || pkg.host || "Dovail Travel"}
+                />
               </div>
             </div>
 
@@ -345,6 +391,38 @@ export default function ExperienceDetails() {
               </div>
             </div>
 
+            {departures.length > 0 && (
+              <div className="border-b border-gray-200 py-8">
+                <h2 className="text-2xl font-black text-gray-900">
+                  Available departures
+                </h2>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {departures.slice(0, 6).map((departure) => {
+                    const remaining =
+                      Number(departure.total_seats || 0) -
+                      Number(departure.booked_seats || 0);
+
+                    return (
+                      <div
+                        key={departure.id}
+                        className="rounded-3xl border border-gray-100 p-5"
+                      >
+                        <p className="font-black text-gray-900">
+                          {formatDisplayDate(departure.departure_date)}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-gray-500">
+                          {departure.status === "Available" && remaining > 0
+                            ? `${remaining} seats left`
+                            : departure.status || "Unavailable"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="border-b border-gray-200 py-8">
               <h2 className="text-2xl font-black text-gray-900">
                 Day-wise itinerary
@@ -384,7 +462,8 @@ export default function ExperienceDetails() {
                     Pickup location
                   </p>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    {pkg.pickup_location || "Pickup details will be shared after booking."}
+                    {pkg.pickup_location ||
+                      "Pickup details will be shared after booking."}
                   </p>
                 </div>
 
@@ -393,7 +472,9 @@ export default function ExperienceDetails() {
                     Destination
                   </p>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    {pkg.location || pkg.city || "Destination details unavailable"}
+                    {pkg.location ||
+                      pkg.city ||
+                      "Destination details unavailable"}
                   </p>
                 </div>
               </div>
@@ -409,7 +490,10 @@ export default function ExperienceDetails() {
               </h2>
 
               <div className="mt-4 flex gap-3 rounded-3xl bg-[#F7F5FF] p-5">
-                <ShieldCheck className="mt-1 shrink-0 text-[#7E4FF5]" size={22} />
+                <ShieldCheck
+                  className="mt-1 shrink-0 text-[#7E4FF5]"
+                  size={22}
+                />
                 <p className="text-sm leading-7 text-gray-600">
                   {pkg.cancellation_policy ||
                     "Free cancellation support is available according to host/package rules. Contact Dovail Stay support for schedule changes or package availability issues."}
@@ -449,7 +533,8 @@ export default function ExperienceDetails() {
                       </h3>
 
                       <p className="mt-1 text-sm text-gray-500">
-                        ₹{Number(item.price || 0).toLocaleString("en-IN")} / person
+                        ₹{Number(item.price || 0).toLocaleString("en-IN")} /
+                        person
                       </p>
                     </button>
                   ))}
@@ -462,6 +547,9 @@ export default function ExperienceDetails() {
             <BookingCard
               price={price}
               rating={rating}
+              departures={departures}
+              selectedDeparture={selectedDeparture}
+              setSelectedDeparture={setSelectedDeparture}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
               travelers={travelers}
@@ -545,7 +633,10 @@ function ReviewsSection({ reviews, rating, reviewCount }) {
       ) : (
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {reviews.slice(0, 6).map((review) => (
-            <div key={review.id} className="rounded-3xl border border-gray-100 p-5">
+            <div
+              key={review.id}
+              className="rounded-3xl border border-gray-100 p-5"
+            >
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 font-black">
                   {(review.guest_name || "G").charAt(0).toUpperCase()}
@@ -568,7 +659,11 @@ function ReviewsSection({ reviews, rating, reviewCount }) {
                   <Star
                     key={index}
                     size={14}
-                    fill={index < Math.round(Number(review.rating || 0)) ? "black" : "none"}
+                    fill={
+                      index < Math.round(Number(review.rating || 0))
+                        ? "black"
+                        : "none"
+                    }
                   />
                 ))}
               </div>
@@ -587,6 +682,9 @@ function ReviewsSection({ reviews, rating, reviewCount }) {
 function BookingCard({
   price,
   rating,
+  departures,
+  selectedDeparture,
+  setSelectedDeparture,
   selectedDate,
   setSelectedDate,
   travelers,
@@ -596,6 +694,13 @@ function BookingCard({
   total,
   handleBookPackage,
 }) {
+  const hasDepartures = departures.length > 0;
+
+  const remainingSeats = selectedDeparture
+    ? Number(selectedDeparture.total_seats || 0) -
+      Number(selectedDeparture.booked_seats || 0)
+    : null;
+
   return (
     <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(0,0,0,0.14)]">
       <div className="mb-5 flex items-end justify-between">
@@ -614,19 +719,77 @@ function BookingCard({
 
       <div className="overflow-hidden rounded-2xl border border-gray-300">
         <div className="border-b border-gray-300 p-4">
-          <label className="mb-1 block text-xs font-black uppercase text-gray-700">
-            Travel date
+          <label className="mb-2 block text-xs font-black uppercase text-gray-700">
+            Choose departure
           </label>
 
-          <div className="flex items-center gap-2">
-            <CalendarDays size={18} className="text-gray-400" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full bg-transparent text-sm font-semibold outline-none"
-            />
-          </div>
+          {hasDepartures ? (
+            <div className="space-y-3">
+              {departures.map((departure) => {
+                const remaining =
+                  Number(departure.total_seats || 0) -
+                  Number(departure.booked_seats || 0);
+
+                const disabled =
+                  departure.status !== "Available" || remaining <= 0;
+
+                const active = selectedDeparture?.id === departure.id;
+
+                return (
+                  <button
+                    key={departure.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setSelectedDeparture(departure);
+                      setSelectedDate(formatInputDate(departure.departure_date));
+                    }}
+                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                      active
+                        ? "border-[#7E4FF5] bg-[#F7F5FF]"
+                        : "border-gray-200 bg-white hover:border-gray-900"
+                    } ${
+                      disabled
+                        ? "cursor-not-allowed opacity-50 hover:border-gray-200"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-black text-gray-900">
+                          {formatDisplayDate(departure.departure_date)}
+                        </p>
+
+                        <p className="mt-1 text-xs font-semibold text-gray-500">
+                          {disabled
+                            ? departure.status || "Unavailable"
+                            : `${remaining} seats left`}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`h-4 w-4 rounded-full border ${
+                          active
+                            ? "border-[#7E4FF5] bg-[#7E4FF5]"
+                            : "border-gray-300"
+                        }`}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <CalendarDays size={18} className="text-gray-400" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full bg-transparent text-sm font-semibold outline-none"
+              />
+            </div>
+          )}
         </div>
 
         <div className="p-4">
@@ -643,12 +806,22 @@ function BookingCard({
               className="w-full bg-transparent text-sm font-semibold outline-none"
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <option key={n} value={n}>
+                <option
+                  key={n}
+                  value={n}
+                  disabled={remainingSeats !== null && n > remainingSeats}
+                >
                   {n} traveler{n > 1 ? "s" : ""}
                 </option>
               ))}
             </select>
           </div>
+
+          {remainingSeats !== null && (
+            <p className="mt-2 text-xs font-semibold text-gray-500">
+              {remainingSeats} seats available for selected departure
+            </p>
+          )}
         </div>
       </div>
 
@@ -711,4 +884,28 @@ function parseItinerary(value) {
     .split(/\n|Day\s*\d+:/i)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function formatInputDate(value) {
+  if (!value) return "";
+
+  try {
+    return new Date(value).toISOString().split("T")[0];
+  } catch {
+    return "";
+  }
+}
+
+function formatDisplayDate(value) {
+  if (!value) return "No date";
+
+  try {
+    return new Date(value).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return value;
+  }
 }

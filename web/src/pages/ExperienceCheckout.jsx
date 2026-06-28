@@ -28,6 +28,9 @@ export default function ExperienceCheckout() {
 
   const passedState = location.state || {};
 
+  const [departureId] = useState(passedState.departureId || null);
+  const [selectedDeparture] = useState(passedState.selectedDeparture || null);
+
   const [pkg, setPkg] = useState(passedState.experience || null);
   const [selectedDate, setSelectedDate] = useState(
     passedState.selectedDate || ""
@@ -101,6 +104,7 @@ export default function ExperienceCheckout() {
         {
           experience_id: Number(id),
           user_id: Number(user.id),
+          departure_id: departureId,
           booking_date: selectedDate,
           guests: travelers,
           total,
@@ -124,6 +128,8 @@ export default function ExperienceCheckout() {
           experience: pkg,
           selectedDate,
           guests: travelers,
+          departureId,
+          selectedDeparture,
           total,
         },
       });
@@ -212,8 +218,9 @@ export default function ExperienceCheckout() {
                   <input
                     type="date"
                     value={selectedDate}
+                    disabled={Boolean(selectedDeparture)}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="mt-1 w-full bg-transparent text-sm font-semibold outline-none"
+                    className="mt-1 w-full bg-transparent text-sm font-semibold outline-none disabled:text-gray-500"
                   />
                 </FieldBox>
 
@@ -231,6 +238,27 @@ export default function ExperienceCheckout() {
                   </select>
                 </FieldBox>
               </div>
+
+              {selectedDeparture && (
+                <div className="mt-5 rounded-2xl border border-[#E8E0FF] bg-[#F7F5FF] p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-[#7E4FF5]">
+                    Selected departure
+                  </p>
+
+                  <p className="mt-1 text-sm font-black text-gray-900">
+                    {formatDisplayDate(selectedDeparture.departure_date)}
+                  </p>
+
+                  <p className="mt-1 text-xs font-semibold text-gray-500">
+                    {Math.max(
+                      Number(selectedDeparture.total_seats || 0) -
+                        Number(selectedDeparture.booked_seats || 0),
+                      0
+                    )}{" "}
+                    seats left
+                  </p>
+                </div>
+              )}
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <MiniBox
@@ -377,6 +405,13 @@ export default function ExperienceCheckout() {
                     {days} Days / {Math.max(nights, 0)} Nights
                   </p>
 
+                  {selectedDeparture && (
+                    <p className="mt-2 text-xs font-black text-[#7E4FF5]">
+                      Departure:{" "}
+                      {formatDisplayDate(selectedDeparture.departure_date)}
+                    </p>
+                  )}
+
                   <p className="mt-2 flex items-center gap-1 text-sm font-bold text-gray-700">
                     <Star size={14} fill="black" />
                     {Number(pkg.rating || 0)
@@ -479,4 +514,18 @@ function PriceRow({ label, value }) {
       <span>{value}</span>
     </div>
   );
+}
+
+function formatDisplayDate(value) {
+  if (!value) return "No date";
+
+  try {
+    return new Date(value).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return value;
+  }
 }

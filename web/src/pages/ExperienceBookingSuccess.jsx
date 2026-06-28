@@ -17,8 +17,15 @@ export default function ExperienceBookingSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { bookingId, experience, selectedDate, guests, total } =
-    location.state || {};
+  const {
+    bookingId,
+    experience,
+    selectedDate,
+    selectedDeparture,
+    departureId,
+    guests,
+    total,
+  } = location.state || {};
 
   const travelers = Number(guests || 1);
 
@@ -30,28 +37,29 @@ export default function ExperienceBookingSuccess() {
   const days = Number(experience?.package_days || 1);
   const nights = Number(experience?.package_nights || Math.max(days - 1, 0));
 
+  const departureDate = selectedDeparture?.departure_date || selectedDate;
+
   return (
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
       <main className="mx-auto max-w-5xl px-4 py-14 md:px-8">
-        <div className="rounded-[36px] border border-gray-200 bg-white p-6 text-center shadow-[0_18px_55px_rgba(0,0,0,0.12)] md:p-10">
+        <section className="rounded-[36px] border border-gray-200 bg-white p-6 text-center shadow-[0_18px_55px_rgba(0,0,0,0.10)] md:p-10">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#F3EFFF]">
             <CheckCircle2 size={44} className="text-[#7E4FF5]" />
           </div>
 
           <h1 className="mt-6 text-3xl font-black tracking-tight text-gray-900 md:text-5xl">
-            Trip package booked successfully
+            Trip package booked
           </h1>
 
-          <p className="mx-auto mt-3 max-w-2xl text-gray-500">
-            Your trip package has been confirmed. You&apos;ll receive your
-            itinerary, pickup details, hotel confirmation and travel
-            instructions before your departure.
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-500 md:text-base">
+            Your booking is confirmed. We&apos;ll share itinerary, pickup,
+            hotel and travel instructions before your departure.
           </p>
 
           <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-[28px] border border-gray-200 text-left">
-            <div className="grid gap-0 md:grid-cols-[260px_1fr]">
+            <div className="grid md:grid-cols-[260px_1fr]">
               <img
                 src={image}
                 alt={experience?.title || "Trip Package"}
@@ -59,7 +67,7 @@ export default function ExperienceBookingSuccess() {
               />
 
               <div className="p-6">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">
                   Booking #{bookingId || "Confirmed"}
                 </p>
 
@@ -67,16 +75,22 @@ export default function ExperienceBookingSuccess() {
                   {experience?.title || "Dovail Stay Trip Package"}
                 </h2>
 
-                <p className="mt-3 flex items-center gap-2 text-gray-500">
+                <p className="mt-3 flex items-center gap-2 text-sm text-gray-500">
                   <MapPin size={17} />
-                  {experience?.location || experience?.city || "Location"}
+                  {experience?.location || experience?.city || "Destination"}
                 </p>
+
+                {departureId && (
+                  <p className="mt-2 text-xs font-black text-[#7E4FF5]">
+                    Departure ID #{departureId}
+                  </p>
+                )}
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <InfoBox
                     icon={<CalendarDays size={18} />}
-                    label="Date"
-                    value={selectedDate || "Selected date"}
+                    label="Departure"
+                    value={formatDisplayDate(departureDate)}
                   />
 
                   <InfoBox
@@ -101,18 +115,15 @@ export default function ExperienceBookingSuccess() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-[#E8E0FF] bg-[#F7F5FF] p-6 text-left">
+          <div className="mx-auto mt-8 max-w-3xl rounded-3xl border border-[#E8E0FF] bg-[#F7F5FF] p-6 text-left">
             <h3 className="text-lg font-black text-gray-900">What&apos;s next?</h3>
 
-            <ul className="mt-4 space-y-3 text-sm text-gray-600">
-              <li>✓ Host confirmation will be sent shortly.</li>
-              <li>✓ Pickup instructions will be shared before departure.</li>
-              <li>
-                ✓ Hotel and itinerary details will appear in your package
-                bookings.
-              </li>
-              <li>✓ Contact Dovail Stay support anytime if you need help.</li>
-            </ul>
+            <div className="mt-4 grid gap-3 text-sm leading-6 text-gray-600">
+              <p>✓ Host confirmation will be sent shortly.</p>
+              <p>✓ Pickup instructions will be shared before departure.</p>
+              <p>✓ Hotel and itinerary details will appear in your package bookings.</p>
+              <p>✓ Contact Dovail Stay support anytime if you need help.</p>
+            </div>
           </div>
 
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -129,10 +140,10 @@ export default function ExperienceBookingSuccess() {
               style={{ backgroundColor: BRAND }}
             >
               <Home size={18} />
-              View my package bookings
+              View my bookings
             </button>
           </div>
-        </div>
+        </section>
       </main>
 
       <Footer />
@@ -152,4 +163,18 @@ function InfoBox({ icon, label, value }) {
       <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
     </div>
   );
+}
+
+function formatDisplayDate(value) {
+  if (!value) return "Selected date";
+
+  try {
+    return new Date(value).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return value;
+  }
 }

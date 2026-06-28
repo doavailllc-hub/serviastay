@@ -62,6 +62,9 @@ import ExperienceCheckout from "./pages/ExperienceCheckout";
 import ExperienceBookingSuccess from "./pages/ExperienceBookingSuccess";
 import MyExperienceBookings from "./pages/MyExperienceBookings";
 import AddTripPackage from "./pages/AddTripPackage";
+import HostTripPackages from "./pages/HostTripPackages";
+import HostPackageDepartures from "./pages/HostPackageDepartures";
+
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -108,8 +111,8 @@ export default function App() {
       <Route path="/experiences" element={<Experience />} />
       <Route path="/services" element={<Services />} />
       <Route path="/help" element={<HelpCenter />} />
-
-
+<Route path="/host-trip-packages" element={<HostTripPackages />} />
+<Route path="/edit-trip-package/:id" element={<EditTripPackage />} />
 
       {/* ========= PROTECTED ROUTES ========= */}
 
@@ -121,7 +124,10 @@ export default function App() {
           </ProtectedPage>
         }
       />
-
+<Route
+  path="/host-trip-packages/:id/departures"
+  element={<HostPackageDepartures />}
+/>
       <Route
         path="/wishlist"
         element={
