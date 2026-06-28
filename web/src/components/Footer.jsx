@@ -1,26 +1,21 @@
 import { Link } from "react-router-dom";
-import { Globe, Mail, Phone, MapPin } from "lucide-react";
+
+const BRAND = "#3b71e6";
 
 export default function Footer() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
-        <div className="grid gap-10 md:grid-cols-4">
+      <div className="mx-auto max-w-7xl px-4 py-10 md:px-8">
+        <div className="grid gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <h2 className="text-2xl font-black text-[#3b71e6]">
+            <h2 className="text-lg font-semibold tracking-tight text-gray-950">
               Dovail Stay
             </h2>
 
-            <p className="mt-4 text-sm leading-6 text-gray-500">
-              Book unique stays, manage trips, host properties, and travel
-              confidently with secure reservations.
+            <p className="mt-3 max-w-sm text-sm leading-6 text-gray-500">
+              Book stays, manage trips and host properties with a simple secure
+              travel experience.
             </p>
-
-            <div className="mt-5 flex gap-3">
-              <SocialIcon label="F" />
-              <SocialIcon label="I" />
-              <SocialIcon label="X" />
-            </div>
           </div>
 
           <FooterColumn
@@ -28,9 +23,8 @@ export default function Footer() {
             links={[
               ["Home", "/home"],
               ["Experiences", "/experiences"],
-              ["Services", "/services"],
-              ["Recently viewed", "/recently-viewed"],
               ["Wishlist", "/wishlist"],
+              ["Recently viewed", "/recently-viewed"],
             ]}
           />
 
@@ -40,60 +34,29 @@ export default function Footer() {
               ["Trips", "/trips"],
               ["Messages", "/messages"],
               ["Payments", "/payments"],
-              ["Refunds", "/refunds"],
               ["Verification", "/verification"],
             ]}
           />
 
-          <div>
-            <h3 className="font-bold text-gray-900">Contact</h3>
-
-            <div className="mt-4 space-y-3 text-sm text-gray-500">
-              <p className="flex items-center gap-2">
-                <Mail size={16} />
-                support@dovail.com
-              </p>
-
-              <p className="flex items-center gap-2">
-                <Phone size={16} />
-                +91 00000 00000
-              </p>
-
-              <p className="flex items-center gap-2">
-                <MapPin size={16} />
-                India
-              </p>
-
-              <p className="flex items-center gap-2">
-                <Globe size={16} />
-                www.dovail.com
-              </p>
-            </div>
-          </div>
+          <FooterColumn
+            title="Support"
+            links={[
+              ["Help", "/help"],
+              ["Support", "/support"],
+              ["Privacy", "/privacy"],
+              ["Terms", "/terms"],
+            ]}
+          />
         </div>
 
-        <div className="mt-10 flex flex-col justify-between gap-4 border-t pt-6 text-sm text-gray-500 md:flex-row">
-          <p>© {new Date().getFullYear()} Dovail Stay. All rights reserved.</p>
+        <div className="mt-8 flex flex-col justify-between gap-4 border-t border-gray-200 pt-5 text-sm text-gray-500 md:flex-row md:items-center">
+          <p>© {new Date().getFullYear()} Dovail Stay</p>
 
-          <div className="flex flex-wrap gap-5">
-            <Link to="/help" className="hover:text-[#3b71e6]">
-              Help
-            </Link>
-
-            <Link to="/support" className="hover:text-[#3b71e6]">
-              Support
-            </Link>
-
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <span>support@dovail.com</span>
+            <span>India</span>
             <Link to="/account-settings" className="hover:text-[#3b71e6]">
               Settings
-            </Link>
-
-            <Link to="/privacy" className="hover:text-[#3b71e6]">
-              Privacy
-            </Link>
-
-            <Link to="/terms" className="hover:text-[#3b71e6]">
-              Terms
             </Link>
           </div>
         </div>
@@ -105,30 +68,20 @@ export default function Footer() {
 function FooterColumn({ title, links }) {
   return (
     <div>
-      <h3 className="font-bold text-gray-900">{title}</h3>
+      <h3 className="text-sm font-semibold text-gray-950">{title}</h3>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-2.5">
         {links.map(([label, to]) => (
           <Link
             key={to}
             to={to}
-            className="block text-sm text-gray-500 hover:text-[#3b71e6]"
+            className="block text-sm text-gray-500 transition hover:text-[#3b71e6]"
+            style={{ "--footer-brand": BRAND }}
           >
             {label}
           </Link>
         ))}
       </div>
     </div>
-  );
-}
-
-function SocialIcon({ label }) {
-  return (
-    <button
-      type="button"
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F1FF] text-sm font-black text-[#3b71e6] transition hover:bg-[#3b71e6] hover:text-white"
-    >
-      {label}
-    </button>
   );
 }
