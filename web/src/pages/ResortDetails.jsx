@@ -18,7 +18,6 @@ import {
   Plus,
   Share,
   ShieldCheck,
-  Sparkles,
   Star,
   Tv,
   Utensils,
@@ -115,7 +114,6 @@ function formatFeatureDate(dateString) {
 export default function ResortDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const guestDropdownRef = useRef(null);
 
   const today = useMemo(() => toLocalISO(), []);
@@ -230,7 +228,6 @@ export default function ResortDetails() {
   const subtotal = price * nights;
   const taxes = Math.round(subtotal * 0.12);
   const total = subtotal + taxes;
-
   const dateError = !checkin || !checkout || checkout <= checkin;
 
   const openLoginModal = () => setLoginModalOpen(true);
@@ -350,14 +347,17 @@ export default function ResortDetails() {
         <Navbar />
 
         <main className="mx-auto flex min-h-[65vh] max-w-7xl items-center justify-center px-4 md:px-8">
-          <div className="max-w-md rounded-[32px] border border-gray-200 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-bold">Stay not available</h1>
-            <p className="mt-3 text-gray-600">{error}</p>
+          <div className="max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Stay not available
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-gray-500">{error}</p>
 
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="mt-6 rounded-full px-7 py-3 text-sm font-bold text-white transition hover:bg-[#2f5fc2]"
+              className="mt-6 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
               style={{ backgroundColor: BRAND_COLOR }}
             >
               Back to home
@@ -376,7 +376,7 @@ export default function ResortDetails() {
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 md:px-8 lg:pt-8">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
         <PropertyHeader
           property={property}
           rating={rating}
@@ -390,69 +390,63 @@ export default function ResortDetails() {
           onShowAll={() => setGalleryOpen(true)}
         />
 
-        <section className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-16">
+        <section className="grid gap-10 py-10 lg:grid-cols-[1fr_360px]">
           <article className="min-w-0">
-            <section className="border-b border-gray-200 pb-8">
-              <h2 className="text-[22px] font-semibold tracking-tight md:text-2xl">
+            <Section>
+              <h2 className="text-xl font-semibold tracking-tight text-gray-950 md:text-2xl">
                 Entire place in {city}
               </h2>
 
-              <p className="mt-2 text-[15px] text-gray-600">
+              <p className="mt-2 text-sm text-gray-500">
                 {maxGuests} guests · {property.bedrooms || 1} bedroom
                 {Number(property.bedrooms || 1) > 1 ? "s" : ""} ·{" "}
                 {property.bathrooms || 1} bath
                 {Number(property.bathrooms || 1) > 1 ? "s" : ""}
               </p>
-            </section>
+            </Section>
 
-            <section className="space-y-6 border-b border-gray-200 py-8">
-              <Feature
-                icon={<Sparkles size={23} />}
-                title="Guest favorite"
-                text="A highly loved stay with reliable service, clean spaces, and a smooth check-in experience."
-              />
+            <Section>
+              <div className="space-y-6">
+                <Feature
+                  icon={<ShieldCheck size={21} />}
+                  title="Secure reservation"
+                  text="Your booking continues safely after login with protected reservation details."
+                />
 
-              <Feature
-                icon={<CalendarDays size={23} />}
-                title="Flexible date selection"
-                text={`Check-in starts from ${formatFeatureDate(today)}. Checkout is automatically set to the next day.`}
-              />
+                <Feature
+                  icon={<CalendarDays size={21} />}
+                  title="Flexible date selection"
+                  text={`Check-in starts from ${formatFeatureDate(today)}. Checkout is automatically set to the next day.`}
+                />
 
-              <Feature
-                icon={<ShieldCheck size={23} />}
-                title="Secure reservation"
-                text="Your reservation continues to checkout only after login, keeping booking details protected."
-              />
-            </section>
+                <Feature
+                  icon={<Star size={21} />}
+                  title="Guest favorite"
+                  text="A reliable stay with clean spaces, useful amenities and smooth check-in."
+                />
+              </div>
+            </Section>
 
-            <section className="border-b border-gray-200 py-9">
-              <h2 className="mb-4 text-[22px] font-semibold tracking-tight md:text-2xl">
-                About this place
-              </h2>
-
-              <p className="max-w-3xl whitespace-pre-line text-[16px] leading-8 text-gray-700">
+            <Section title="About this place">
+              <p className="max-w-3xl whitespace-pre-line text-sm leading-7 text-gray-600">
                 {property.description ||
                   "A comfortable, professionally managed stay with essential amenities and a smooth booking experience."}
               </p>
-            </section>
+            </Section>
 
             <AmenitiesSection />
 
             <HostSection property={property} onMessageHost={handleMessageHost} />
 
-            <section className="border-b border-gray-200 py-9">
-              <h2 className="mb-6 text-[22px] font-semibold tracking-tight md:text-2xl">
-                Where you'll be
-              </h2>
-
-              <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-gray-50">
+            <Section title="Where you'll be">
+              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
                 <GoogleMapSection
                   latitude={property.latitude}
                   longitude={property.longitude}
                   title={property.title}
                 />
               </div>
-            </section>
+            </Section>
 
             <ReviewsSection
               propertyId={property.id}
@@ -461,7 +455,7 @@ export default function ResortDetails() {
             />
           </article>
 
-          <aside className="lg:pt-1">
+          <aside className="lg:sticky lg:top-24 lg:self-start">
             <ReservationCard
               price={price}
               rating={rating}
@@ -522,20 +516,24 @@ function PropertyHeader({ property, rating, onShare, onSave }) {
     <header className="mb-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h1 className="max-w-4xl text-2xl font-semibold tracking-tight text-gray-950 md:text-[32px] md:leading-tight">
+          <p className="text-sm font-medium text-gray-500">Stay details</p>
+
+          <h1 className="mt-2 max-w-4xl text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
             {property.title}
           </h1>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-700">
-            <span className="inline-flex items-center gap-1 font-semibold text-gray-950">
-              <Star size={15} fill="currentColor" />
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+            <span className="inline-flex items-center gap-1 font-medium text-gray-950">
+              <Star size={14} fill="currentColor" />
               {rating}
             </span>
+
             <span className="text-gray-400">·</span>
-            <span className="font-semibold underline underline-offset-2">
-              Guest favorite
-            </span>
+
+            <span className="font-medium">Guest favorite</span>
+
             <span className="text-gray-400">·</span>
+
             <span className="inline-flex items-center gap-1">
               <MapPin size={15} />
               {property.location || "Location not specified"}
@@ -543,7 +541,7 @@ function PropertyHeader({ property, rating, onShare, onSave }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-sm font-semibold">
+        <div className="flex items-center gap-1 text-sm font-medium">
           <ActionButton icon={<Share size={16} />} label="Share" onClick={onShare} />
           <ActionButton icon={<Heart size={16} />} label="Save" onClick={onSave} />
         </div>
@@ -583,22 +581,22 @@ function ReservationCard({
   onMessageHost,
 }) {
   return (
-    <div className="sticky top-24 rounded-[32px] border border-gray-200 bg-white p-5 shadow-[0_14px_42px_rgba(0,0,0,0.12)] md:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
-          <span className="text-[22px] font-semibold text-gray-950">
+          <span className="text-2xl font-semibold text-gray-950">
             {formatINR(price)}
           </span>
-          <span className="text-gray-500"> night</span>
+          <span className="text-sm text-gray-500"> / night</span>
         </div>
 
-        <span className="inline-flex items-center gap-1 text-sm font-semibold">
-          <Star size={14} fill="currentColor" />
+        <span className="inline-flex items-center gap-1 text-sm font-medium">
+          <Star size={13} fill="currentColor" />
           {rating}
         </span>
       </div>
 
-      <div className="overflow-visible rounded-3xl border border-gray-300 bg-white">
+      <div className="overflow-visible rounded-xl border border-gray-200 bg-white">
         <AirbnbDatePicker
           checkin={checkin}
           checkout={checkout}
@@ -626,7 +624,7 @@ function ReservationCard({
       </div>
 
       {dateError && (
-        <p className="mt-3 text-sm font-semibold text-red-600">
+        <p className="mt-3 text-sm font-medium text-red-600">
           Checkout date must be after check-in.
         </p>
       )}
@@ -635,7 +633,7 @@ function ReservationCard({
         type="button"
         onClick={onReserve}
         disabled={dateError}
-        className="mt-5 h-14 w-full rounded-2xl bg-[#3b71e6] text-base font-bold text-white shadow-lg shadow-purple-100 transition-all hover:-translate-y-0.5 hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+        className="mt-5 h-12 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
       >
         Reserve
       </button>
@@ -643,18 +641,18 @@ function ReservationCard({
       <button
         type="button"
         onClick={onMessageHost}
-        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 font-semibold transition hover:bg-gray-50"
+        className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-medium transition hover:bg-gray-50"
       >
-        <MessageCircle size={18} />
-        Message Host
+        <MessageCircle size={17} />
+        Message host
       </button>
 
-      <p className="mt-4 text-center text-sm text-gray-500">
+      <p className="mt-3 text-center text-sm text-gray-500">
         You won’t be charged yet
       </p>
 
-      <div className="mt-6 space-y-3 text-sm">
-        <h3 className="font-semibold text-gray-950">Price details</h3>
+      <div className="mt-5 space-y-3 border-t border-gray-200 pt-5 text-sm">
+        <h3 className="font-medium text-gray-950">Price details</h3>
 
         <PriceRow
           label={`${formatINR(price)} × ${nights} ${
@@ -665,7 +663,7 @@ function ReservationCard({
 
         <PriceRow label="Taxes" value={formatINR(taxes)} />
 
-        <div className="flex items-center justify-between border-t border-gray-200 pt-4 text-base font-bold">
+        <div className="flex items-center justify-between border-t border-gray-200 pt-4 font-semibold">
           <span>Total before payment</span>
           <span>{formatINR(total)}</span>
         </div>
@@ -772,49 +770,34 @@ function AirbnbDatePicker({
 
   return (
     <div ref={pickerRef} className="relative">
-      <div className="grid grid-cols-2 border-b border-gray-300">
-        <button
-          type="button"
+      <div className="grid grid-cols-2 border-b border-gray-200">
+        <DateButton
+          label="Check-in"
+          value={formatCalendarInput(checkin)}
+          active={selecting === "checkin" && open}
           onClick={() => {
             setOpen(true);
             setSelecting("checkin");
           }}
-          className={`px-4 py-3 text-left transition hover:bg-gray-50 ${
-            selecting === "checkin" && open ? "rounded-2xl ring-2 ring-gray-950" : ""
-          }`}
-        >
-          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
-            Check-in
-          </span>
-          <span className="mt-1 block text-sm font-semibold">
-            {formatCalendarInput(checkin)}
-          </span>
-        </button>
+        />
 
-        <button
-          type="button"
+        <DateButton
+          label="Checkout"
+          value={formatCalendarInput(checkout)}
+          active={selecting === "checkout" && open}
           onClick={() => {
             setOpen(true);
             setSelecting("checkout");
           }}
-          className={`border-l border-gray-300 px-4 py-3 text-left transition hover:bg-gray-50 ${
-            selecting === "checkout" && open ? "rounded-2xl ring-2 ring-gray-950" : ""
-          }`}
-        >
-          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
-            Checkout
-          </span>
-          <span className="mt-1 block text-sm font-semibold">
-            {formatCalendarInput(checkout)}
-          </span>
-        </button>
+          bordered
+        />
       </div>
 
       {open && (
-        <div className="absolute left-1/2 top-[68px] z-[999] w-[95vw] max-w-[720px] -translate-x-1/2 rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_22px_60px_rgba(0,0,0,0.22)] md:p-7">
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="absolute left-1/2 top-[66px] z-[999] w-[95vw] max-w-[700px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-5 shadow-lg md:p-6">
+          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h3 className="text-2xl font-bold">
+              <h3 className="text-xl font-semibold">
                 {nights} {nights === 1 ? "night" : "nights"}
               </h3>
               <p className="mt-1 text-sm text-gray-500">
@@ -825,14 +808,14 @@ function AirbnbDatePicker({
 
             <div className="flex gap-2">
               <CalendarTopBox
-                label="CHECK-IN"
+                label="Check-in"
                 value={formatShortInput(checkin)}
                 active={selecting === "checkin"}
                 onClick={() => setSelecting("checkin")}
               />
 
               <CalendarTopBox
-                label="CHECKOUT"
+                label="Checkout"
                 value={formatShortInput(checkout)}
                 active={selecting === "checkout"}
                 onClick={() => setSelecting("checkout")}
@@ -840,7 +823,7 @@ function AirbnbDatePicker({
             </div>
           </div>
 
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() =>
@@ -849,9 +832,8 @@ function AirbnbDatePicker({
                 )
               }
               className="rounded-full p-2 transition hover:bg-gray-100"
-              aria-label="Previous month"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={19} />
             </button>
 
             <button
@@ -862,13 +844,12 @@ function AirbnbDatePicker({
                 )
               }
               className="rounded-full p-2 transition hover:bg-gray-100"
-              aria-label="Next month"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={19} />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <CalendarMonth
               date={viewDate}
               checkin={checkin}
@@ -896,16 +877,16 @@ function AirbnbDatePicker({
             </div>
           </div>
 
-          <div className="mt-7 flex items-center justify-between">
+          <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
             <button type="button" className="rounded-lg p-2 hover:bg-gray-100">
-              <Keyboard size={20} />
+              <Keyboard size={19} />
             </button>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={clearDates}
-                className="text-sm font-semibold underline"
+                className="text-sm font-medium text-[#3b71e6] hover:underline"
               >
                 Clear dates
               </button>
@@ -913,7 +894,7 @@ function AirbnbDatePicker({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-xl bg-gray-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-black"
+                className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
               >
                 Close
               </button>
@@ -925,16 +906,39 @@ function AirbnbDatePicker({
   );
 }
 
+function DateButton({ label, value, active, onClick, bordered }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-3 text-left transition hover:bg-gray-50 ${
+        bordered ? "border-l border-gray-200" : ""
+      } ${active ? "bg-[#eef4ff]" : ""}`}
+    >
+      <span className="block text-[11px] font-medium uppercase tracking-wide text-gray-500">
+        {label}
+      </span>
+
+      <span className="mt-1 block text-sm font-medium text-gray-950">
+        {value}
+      </span>
+    </button>
+  );
+}
+
 function CalendarTopBox({ label, value, active, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-32 rounded-2xl border px-4 py-3 text-left transition md:w-36 ${
-        active ? "border-gray-950 ring-1 ring-gray-950" : "border-gray-300"
+      className={`w-32 rounded-xl border px-3 py-2.5 text-left transition md:w-36 ${
+        active ? "border-[#3b71e6] bg-[#eef4ff]" : "border-gray-200"
       }`}
     >
-      <span className="block text-[10px] font-black uppercase">{label}</span>
+      <span className="block text-[11px] font-medium uppercase text-gray-500">
+        {label}
+      </span>
+
       <span className="mt-1 block text-sm">{value}</span>
     </button>
   );
@@ -973,9 +977,11 @@ function CalendarMonth({
 
   return (
     <div>
-      <h4 className="mb-5 text-center font-bold">{monthName}</h4>
+      <h4 className="mb-4 text-center font-semibold text-gray-950">
+        {monthName}
+      </h4>
 
-      <div className="mb-3 grid grid-cols-7 text-center text-xs font-semibold text-gray-500">
+      <div className="mb-2 grid grid-cols-7 text-center text-xs font-medium text-gray-500">
         {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
           <div key={`${day}-${index}`}>{day}</div>
         ))}
@@ -983,7 +989,7 @@ function CalendarMonth({
 
       <div className="grid grid-cols-7 gap-y-1 text-center">
         {blanks.map((_, index) => (
-          <div key={`blank-${index}`} className="h-11" />
+          <div key={`blank-${index}`} className="h-10" />
         ))}
 
         {days.map((day) => {
@@ -1003,18 +1009,20 @@ function CalendarMonth({
               type="button"
               disabled={disabled}
               onClick={() => onDateClick(currentDate)}
-              className={`relative h-11 text-sm font-semibold transition ${
+              className={`relative h-10 text-sm font-medium transition ${
                 disabled
                   ? "cursor-not-allowed text-gray-300"
                   : "hover:bg-gray-100"
-              } ${inRange && !booked ? "bg-gray-100" : ""}`}
+              } ${inRange && !booked ? "bg-[#eef4ff]" : ""}`}
               title={booked ? "Unavailable" : ""}
             >
               <span
-                className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full ${
-                  isStart || isEnd ? "bg-gray-950 text-white" : ""
+                className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full ${
+                  isStart || isEnd ? "bg-[#3b71e6] text-white" : ""
                 } ${
-                  isToday && !isStart && !isEnd ? "border border-gray-950" : ""
+                  isToday && !isStart && !isEnd
+                    ? "border border-[#3b71e6]"
+                    : ""
                 } ${booked ? "line-through" : ""}`}
               >
                 {day}
@@ -1061,28 +1069,32 @@ function GuestDropdown({
     .join(", ");
 
   return (
-    <div ref={refEl} className="relative border-t border-gray-300">
+    <div ref={refEl} className="relative border-t border-gray-200">
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
         className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
       >
         <div>
-          <span className="block text-[10px] font-black uppercase tracking-[0.08em]">
+          <span className="block text-[11px] font-medium uppercase tracking-wide text-gray-500">
             Guests
           </span>
-          <span className="mt-1 block text-sm font-semibold">{summary}</span>
+
+          <span className="mt-1 block text-sm font-medium text-gray-950">
+            {summary}
+          </span>
+
           <p className="mt-1 text-xs text-gray-500">Maximum {maxGuests} guests</p>
         </div>
 
         <ChevronDown
-          size={20}
+          size={19}
           className={`transition ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[86px] z-50 rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.20)]">
+        <div className="absolute left-0 right-0 top-[84px] z-50 rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
           <GuestRow
             title="Adults"
             subtitle="Ages 13 or above"
@@ -1123,7 +1135,7 @@ function GuestDropdown({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="mt-5 w-full rounded-2xl bg-[#3b71e6] py-3 font-bold text-white transition hover:bg-[#2f5fc2]"
+            className="mt-5 w-full rounded-xl bg-[#3b71e6] py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
             Done
           </button>
@@ -1140,46 +1152,45 @@ function GuestRow({ title, subtitle, value, min, max, onChange, last }) {
   return (
     <div
       className={`flex items-center justify-between py-4 ${
-        last ? "" : "border-b border-gray-200"
+        last ? "" : "border-b border-gray-100"
       }`}
     >
       <div>
-        <p className="font-semibold text-gray-950">{title}</p>
+        <p className="text-sm font-medium text-gray-950">{title}</p>
         <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
       </div>
 
       <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={decrease}
-          disabled={value <= min}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          <Minus size={16} />
-        </button>
+        <CounterButton onClick={decrease} disabled={value <= min}>
+          <Minus size={14} />
+        </CounterButton>
 
-        <span className="w-5 text-center font-semibold">{value}</span>
+        <span className="w-5 text-center text-sm font-medium">{value}</span>
 
-        <button
-          type="button"
-          onClick={increase}
-          disabled={value >= max}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          <Plus size={16} />
-        </button>
+        <CounterButton onClick={increase} disabled={value >= max}>
+          <Plus size={14} />
+        </CounterButton>
       </div>
     </div>
   );
 }
 
+function CounterButton({ children, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+    >
+      {children}
+    </button>
+  );
+}
+
 function AmenitiesSection() {
   return (
-    <section className="border-b border-gray-200 py-9">
-      <h2 className="mb-6 text-[22px] font-semibold tracking-tight md:text-2xl">
-        What this place offers
-      </h2>
-
+    <Section title="What this place offers">
       <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
         <Amenity icon={<Wifi />} title="Wifi" text="High speed internet" />
         <Amenity icon={<Car />} title="Free parking" text="On premises" />
@@ -1188,32 +1199,28 @@ function AmenitiesSection() {
         <Amenity icon={<AirVent />} title="Air conditioning" text="Comfort cooling" />
         <Amenity icon={<Tv />} title="TV" text="Entertainment ready" />
       </div>
-    </section>
+    </Section>
   );
 }
 
 function HostSection({ property, onMessageHost }) {
   return (
-    <section className="border-b border-gray-200 py-9">
-      <h2 className="mb-6 text-[22px] font-semibold tracking-tight md:text-2xl">
-        Hosted by {property?.host_name || "Dovail Stay"}
-      </h2>
-
-      <div className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm">
+    <Section title={`Hosted by ${property?.host_name || "Dovail Stay"}`}>
+      <div className="rounded-2xl border border-gray-200 bg-white p-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f0ff] text-2xl font-black text-[#3b71e6]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
               {(property?.host_name || "D").charAt(0).toUpperCase()}
             </div>
 
             <div>
-              <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold">
+              <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
                 {property?.host_name || "Dovail Host"}
 
                 {property?.host_kyc_status === "Approved" && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-[#F0FDF4] px-2.5 py-1 text-xs font-semibold text-green-700">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                     <ShieldCheck size={13} />
-                    Verified Host
+                    Verified
                   </span>
                 )}
               </h3>
@@ -1233,19 +1240,19 @@ function HostSection({ property, onMessageHost }) {
           <button
             type="button"
             onClick={onMessageHost}
-            className="rounded-2xl border border-gray-300 px-5 py-3 text-sm font-semibold transition hover:bg-gray-50"
+            className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium transition hover:bg-gray-50"
           >
-            Message Host
+            Message host
           </button>
         </div>
 
-        <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
+        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
           <HostStat label="Response rate" value="100%" />
           <HostStat label="Response time" value="1 hour" />
           <HostStat label="Support" value="24/7" />
         </div>
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -1304,17 +1311,15 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
   };
 
   return (
-    <section className="py-10">
-      <h2 className="mb-8 text-[22px] font-semibold tracking-tight md:text-2xl">
-        <span className="inline-flex items-center gap-2">
-          <Star size={22} fill="currentColor" />
-          {avgRating} · {reviews.length} reviews
-        </span>
+    <section className="py-8">
+      <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold tracking-tight text-gray-950 md:text-2xl">
+        <Star size={20} fill="currentColor" />
+        {avgRating} · {reviews.length} reviews
       </h2>
 
       {!user ? (
-        <div className="mb-10 rounded-[32px] border border-gray-200 bg-gray-50 p-6">
-          <h3 className="text-lg font-bold">Want to write a review?</h3>
+        <div className="mb-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+          <h3 className="text-base font-semibold">Want to write a review?</h3>
           <p className="mt-2 text-sm text-gray-500">
             Please log in to review this stay.
           </p>
@@ -1322,14 +1327,14 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
           <button
             type="button"
             onClick={() => (window.location.href = "/login")}
-            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#2f5fc2]"
+            className="mt-4 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
             Log in to review
           </button>
         </div>
       ) : (
-        <div className="mb-10 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-bold">Write a review</h3>
+        <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-5">
+          <h3 className="text-base font-semibold">Write a review</h3>
 
           <div className="mt-4 flex gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -1340,7 +1345,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
                 className="text-[#3b71e6]"
               >
                 <Star
-                  size={26}
+                  size={24}
                   fill={star <= rating ? "currentColor" : "none"}
                 />
               </button>
@@ -1352,14 +1357,14 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
             onChange={(e) => setReview(e.target.value)}
             rows={4}
             placeholder="Share your experience..."
-            className="mt-4 w-full resize-none rounded-2xl border border-gray-300 p-4 outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/20"
+            className="mt-4 w-full resize-none rounded-xl border border-gray-200 p-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
           />
 
           <button
             type="button"
             onClick={submitReview}
             disabled={submitting}
-            className="mt-4 rounded-2xl bg-[#3b71e6] px-6 py-3 font-bold text-white transition hover:bg-[#2f5fc2] disabled:opacity-60"
+            className="mt-4 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:opacity-60"
           >
             {submitting ? "Submitting..." : "Submit review"}
           </button>
@@ -1367,23 +1372,26 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
       )}
 
       {reviews.length === 0 ? (
-        <p className="text-gray-500">No reviews yet.</p>
+        <p className="text-sm text-gray-500">No reviews yet.</p>
       ) : (
         <div className="grid gap-8 md:grid-cols-2">
           {reviews.map((item) => (
             <div key={item.id} className="border-b border-gray-200 pb-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-sm font-bold">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold">
                   {(item.guest_name || "G").charAt(0).toUpperCase()}
                 </div>
 
                 <div>
-                  <p className="font-bold">{item.guest_name || "Guest"}</p>
+                  <p className="text-sm font-medium">
+                    {item.guest_name || "Guest"}
+                  </p>
+
                   <div className="mt-1 flex text-[#3b71e6]">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
-                        size={15}
+                        size={14}
                         fill={
                           star <= Number(item.rating) ? "currentColor" : "none"
                         }
@@ -1393,7 +1401,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
                 </div>
               </div>
 
-              <p className="mt-4 leading-7 text-gray-700">
+              <p className="mt-4 text-sm leading-7 text-gray-600">
                 {item.review || "No written review."}
               </p>
             </div>
@@ -1408,8 +1416,8 @@ function PropertyGallery({ images, title, onShowAll }) {
   const photos = images.length ? images : [FALLBACK_IMAGE];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] bg-gray-100">
-      <div className="grid h-[320px] grid-cols-1 gap-2 md:h-[430px] md:grid-cols-4">
+    <div className="relative overflow-hidden rounded-2xl bg-gray-100">
+      <div className="grid h-[300px] grid-cols-1 gap-2 md:h-[420px] md:grid-cols-4">
         <GalleryImage
           src={photos[0]}
           alt={title}
@@ -1437,9 +1445,9 @@ function PropertyGallery({ images, title, onShowAll }) {
       <button
         type="button"
         onClick={onShowAll}
-        className="absolute bottom-4 right-4 flex items-center gap-2 rounded-2xl border border-gray-900 bg-white px-4 py-2.5 text-sm font-bold shadow-lg transition hover:bg-gray-100 md:bottom-5 md:right-5"
+        className="absolute bottom-4 right-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:bg-gray-50"
       >
-        <Images size={18} />
+        <Images size={17} />
         Show all photos
       </button>
     </div>
@@ -1456,7 +1464,7 @@ function GalleryImage({ src, alt, onClick, className = "" }) {
       <img
         src={src}
         alt={alt}
-        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] group-hover:brightness-90"
+        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
         loading="lazy"
         onError={(event) => {
           event.currentTarget.src = FALLBACK_IMAGE;
@@ -1485,32 +1493,33 @@ function GalleryModal({ images, title, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[99999] overflow-y-auto bg-white">
-      <div className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-4 md:px-6">
+      <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 md:px-6">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-3 transition hover:bg-gray-100"
-          aria-label="Close gallery"
+          className="rounded-full p-2 transition hover:bg-gray-100"
         >
-          <X size={22} />
+          <X size={21} />
         </button>
 
-        <h2 className="truncate px-4 text-center text-lg font-bold">{title}</h2>
+        <h2 className="truncate px-4 text-center text-base font-semibold">
+          {title}
+        </h2>
 
         <div className="w-10" />
       </div>
 
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-6">
         <div className="grid gap-4 md:grid-cols-2">
           {images.map((src, index) => (
             <img
               key={`${src}-${index}`}
               src={src}
               alt={`${title} ${index + 1}`}
-              className={`w-full rounded-3xl object-cover ${
+              className={`w-full rounded-2xl object-cover ${
                 index === 0
-                  ? "max-h-[650px] md:col-span-2"
-                  : "h-[320px] md:h-[360px]"
+                  ? "max-h-[620px] md:col-span-2"
+                  : "h-[300px] md:h-[340px]"
               }`}
               loading="lazy"
               onError={(event) => {
@@ -1526,24 +1535,25 @@ function GalleryModal({ images, title, onClose }) {
 
 function LoginRequiredModal({ onClose, onLogin, onSignup }) {
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-[32px] bg-white p-6 shadow-2xl">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <button
           type="button"
           onClick={onClose}
           className="absolute right-5 top-5 rounded-full p-2 transition hover:bg-gray-100"
-          aria-label="Close login modal"
         >
           <X size={20} />
         </button>
 
-        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4f0ff] text-[#3b71e6]">
-          <Lock size={26} />
+        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef4ff] text-[#3b71e6]">
+          <Lock size={24} />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-950">Log in to continue</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-gray-950">
+          Log in to continue
+        </h2>
 
-        <p className="mt-3 leading-6 text-gray-500">
+        <p className="mt-3 text-sm leading-6 text-gray-500">
           Please log in or create an account to reserve this stay, message the
           host, or save it to your wishlist.
         </p>
@@ -1552,7 +1562,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onLogin}
-            className="h-12 w-full rounded-2xl bg-[#3b71e6] font-semibold text-white transition hover:bg-[#2f5fc2]"
+            className="h-11 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
             Continue with email
           </button>
@@ -1560,7 +1570,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onSignup}
-            className="h-12 w-full rounded-2xl border border-gray-300 font-semibold transition hover:bg-gray-50"
+            className="h-11 w-full rounded-xl border border-gray-200 text-sm font-medium transition hover:bg-gray-50"
           >
             Create account
           </button>
@@ -1568,7 +1578,7 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
           <button
             type="button"
             onClick={onClose}
-            className="h-12 w-full rounded-2xl text-gray-500 transition hover:bg-gray-50"
+            className="h-11 w-full rounded-xl text-sm text-gray-500 transition hover:bg-gray-50"
           >
             Continue browsing
           </button>
@@ -1578,13 +1588,28 @@ function LoginRequiredModal({ onClose, onLogin, onSignup }) {
   );
 }
 
+function Section({ title, children }) {
+  return (
+    <section className="border-b border-gray-200 py-8">
+      {title && (
+        <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950 md:text-2xl">
+          {title}
+        </h2>
+      )}
+
+      {children}
+    </section>
+  );
+}
+
 function Feature({ icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <div className="mt-0.5 text-gray-950">{icon}</div>
+      <div className="mt-0.5 text-[#3b71e6]">{icon}</div>
+
       <div>
-        <h4 className="font-semibold text-gray-950">{title}</h4>
-        <p className="mt-1 text-sm leading-6 text-gray-600">{text}</p>
+        <h4 className="text-sm font-medium text-gray-950">{title}</h4>
+        <p className="mt-1 text-sm leading-6 text-gray-500">{text}</p>
       </div>
     </div>
   );
@@ -1593,12 +1618,12 @@ function Feature({ icon, title, text }) {
 function Amenity({ icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <span className="mt-1 flex h-6 w-6 items-center justify-center text-gray-950">
+      <span className="mt-1 flex h-6 w-6 items-center justify-center text-gray-700">
         {icon}
       </span>
 
       <div>
-        <p className="font-semibold text-gray-950">{title}</p>
+        <p className="text-sm font-medium text-gray-950">{title}</p>
         <p className="mt-1 text-sm text-gray-500">{text}</p>
       </div>
     </div>
@@ -1620,17 +1645,17 @@ function ActionButton({ icon, label, onClick }) {
 
 function PriceRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-gray-700 underline underline-offset-2">{label}</span>
-      <span className="font-medium">{value}</span>
+    <div className="flex items-center justify-between gap-4 text-gray-600">
+      <span>{label}</span>
+      <span className="font-medium text-gray-950">{value}</span>
     </div>
   );
 }
 
 function HostStat({ label, value }) {
   return (
-    <div className="rounded-2xl bg-gray-50 p-4">
-      <p className="font-bold text-gray-950">{value}</p>
+    <div className="rounded-xl bg-gray-50 p-4">
+      <p className="text-sm font-semibold text-gray-950">{value}</p>
       <p className="mt-1 text-xs text-gray-500">{label}</p>
     </div>
   );
@@ -1641,18 +1666,18 @@ function ReservePageSkeleton() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
         <div className="h-8 w-2/3 max-w-xl animate-pulse rounded-xl bg-gray-100" />
-        <div className="mt-5 h-[320px] animate-pulse rounded-[28px] bg-gray-100 md:h-[430px]" />
+        <div className="mt-5 h-[300px] animate-pulse rounded-2xl bg-gray-100 md:h-[420px]" />
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_390px]">
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_360px]">
           <div className="space-y-5">
             <div className="h-8 w-80 animate-pulse rounded-xl bg-gray-100" />
             <div className="h-24 animate-pulse rounded-2xl bg-gray-100" />
             <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
           </div>
 
-          <div className="h-96 animate-pulse rounded-[28px] bg-gray-100" />
+          <div className="h-96 animate-pulse rounded-2xl bg-gray-100" />
         </div>
       </main>
     </div>
