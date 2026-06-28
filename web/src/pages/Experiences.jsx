@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   ChevronDown,
   Heart,
+  Hotel,
   Loader2,
   MapPin,
+  Route,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
   Star,
   Users,
+  Utensils,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -19,31 +24,33 @@ const BRAND = "#7E4FF5";
 
 const categories = [
   "All",
-  "Desert",
-  "Food",
-  "Cooking",
-  "Culture",
-  "City",
-  "Boat",
+  "Family",
+  "Honeymoon",
   "Adventure",
+  "Weekend",
+  "Luxury",
+  "Group",
+  "Budget",
 ];
 
 export default function Experiences() {
+  const navigate = useNavigate();
+
   const [where, setWhere] = useState("");
   const [searchText, setSearchText] = useState("");
   const [date, setDate] = useState("");
   const [guests, setGuests] = useState(1);
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("recommended");
-  const [experiences, setExperiences] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    loadExperiences();
+    loadPackages();
   }, [searchText, activeCategory]);
 
-  const loadExperiences = async () => {
+  const loadPackages = async () => {
     try {
       setLoading(true);
       setError("");
@@ -55,17 +62,17 @@ export default function Experiences() {
         },
       });
 
-      setExperiences(Array.isArray(res.data) ? res.data : []);
+      setPackages(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error("Experiences load failed:", err);
-      setError("Unable to load experiences. Please try again.");
+      console.error("Trip packages load failed:", err);
+      setError("Unable to load trip packages. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const sortedExperiences = useMemo(() => {
-    const data = [...experiences];
+  const sortedPackages = useMemo(() => {
+    const data = [...packages];
 
     if (sortBy === "rating") {
       data.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
@@ -79,8 +86,14 @@ export default function Experiences() {
       data.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
     }
 
+    if (sortBy === "duration") {
+      data.sort(
+        (a, b) => Number(a.package_days || 1) - Number(b.package_days || 1)
+      );
+    }
+
     return data;
-  }, [experiences, sortBy]);
+  }, [packages, sortBy]);
 
   const handleSearch = () => {
     setSearchText(where.trim());
@@ -101,29 +114,41 @@ export default function Experiences() {
 
       <main className="pt-24">
         <section className="border-b border-gray-200 bg-white">
-          <div className="mx-auto max-w-7xl px-4 pb-5 md:px-8">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="mx-auto max-w-7xl px-4 pb-6 md:px-8">
+            <div className="grid gap-8 lg:grid-cols-[1fr_560px] lg:items-end">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-                  Experiences
-                </h1>
-                <p className="mt-2 text-sm text-gray-500">
-                  Book tours, food, culture and local activities.
+                <p className="text-sm font-bold uppercase tracking-[0.22em] text-gray-400">
+                  Dovail Stay Packages
                 </p>
+
+                <h1 className="mt-2 text-3xl font-black tracking-tight md:text-5xl">
+                  Trip Packages
+                </h1>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500 md:text-base">
+                  Book complete travel packages with stays, transport, guides,
+                  pickup, activities and curated day-wise itineraries.
+                </p>
+
+                <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold text-gray-600">
+                  <TrustPill icon={<Hotel size={16} />} text="Hotel included" />
+                  <TrustPill icon={<Route size={16} />} text="Transport" />
+                  <TrustPill icon={<ShieldCheck size={16} />} text="Verified packages" />
+                </div>
               </div>
 
-              <div className="grid w-full max-w-3xl overflow-hidden rounded-full border border-gray-200 bg-white md:grid-cols-[1.3fr_1fr_0.8fr_auto]">
-                <SearchBox label="Where" icon={<Search size={16} />}>
+              <div className="grid w-full overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-[0_14px_40px_rgba(0,0,0,0.10)] md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
+                <SearchBox label="Destination" icon={<Search size={16} />}>
                   <input
                     value={where}
                     onChange={(e) => setWhere(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    placeholder="Search"
+                    placeholder="Where to?"
                     className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
                   />
                 </SearchBox>
 
-                <SearchBox label="Date" icon={<CalendarDays size={16} />}>
+                <SearchBox label="Travel date" icon={<CalendarDays size={16} />}>
                   <input
                     type="date"
                     value={date}
@@ -132,15 +157,15 @@ export default function Experiences() {
                   />
                 </SearchBox>
 
-                <SearchBox label="Guests" icon={<Users size={16} />}>
+                <SearchBox label="Travelers" icon={<Users size={16} />}>
                   <select
                     value={guests}
                     onChange={(e) => setGuests(Number(e.target.value))}
                     className="w-full cursor-pointer bg-transparent text-sm outline-none"
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                       <option key={n} value={n}>
-                        {n} guest{n > 1 ? "s" : ""}
+                        {n} traveler{n > 1 ? "s" : ""}
                       </option>
                     ))}
                   </select>
@@ -148,7 +173,7 @@ export default function Experiences() {
 
                 <button
                   onClick={handleSearch}
-                  className="m-2 flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-white transition hover:bg-[#6F42EA]"
+                  className="m-2 flex h-12 items-center justify-center rounded-full px-6 text-sm font-bold text-white transition hover:scale-[1.02]"
                   style={{ backgroundColor: BRAND }}
                 >
                   Search
@@ -164,7 +189,7 @@ export default function Experiences() {
               <button
                 key={item}
                 onClick={() => setActiveCategory(item)}
-                className={`min-w-fit rounded-full border px-4 py-2 text-sm font-medium transition ${
+                className={`min-w-fit rounded-full border px-4 py-2 text-sm font-bold transition ${
                   activeCategory === item
                     ? "border-gray-950 bg-gray-950 text-white"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-950 hover:text-gray-950"
@@ -178,6 +203,7 @@ export default function Experiences() {
               <div className="hidden items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm text-gray-700 md:flex">
                 <span>Sort</span>
                 <ChevronDown size={14} />
+
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -187,10 +213,11 @@ export default function Experiences() {
                   <option value="rating">Highest rated</option>
                   <option value="priceLow">Lowest price</option>
                   <option value="priceHigh">Highest price</option>
+                  <option value="duration">Shortest duration</option>
                 </select>
               </div>
 
-              <button className="flex min-w-fit items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium transition hover:border-gray-950">
+              <button className="flex min-w-fit items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-bold transition hover:border-gray-950">
                 <SlidersHorizontal size={16} />
                 Filters
               </button>
@@ -198,23 +225,23 @@ export default function Experiences() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-7 md:px-8">
+        <section className="mx-auto max-w-7xl px-4 py-8 md:px-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-gray-950 md:text-2xl">
-                Popular experiences
+              <h2 className="text-xl font-black tracking-tight text-gray-950 md:text-2xl">
+                Popular trip packages
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
                 {loading
                   ? "Loading..."
-                  : `${sortedExperiences.length} experiences available`}
+                  : `${sortedPackages.length} packages available`}
               </p>
             </div>
 
             <button
               onClick={clearFilters}
-              className="text-sm font-medium text-gray-700 underline underline-offset-4"
+              className="text-sm font-bold text-gray-700 underline underline-offset-4"
             >
               Clear
             </button>
@@ -223,32 +250,36 @@ export default function Experiences() {
           {loading ? (
             <StateBox>
               <Loader2 className="animate-spin" size={22} />
-              <span className="text-sm font-medium">Loading experiences...</span>
+              <span className="text-sm font-semibold">Loading trip packages...</span>
             </StateBox>
           ) : error ? (
             <StateBox>
               <h3 className="text-base font-semibold text-red-600">{error}</h3>
               <button
-                onClick={loadExperiences}
-                className="mt-4 rounded-full px-5 py-2 text-sm font-semibold text-white"
+                onClick={loadPackages}
+                className="mt-4 rounded-full px-5 py-2 text-sm font-bold text-white"
                 style={{ backgroundColor: BRAND }}
               >
                 Try again
               </button>
             </StateBox>
-          ) : sortedExperiences.length === 0 ? (
+          ) : sortedPackages.length === 0 ? (
             <StateBox>
-              <h3 className="text-lg font-semibold text-gray-950">
-                No experiences found
+              <h3 className="text-lg font-black text-gray-950">
+                No trip packages found
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                Try changing destination or filters.
+                Try changing destination, date or filters.
               </p>
             </StateBox>
           ) : (
             <div className="grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {sortedExperiences.map((item) => (
-                <ExperienceCard key={item.id} item={item} />
+              {sortedPackages.map((item) => (
+                <PackageCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => navigate(`/experiences/${item.id}`)}
+                />
               ))}
             </div>
           )}
@@ -262,18 +293,20 @@ export default function Experiences() {
 
 function SearchBox({ label, icon, children }) {
   return (
-    <div className="flex min-h-[56px] items-center gap-3 border-b border-gray-100 px-4 py-2 md:border-b-0 md:border-r">
+    <div className="flex min-h-[62px] items-center gap-3 border-b border-gray-100 px-4 py-2 md:border-b-0 md:border-r">
       <div className="text-gray-400">{icon}</div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold text-gray-950">{label}</p>
+        <p className="text-[11px] font-black uppercase tracking-wide text-gray-950">
+          {label}
+        </p>
         <div className="mt-0.5">{children}</div>
       </div>
     </div>
   );
 }
 
-function ExperienceCard({ item }) {
+function PackageCard({ item, onClick }) {
   const [liked, setLiked] = useState(false);
 
   const image =
@@ -284,18 +317,30 @@ function ExperienceCard({ item }) {
 
   const price = Number(item.price || 0);
   const rating = Number(item.rating || 0);
+  const days = Number(item.package_days || 1);
+  const nights = Number(item.package_nights || Math.max(days - 1, 0));
+  const includes = String(item.includes || "Hotel, Transport, Guide")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 
   return (
-    <article className="group cursor-pointer">
+    <article onClick={onClick} className="group cursor-pointer">
       <div className="relative overflow-hidden rounded-2xl bg-gray-100">
         <img
           src={image}
-          alt={item.title || "Experience"}
+          alt={item.title || "Trip package"}
           loading="lazy"
           className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
         />
 
+        <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-black shadow-sm">
+          {item.package_type || item.tag || "Trip Package"}
+        </span>
+
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             setLiked((prev) => !prev);
@@ -312,11 +357,11 @@ function ExperienceCard({ item }) {
 
       <div className="pt-3">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-2 text-[15px] font-semibold leading-6 text-gray-950">
-            {item.title}
+          <h3 className="line-clamp-2 text-[15px] font-black leading-6 text-gray-950">
+            {item.title || "Trip Package"}
           </h3>
 
-          <div className="flex shrink-0 items-center gap-1 text-sm font-medium">
+          <div className="flex shrink-0 items-center gap-1 text-sm font-semibold">
             <Star size={13} fill="currentColor" />
             {rating ? rating.toFixed(2) : "New"}
           </div>
@@ -324,21 +369,47 @@ function ExperienceCard({ item }) {
 
         <p className="mt-1 flex items-center gap-1 truncate text-sm text-gray-500">
           <MapPin size={14} />
-          {item.location || item.city || "Location"}
+          {item.location || item.city || "Destination"}
         </p>
 
-        <p className="mt-1 text-sm text-gray-500">
-          Hosted by {item.host_name || item.host || "Local host"}
+        <p className="mt-1 text-sm font-semibold text-gray-700">
+          {days} Days / {nights} Nights
         </p>
 
-        <p className="mt-2 text-[15px] text-gray-700">
-          <span className="font-semibold text-gray-950">
-            ₹{price.toLocaleString("en-IN")}
-          </span>{" "}
-          / guest
-        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {includes.map((inc) => (
+            <span
+              key={inc}
+              className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600"
+            >
+              {inc}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <p className="text-[15px] text-gray-700">
+            <span className="font-black text-gray-950">
+              ₹{price.toLocaleString("en-IN")}
+            </span>{" "}
+            / person
+          </p>
+
+          <span className="text-xs font-bold text-[#7E4FF5]">
+            View package
+          </span>
+        </div>
       </div>
     </article>
+  );
+}
+
+function TrustPill({ icon, text }) {
+  return (
+    <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2">
+      <span className="text-[#7E4FF5]">{icon}</span>
+      {text}
+    </span>
   );
 }
 

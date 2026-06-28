@@ -2857,6 +2857,378 @@ app.get("/api/experiences", async (req, res) => {
     });
   }
 });
+
+app.get("/api/experiences/:id", async (req, res) => {
+  try {
+    const experienceId = Number(req.params.id);
+
+    const rows = await query(
+      `
+      SELECT *
+      FROM experiences
+      WHERE id = ?
+      AND status = 'active'
+      LIMIT 1
+      `,
+      [experienceId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Experience not found" });
+    }
+
+    const images = await query(
+      `
+      SELECT *
+      FROM experience_images
+      WHERE experience_id = ?
+      ORDER BY is_cover DESC, sort_order ASC, id ASC
+      `,
+      [experienceId]
+    );
+
+    res.json({
+      ...rows[0],
+      images,
+    });
+  } catch (err) {
+    console.log("Experience detail error:", err.message);
+
+    res.status(500).json({
+      message: "Failed to load experience",
+      error: err.message,
+    });
+  }
+});
+
+app.get("/api/experience-reviews/:experienceId", async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        r.*,
+        COALESCE(u.fullname, 'Guest') AS guest_name
+      FROM experience_reviews r
+      LEFT JOIN servia_users u ON u.id = r.user_id
+      WHERE r.experience_id = ?
+      AND r.status = 'Approved'
+      ORDER BY r.id DESC
+      `,
+      [req.params.experienceId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({
+      message: "Experience reviews load failed",
+      error: err.message,
+    });
+  }
+});
+/* EXPERIENCE BOOKINGS */
+
+app.post("/api/experience-bookings", verifyToken, async (req, res) => {
+  try {
+    const {
+      experience_id,
+      user_id,
+      booking_date,
+      guests,
+      total,
+      payment_method,
+      payment_status,
+      status,
+    } = req.body;
+
+    if (!experience_id || !user_id || !booking_date || !guests || !total) {
+      return res.status(400).json({
+        message: "Required booking fields missing",
+      });
+    }
+
+    if (Number(req.user.id) !== Number(user_id)) {
+      return res.status(403).json({
+        message: "Invalid user",
+      });
+    }
+
+    const experienceRows = await query(
+      `
+      SELECT id, title, price, status
+      FROM experiences
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [experience_id]
+    );
+
+    if (!experienceRows.length) {
+      return res.status(404).json({
+        message: "Experience not found",
+      });
+    }
+
+    if (experienceRows[0].status !== "active") {
+      return res.status(400).json({
+        message: "Experience is not available",
+      });
+    }
+
+    const existingRows = await query(
+      `
+      SELECT id
+      FROM experience_bookings
+      WHERE experience_id = ?
+      AND user_id = ?
+      AND booking_date = ?
+      AND status NOT IN ('Cancelled', 'Declined')
+      LIMIT 1
+      `,
+      [experience_id, user_id, booking_date]
+    );
+
+    if (existingRows.length) {
+      return res.status(409).json({
+        message: "You already booked this experience for this date",
+      });
+    }
+
+    const result = await query(
+      `
+      INSERT INTO experience_bookings
+      (
+        experience_id,
+        user_id,
+        booking_date,
+        guests,
+        total,
+        payment_method,
+        payment_status,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        experience_id,
+        user_id,
+        booking_date,
+        Number(guests || 1),
+        Number(total || 0),
+        payment_method || "cash",
+        payment_status || "Pay at experience",
+        status || "Confirmed",
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Experience booked successfully",
+      bookingId: result.insertId,
+    });
+  } catch (err) {
+    console.log("EXPERIENCE BOOKING ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Experience booking failed",
+      error: err.message,
+    });
+  }
+});
+/* MY EXPERIENCE BOOKINGS */
+
+app.get("/api/experience-bookings/:userId", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+
+    if (Number(req.user.id) !== userId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const rows = await query(
+      `
+      SELECT 
+        b.*,
+        e.title,
+        e.location,
+        e.city,
+        e.category,
+        e.duration,
+        e.language,
+        e.host_name,
+        e.price,
+        e.rating,
+        (
+          SELECT image_url
+          FROM experience_images
+          WHERE experience_id = e.id
+          ORDER BY is_cover DESC, sort_order ASC
+          LIMIT 1
+        ) AS image
+      FROM experience_bookings b
+      JOIN experiences e ON e.id = b.experience_id
+      WHERE b.user_id = ?
+      ORDER BY b.id DESC
+      `,
+      [userId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("MY EXPERIENCE BOOKINGS ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Experience bookings fetch failed",
+      error: err.message,
+    });
+  }
+});
+/* HOST / ADMIN - CREATE TRIP PACKAGE */
+/* HOST / ADMIN - CREATE TRIP PACKAGE */
+
+app.post(
+  "/api/trip-packages",
+  verifyToken,
+  upload.array("images", 10),
+  async (req, res) => {
+    const connection = await db.promise().getConnection();
+
+    try {
+      const {
+        title,
+        category,
+        location,
+        city,
+        price,
+        package_days,
+        package_nights,
+        max_people,
+        hotel_name,
+        transport,
+        meals,
+        pickup_location,
+        language,
+        host_name,
+        description,
+        includes,
+        itinerary,
+        cancellation_policy,
+        package_type,
+      } = req.body;
+
+      if (!title || !location || !price) {
+        connection.release();
+        return res.status(400).json({
+          message: "Title, destination and price are required",
+        });
+      }
+
+      if (!req.files || req.files.length === 0) {
+        connection.release();
+        return res.status(400).json({
+          message: "Please upload at least one package image",
+        });
+      }
+
+      const coverImage = buildFileUrl(req.files[0].filename);
+
+      await connection.beginTransaction();
+
+      const [result] = await connection.query(
+        `
+        INSERT INTO experiences
+        (
+          title,
+          location,
+          city,
+          category,
+          price,
+          package_days,
+          package_nights,
+          max_people,
+          hotel_name,
+          transport,
+          meals,
+          pickup_location,
+          language,
+          host_name,
+          description,
+          includes,
+          itinerary,
+          cancellation_policy,
+          package_type,
+          status,
+          rating,
+          reviews
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          title,
+          location,
+          city || location,
+          category || "Family",
+          Number(price || 0),
+          Number(package_days || 1),
+          Number(package_nights || 0),
+          Number(max_people || 10),
+          hotel_name || null,
+          transport || null,
+          meals || null,
+          pickup_location || null,
+          language || "English",
+          host_name || "Dovail Travel",
+          description || "",
+          includes || "",
+          itinerary || "",
+          cancellation_policy || "",
+          package_type || "Trip Package",
+          "active",
+          0,
+          0,
+        ]
+      );
+
+      const packageId = result.insertId;
+
+      const imageValues = req.files.map((file, index) => [
+        packageId,
+        buildFileUrl(file.filename),
+        index === 0 ? 1 : 0,
+        index,
+      ]);
+
+      await connection.query(
+        `
+        INSERT INTO experience_images
+        (experience_id, image_url, is_cover, sort_order)
+        VALUES ?
+        `,
+        [imageValues]
+      );
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: "Trip package created successfully",
+        packageId,
+        image: coverImage,
+      });
+    } catch (err) {
+      await connection.rollback();
+
+      console.log("CREATE TRIP PACKAGE ERROR:", err.message);
+
+      res.status(500).json({
+        message: "Trip package create failed",
+        error: err.message,
+      });
+    } finally {
+      connection.release();
+    }
+  }
+);
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });

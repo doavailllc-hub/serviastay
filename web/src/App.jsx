@@ -57,7 +57,11 @@ import AdminReviews from "./pages/admin/AdminReviews";
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminKyc from "./pages/admin/AdminKyc";
 import AdminCoupons from "./pages/admin/AdminCoupons";
-
+import ExperienceDetails from "./pages/ExperienceDetails";
+import ExperienceCheckout from "./pages/ExperienceCheckout";
+import ExperienceBookingSuccess from "./pages/ExperienceBookingSuccess";
+import MyExperienceBookings from "./pages/MyExperienceBookings";
+import AddTripPackage from "./pages/AddTripPackage";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -83,19 +87,24 @@ export default function App() {
 
       <Route path="/" element={<Home />} />
       <Route path="/home" element={<Home />} />
-
+<Route
+  path="/experience-booking-success"
+  element={<ExperienceBookingSuccess />}
+/>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-
+<Route path="/experience-checkout/:id" element={<ExperienceCheckout />} />
       <Route path="/search-results" element={<SearchResults />} />
       <Route path="/reserve/:id" element={<ResortDetails />} />
       <Route path="/service/:id" element={<ServiceDetails />} />
+      <Route path="/experience-checkout/:id" element={<ExperienceCheckout />} />
+      <Route path="/add-trip-package" element={<AddTripPackage />} />
       <Route
         path="/service-booking/:id"
         element={<ServiceBookingDetails />}
       />
-
+<Route path="/experience-bookings" element={<MyExperienceBookings />} />
       <Route path="/experiences" element={<Experience />} />
       <Route path="/services" element={<Services />} />
       <Route path="/help" element={<HelpCenter />} />
@@ -306,6 +315,8 @@ export default function App() {
           </ProtectedPage>
         }
       />
+
+      <Route path="/experiences/:id" element={<ExperienceDetails />} />
 <Route path="/admin/login" element={<AdminLogin />} />
 <Route path="/admin/signup" element={<AdminSignup />} />
 
