@@ -99,17 +99,12 @@ export default function AddTripPackage() {
   }, [form, images]);
 
   const updateField = (name, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const toggleInclude = (item) => {
     setSelectedIncludes((prev) =>
-      prev.includes(item)
-        ? prev.filter((x) => x !== item)
-        : [...prev, item]
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
     );
   };
 
@@ -120,13 +115,7 @@ export default function AddTripPackage() {
   };
 
   const addDay = () => {
-    setItinerary((prev) => [
-      ...prev,
-      {
-        title: "",
-        description: "",
-      },
-    ]);
+    setItinerary((prev) => [...prev, { title: "", description: "" }]);
   };
 
   const removeDay = (index) => {
@@ -159,7 +148,7 @@ export default function AddTripPackage() {
       }
 
       if (!canSubmit) {
-        setError("Please add package title, destination, price and at least one image.");
+        setError("Please add title, destination, price and at least one image.");
         return;
       }
 
@@ -182,9 +171,7 @@ export default function AddTripPackage() {
           .join("\n\n")
       );
 
-      images.forEach((file) => {
-        body.append("images", file);
-      });
+      images.forEach((file) => body.append("images", file));
 
       const res = await api.post("/trip-packages", body, {
         headers: {
@@ -209,41 +196,38 @@ export default function AddTripPackage() {
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
+      <main className="mx-auto max-w-7xl px-4 pb-14 pt-24 md:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="mb-6 flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={17} />
           Back
         </button>
 
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div className="mb-8 flex flex-col gap-5 border-b border-gray-200 pb-8 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.22em] text-gray-400">
-              Host / Admin
-            </p>
+            <p className="text-sm font-medium text-gray-500">Host setup</p>
 
-            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-5xl">
-              Add Trip Package
+            <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
+              Add trip package
             </h1>
 
-            <p className="mt-3 max-w-2xl text-gray-500">
-              Create complete travel packages with hotel, transport, pickup,
-              itinerary, meals and gallery images.
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+              Create a complete travel package with pricing, itinerary,
+              transport, hotel details and gallery images.
             </p>
           </div>
 
           <button
             onClick={submitPackage}
             disabled={submitting}
-            className="rounded-full px-7 py-3 text-sm font-black text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70"
-            style={{ backgroundColor: BRAND }}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-[#7E4FF5] px-6 text-sm font-semibold text-white transition hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             {submitting ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin" size={17} />
-                Publishing...
+                <Loader2 className="animate-spin" size={16} />
+                Publishing
               </span>
             ) : (
               "Publish package"
@@ -252,14 +236,14 @@ export default function AddTripPackage() {
         </div>
 
         {error && (
-          <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
           </div>
         )}
 
-        <section className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-8">
-            <Card title="Basic information">
+        <section className="grid gap-8 lg:grid-cols-[1fr_340px]">
+          <div className="space-y-6">
+            <Card title="Basic details">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
                   label="Package title"
@@ -276,7 +260,7 @@ export default function AddTripPackage() {
                 />
 
                 <Input
-                  label="Destination / Location"
+                  label="Destination"
                   value={form.location}
                   onChange={(e) => updateField("location", e.target.value)}
                   placeholder="Dubai, UAE"
@@ -297,7 +281,7 @@ export default function AddTripPackage() {
                 />
 
                 <Input
-                  label="Guide language"
+                  label="Language"
                   value={form.language}
                   onChange={(e) => updateField("language", e.target.value)}
                   placeholder="English, Arabic"
@@ -305,7 +289,7 @@ export default function AddTripPackage() {
               </div>
 
               <Textarea
-                label="Package overview"
+                label="Overview"
                 value={form.description}
                 onChange={(e) => updateField("description", e.target.value)}
                 placeholder="Describe the package, travel experience and highlights..."
@@ -326,9 +310,7 @@ export default function AddTripPackage() {
                   label="Days"
                   type="number"
                   value={form.package_days}
-                  onChange={(e) =>
-                    updateField("package_days", e.target.value)
-                  }
+                  onChange={(e) => updateField("package_days", e.target.value)}
                 />
 
                 <Input
@@ -351,28 +333,32 @@ export default function AddTripPackage() {
 
             <Card title="Package includes">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {includeOptions.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleInclude(item)}
-                    className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-bold transition ${
-                      selectedIncludes.includes(item)
-                        ? "border-[#7E4FF5] bg-[#F7F5FF] text-[#7E4FF5]"
-                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-900"
-                    }`}
-                  >
-                    <CheckCircle2 size={18} />
-                    {item}
-                  </button>
-                ))}
+                {includeOptions.map((item) => {
+                  const active = selectedIncludes.includes(item);
+
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => toggleInclude(item)}
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
+                        active
+                          ? "border-[#7E4FF5] bg-[#F7F5FF] text-[#7E4FF5]"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
+                      }`}
+                    >
+                      <CheckCircle2 size={17} />
+                      {item}
+                    </button>
+                  );
+                })}
               </div>
             </Card>
 
-            <Card title="Hotel, transport and pickup">
+            <Card title="Hotel and transport">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
-                  label="Hotel name"
+                  label="Hotel"
                   value={form.hotel_name}
                   onChange={(e) => updateField("hotel_name", e.target.value)}
                   placeholder="Hotel name or category"
@@ -393,7 +379,7 @@ export default function AddTripPackage() {
                 />
 
                 <Input
-                  label="Pickup location"
+                  label="Pickup"
                   value={form.pickup_location}
                   onChange={(e) =>
                     updateField("pickup_location", e.target.value)
@@ -403,15 +389,15 @@ export default function AddTripPackage() {
               </div>
             </Card>
 
-            <Card title="Day-wise itinerary">
+            <Card title="Itinerary">
               <div className="space-y-4">
                 {itinerary.map((day, index) => (
                   <div
                     key={index}
-                    className="rounded-3xl border border-gray-200 p-5"
+                    className="rounded-2xl border border-gray-200 p-4"
                   >
                     <div className="mb-4 flex items-center justify-between">
-                      <h3 className="font-black text-gray-900">
+                      <h3 className="text-sm font-semibold text-gray-950">
                         Day {index + 1}
                       </h3>
 
@@ -419,16 +405,16 @@ export default function AddTripPackage() {
                         <button
                           type="button"
                           onClick={() => removeDay(index)}
-                          className="flex items-center gap-1 text-sm font-bold text-red-600"
+                          className="flex items-center gap-1 text-sm font-medium text-red-600"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                           Remove
                         </button>
                       )}
                     </div>
 
                     <Input
-                      label="Day title"
+                      label="Title"
                       value={day.title}
                       onChange={(e) =>
                         updateItinerary(index, "title", e.target.value)
@@ -437,7 +423,7 @@ export default function AddTripPackage() {
                     />
 
                     <Textarea
-                      label="Day description"
+                      label="Description"
                       value={day.description}
                       onChange={(e) =>
                         updateItinerary(index, "description", e.target.value)
@@ -450,9 +436,9 @@ export default function AddTripPackage() {
                 <button
                   type="button"
                   onClick={addDay}
-                  className="flex items-center gap-2 rounded-full border border-gray-300 px-5 py-3 text-sm font-black transition hover:border-gray-900"
+                  className="inline-flex h-11 items-center gap-2 rounded-full border border-gray-300 px-5 text-sm font-medium transition hover:border-gray-950"
                 >
-                  <Plus size={17} />
+                  <Plus size={16} />
                   Add day
                 </button>
               </div>
@@ -470,14 +456,17 @@ export default function AddTripPackage() {
             </Card>
 
             <Card title="Gallery images">
-              <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-[#7E4FF5]">
-                <ImagePlus size={34} className="text-[#7E4FF5]" />
-                <p className="mt-3 font-black text-gray-900">
+              <label className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-[#7E4FF5] hover:bg-[#FAF8FF]">
+                <ImagePlus size={30} className="text-[#7E4FF5]" />
+
+                <p className="mt-3 text-sm font-semibold text-gray-950">
                   Upload package images
                 </p>
+
                 <p className="mt-1 text-sm text-gray-500">
-                  First image will be used as cover. Max 10 images.
+                  First image becomes cover. Max 10 images.
                 </p>
+
                 <input
                   type="file"
                   multiple
@@ -501,7 +490,7 @@ export default function AddTripPackage() {
                       />
 
                       {index === 0 && (
-                        <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-black shadow-sm">
+                        <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">
                           Cover
                         </span>
                       )}
@@ -511,7 +500,7 @@ export default function AddTripPackage() {
                         onClick={() => removeImage(index)}
                         className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-red-600 shadow-sm"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   ))}
@@ -521,12 +510,10 @@ export default function AddTripPackage() {
           </div>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(0,0,0,0.12)]">
-              <h2 className="text-xl font-black text-gray-900">
-                Package preview
-              </h2>
+            <div className="rounded-3xl border border-gray-200 bg-white p-5">
+              <h2 className="text-lg font-bold text-gray-950">Preview</h2>
 
-              <div className="mt-5 overflow-hidden rounded-2xl bg-gray-100">
+              <div className="mt-4 overflow-hidden rounded-2xl bg-gray-100">
                 {previews[0] ? (
                   <img
                     src={previews[0]}
@@ -534,33 +521,36 @@ export default function AddTripPackage() {
                     className="aspect-[4/3] w-full object-cover"
                   />
                 ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center text-sm font-bold text-gray-400">
-                    Cover image preview
+                  <div className="flex aspect-[4/3] items-center justify-center text-sm text-gray-400">
+                    Cover image
                   </div>
                 )}
               </div>
 
-              <h3 className="mt-5 text-lg font-black text-gray-900">
+              <h3 className="mt-4 line-clamp-2 text-base font-semibold text-gray-950">
                 {form.title || "Trip package title"}
               </h3>
 
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500">
                 {form.location || "Destination"}
               </p>
 
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <PreviewItem
+              <div className="mt-4 space-y-3 text-sm">
+                <PreviewRow
                   label="Price"
                   value={`₹${Number(form.price || 0).toLocaleString("en-IN")}`}
                 />
-                <PreviewItem
+
+                <PreviewRow
                   label="Duration"
                   value={`${form.package_days || 1}D / ${
                     form.package_nights || 0
                   }N`}
                 />
-                <PreviewItem label="Category" value={form.category} />
-                <PreviewItem
+
+                <PreviewRow label="Category" value={form.category} />
+
+                <PreviewRow
                   label="Travelers"
                   value={`Max ${form.max_people || 10}`}
                 />
@@ -569,8 +559,7 @@ export default function AddTripPackage() {
               <button
                 onClick={submitPackage}
                 disabled={submitting}
-                className="mt-6 w-full rounded-2xl py-4 font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
-                style={{ backgroundColor: BRAND }}
+                className="mt-6 h-12 w-full rounded-full bg-[#7E4FF5] text-sm font-semibold text-white transition hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {submitting ? "Publishing..." : "Publish package"}
               </button>
@@ -586,8 +575,11 @@ export default function AddTripPackage() {
 
 function Card({ title, children }) {
   return (
-    <section className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-2xl font-black text-gray-900">{title}</h2>
+    <section className="rounded-3xl border border-gray-200 bg-white p-5 md:p-6">
+      <h2 className="mb-5 text-xl font-bold tracking-tight text-gray-950">
+        {title}
+      </h2>
+
       {children}
     </section>
   );
@@ -596,13 +588,13 @@ function Card({ title, children }) {
 function Input({ label, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </span>
 
       <input
         {...props}
-        className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7E4FF5]"
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#7E4FF5] focus:ring-2 focus:ring-[#7E4FF5]/10"
       />
     </label>
   );
@@ -611,13 +603,13 @@ function Input({ label, ...props }) {
 function Select({ label, options, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </span>
 
       <select
         {...props}
-        className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7E4FF5]"
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#7E4FF5] focus:ring-2 focus:ring-[#7E4FF5]/10"
       >
         {options.map((item) => (
           <option key={item} value={item}>
@@ -632,26 +624,24 @@ function Select({ label, options, ...props }) {
 function Textarea({ label, ...props }) {
   return (
     <label className="mt-4 block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </span>
 
       <textarea
-        rows={5}
+        rows={4}
         {...props}
-        className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7E4FF5]"
+        className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#7E4FF5] focus:ring-2 focus:ring-[#7E4FF5]/10"
       />
     </label>
   );
 }
 
-function PreviewItem({ label, value }) {
+function PreviewRow({ label, value }) {
   return (
-    <div className="rounded-2xl bg-gray-50 p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-gray-400">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
+    <div className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+      <span className="text-gray-500">{label}</span>
+      <span className="font-semibold text-gray-950">{value}</span>
     </div>
   );
 }

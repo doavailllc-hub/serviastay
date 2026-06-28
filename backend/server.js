@@ -3150,7 +3150,6 @@ app.get("/api/experience-bookings/:userId", verifyToken, async (req, res) => {
   }
 });
 /* HOST / ADMIN - CREATE TRIP PACKAGE */
-/* HOST / ADMIN - CREATE TRIP PACKAGE */
 
 app.post(
   "/api/trip-packages",
@@ -3642,6 +3641,7 @@ app.delete("/api/departures/:id", verifyToken, async (req, res) => {
     });
   }
 });
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
