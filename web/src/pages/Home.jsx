@@ -15,6 +15,7 @@ import Navbar from "../components/Navbar";
 import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
 
+const BRAND = "#3b71e6";
 const API_URL = "https://stay.dovail.com/api/properties";
 
 function toISO(date) {
@@ -56,14 +57,46 @@ export default function Home() {
   const totalGuests = adults + children;
 
   const destinations = [
-    { name: "Nearby", icon: <Navigation size={22} />, desc: "Find stays around your current location" },
-    { name: "Wayanad, India", icon: "🏞️", desc: "Nature stays, resorts and villas" },
-    { name: "Kozhikode, India", icon: "🌴", desc: "Beach stays and city homes" },
-    { name: "Riyadh, Saudi Arabia", icon: "🏙️", desc: "Modern apartments and premium stays" },
-    { name: "Kochi, India", icon: "🌊", desc: "Backwaters, city stays and villas" },
-    { name: "Bengaluru, India", icon: "🌆", desc: "Apartments near dining and work hubs" },
-    { name: "Sulthan Bathery, India", icon: "⛰️", desc: "Hill stays and peaceful escapes" },
-    { name: "Munnar, India", icon: "🍃", desc: "Tea gardens and mountain homes" },
+    {
+      name: "Nearby",
+      icon: <Navigation size={20} />,
+      desc: "Find stays around your current location",
+    },
+    {
+      name: "Wayanad, India",
+      icon: "🏞️",
+      desc: "Nature stays, resorts and villas",
+    },
+    {
+      name: "Kozhikode, India",
+      icon: "🌴",
+      desc: "Beach stays and city homes",
+    },
+    {
+      name: "Riyadh, Saudi Arabia",
+      icon: "🏙️",
+      desc: "Modern apartments and premium stays",
+    },
+    {
+      name: "Kochi, India",
+      icon: "🌊",
+      desc: "Backwaters, city stays and villas",
+    },
+    {
+      name: "Bengaluru, India",
+      icon: "🌆",
+      desc: "Apartments near dining and work hubs",
+    },
+    {
+      name: "Sulthan Bathery, India",
+      icon: "⛰️",
+      desc: "Hill stays and peaceful escapes",
+    },
+    {
+      name: "Munnar, India",
+      icon: "🍃",
+      desc: "Tea gardens and mountain homes",
+    },
   ];
 
   useEffect(() => {
@@ -153,12 +186,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
         <Navbar />
 
-        <section className="hidden w-full justify-center bg-white px-4 pb-5 pt-3 md:flex">
-          <div ref={searchRef} className="relative w-full max-w-[980px]">
-            <div className="flex h-[72px] items-center rounded-full border border-gray-200 bg-white shadow-[0_10px_35px_rgba(17,24,39,0.10)] transition hover:shadow-[0_14px_42px_rgba(17,24,39,0.14)]">
+        <section className="hidden w-full justify-center bg-white px-4 pb-4 pt-3 md:flex">
+          <div ref={searchRef} className="relative w-full max-w-[960px]">
+            <div className="flex h-[64px] items-center rounded-full border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
               <SearchButton
                 title="Where"
                 value={destination || "Search destinations"}
@@ -199,16 +232,12 @@ export default function Home() {
                   onClick={() =>
                     setActivePanel(activePanel === "guests" ? null : "guests")
                   }
-                  className={`flex h-full flex-1 flex-col justify-center rounded-full px-6 text-left transition ${
-                    activePanel === "guests"
-                      ? "bg-white shadow-[0_8px_24px_rgba(17,24,39,0.14)]"
-                      : "hover:bg-gray-50"
+                  className={`flex h-full flex-1 flex-col justify-center rounded-full px-5 text-left transition ${
+                    activePanel === "guests" ? "bg-gray-50" : "hover:bg-gray-50"
                   }`}
                 >
-                  <span className="text-[12px] font-black text-gray-950">
-                    Who
-                  </span>
-                  <span className="mt-0.5 truncate text-sm font-medium text-gray-500">
+                  <span className="text-xs font-medium text-gray-950">Who</span>
+                  <span className="mt-0.5 truncate text-sm text-gray-500">
                     {guestLabel}
                   </span>
                 </button>
@@ -216,18 +245,18 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-[0_12px_26px_rgba(59,113,230,0.28)] transition hover:scale-105 hover:bg-[var(--primary-hover)]"
+                  className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#3b71e6] text-white transition hover:bg-[#2f63d8]"
                   aria-label="Search"
                 >
-                  <Search size={19} />
+                  <Search size={18} />
                 </button>
               </div>
             </div>
 
             {activePanel === "where" && (
-              <div className="absolute left-0 top-[86px] z-50 w-[450px] rounded-[32px] border border-gray-100 bg-white p-5 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="font-heading text-base font-black tracking-[-0.03em] text-gray-950">
+              <div className="absolute left-0 top-[78px] z-50 w-[430px] rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-gray-950">
                     Suggested destinations
                   </h3>
 
@@ -239,7 +268,7 @@ export default function Home() {
                   </button>
                 </div>
 
-                <div className="max-h-[430px] overflow-y-auto pr-1">
+                <div className="max-h-[420px] overflow-y-auto">
                   {destinations.map((place) => (
                     <button
                       key={place.name}
@@ -247,19 +276,17 @@ export default function Home() {
                         setDestination(place.name);
                         setActivePanel("dates");
                       }}
-                      className="flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left transition hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50"
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary-light)] text-2xl text-[var(--primary)]">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef4ff] text-xl text-[#3b71e6]">
                         {place.icon}
                       </div>
 
                       <div>
-                        <p className="font-bold text-gray-950">
+                        <p className="text-sm font-medium text-gray-950">
                           {place.name}
                         </p>
-                        <p className="text-sm font-medium text-gray-500">
-                          {place.desc}
-                        </p>
+                        <p className="text-sm text-gray-500">{place.desc}</p>
                       </div>
                     </button>
                   ))}
@@ -280,7 +307,7 @@ export default function Home() {
             )}
 
             {activePanel === "guests" && (
-              <div className="absolute right-0 top-[86px] z-50 w-[430px] rounded-[32px] border border-gray-100 bg-white p-6 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
+              <div className="absolute right-0 top-[78px] z-50 w-[410px] rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
                 <GuestRow
                   title="Adults"
                   subtitle="Ages 13 or above"
@@ -318,7 +345,7 @@ export default function Home() {
                   underline
                 />
 
-                <div className="mt-5 flex items-center justify-between">
+                <div className="mt-4 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => {
@@ -327,7 +354,7 @@ export default function Home() {
                       setInfants(0);
                       setPets(0);
                     }}
-                    className="text-sm font-bold underline"
+                    className="text-sm font-medium text-[#3b71e6] hover:underline"
                   >
                     Clear
                   </button>
@@ -335,7 +362,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setActivePanel(null)}
-                    className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-black text-white transition hover:bg-black"
+                    className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f63d8]"
                   >
                     Done
                   </button>
@@ -348,17 +375,17 @@ export default function Home() {
         <section className="px-4 pb-4 pt-3 md:hidden">
           <button
             onClick={() => setActivePanel("mobile")}
-            className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-4 text-left shadow-[0_8px_25px_rgba(17,24,39,0.12)]"
+            className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-left shadow-sm"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3b71e6] text-white">
               <Search size={18} />
             </div>
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-black">
+              <p className="truncate text-sm font-medium text-gray-950">
                 {destination || "Where to?"}
               </p>
-              <p className="truncate text-xs font-medium text-gray-500">
+              <p className="truncate text-xs text-gray-500">
                 {dateLabel} · {guestLabel}
               </p>
             </div>
@@ -366,39 +393,38 @@ export default function Home() {
         </section>
       </header>
 
-      <main className="mx-auto max-w-[1420px] px-4 py-12 md:px-10 lg:px-20">
-        <div className="mb-10 flex items-end justify-between gap-6">
+      <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
+        <div className="mb-8 flex items-end justify-between gap-6">
           <div>
-          
+            <h1 className="text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+              Popular homes
+            </h1>
 
-      <h4 className="text-3xl font-bold text-gray-900">
-                Popular Homes
-              </h4>
-
-            <p className="mt-3 max-w-xl text-[16px] font-medium leading-7 text-[var(--text-secondary)]">
-              Explore beautiful stays selected for comfort, location, and memorable trips.
+            <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
+              Explore comfortable stays selected for location, quality and
+              memorable trips.
             </p>
           </div>
 
           <button
             onClick={() => navigate("/search-results")}
-            className="hidden rounded-full border border-[var(--border)] bg-white px-6 py-3 text-sm font-black text-[var(--text-main)] shadow-sm transition hover:border-[var(--primary)] hover:text-[var(--primary)] hover:shadow-md md:block"
+            className="hidden rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-[#3b71e6] md:block"
           >
             View all
           </button>
         </div>
 
         {properties.length === 0 ? (
-          <div className="rounded-[32px] border border-gray-200 bg-gray-50 p-12 text-center">
-            <h2 className="font-heading text-3xl font-black tracking-[-0.04em]">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-10 text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-gray-950">
               No properties found
             </h2>
-            <p className="mt-3 text-gray-500">
+            <p className="mt-2 text-sm text-gray-500">
               Add listings from the hosting section.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-x-7 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {properties.map((item) => (
               <PropertyCard key={item.id} property={item} />
             ))}
@@ -416,16 +442,12 @@ function SearchButton({ title, value, active, onClick, className }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-full flex-col justify-center rounded-full px-7 text-left transition ${className} ${
-        active
-          ? "bg-white shadow-[0_8px_24px_rgba(17,24,39,0.14)]"
-          : "hover:bg-gray-50"
+      className={`flex h-full flex-col justify-center rounded-full px-6 text-left transition ${className} ${
+        active ? "bg-gray-50" : "hover:bg-gray-50"
       }`}
     >
-      <span className="text-[12px] font-black text-gray-950">{title}</span>
-      <span className="mt-0.5 truncate text-sm font-medium text-gray-500">
-        {value}
-      </span>
+      <span className="text-xs font-medium text-gray-950">{title}</span>
+      <span className="mt-0.5 truncate text-sm text-gray-500">{value}</span>
     </button>
   );
 }
@@ -442,17 +464,17 @@ function DateRangeDropdown({
   const nextMonth = addMonths(viewMonth, 1);
 
   return (
-    <div className="absolute left-1/2 top-[86px] z-50 w-[780px] -translate-x-1/2 rounded-[32px] border border-gray-100 bg-white p-8 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
-      <div className="mx-auto mb-7 flex w-[280px] rounded-full bg-gray-100 p-1">
-        <button className="flex-1 rounded-full bg-white py-2 text-sm font-black shadow-sm">
+    <div className="absolute left-1/2 top-[78px] z-50 w-[760px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
+      <div className="mx-auto mb-6 flex w-[240px] rounded-full bg-gray-100 p-1">
+        <button className="flex-1 rounded-full bg-white py-2 text-sm font-medium shadow-sm">
           Dates
         </button>
-        <button className="flex-1 rounded-full py-2 text-sm font-black text-gray-500">
+        <button className="flex-1 rounded-full py-2 text-sm font-medium text-gray-500">
           Flexible
         </button>
       </div>
 
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <button
           type="button"
           onClick={() => setViewMonth(addMonths(viewMonth, -1))}
@@ -470,7 +492,7 @@ function DateRangeDropdown({
         </button>
       </div>
 
-      <div className="grid gap-12 md:grid-cols-2">
+      <div className="grid gap-10 md:grid-cols-2">
         <MonthCalendar
           monthDate={viewMonth}
           checkin={checkin}
@@ -486,11 +508,11 @@ function DateRangeDropdown({
         />
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-5">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4">
         <button
           type="button"
           onClick={onClear}
-          className="text-sm font-bold underline"
+          className="text-sm font-medium text-[#3b71e6] hover:underline"
         >
           Clear dates
         </button>
@@ -498,7 +520,7 @@ function DateRangeDropdown({
         <button
           type="button"
           onClick={onDone}
-          className="rounded-2xl bg-gray-950 px-6 py-3 text-sm font-black text-white transition hover:bg-black"
+          className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f63d8]"
         >
           Done
         </button>
@@ -513,14 +535,14 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
 
   return (
     <div>
-      <h3 className="font-heading mb-5 text-center text-base font-black">
+      <h3 className="mb-4 text-center text-base font-semibold text-gray-950">
         {monthDate.toLocaleString("en-IN", {
           month: "long",
           year: "numeric",
         })}
       </h3>
 
-      <div className="mb-3 grid grid-cols-7 text-center text-xs font-black text-gray-500">
+      <div className="mb-3 grid grid-cols-7 text-center text-xs font-medium text-gray-500">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
           <div key={`${d}-${i}`}>{d}</div>
         ))}
@@ -548,11 +570,11 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
               type="button"
               disabled={past}
               onClick={() => onDateClick(day)}
-              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition ${
+              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition ${
                 selected
-                  ? "bg-gray-950 text-white"
+                  ? "bg-[#3b71e6] text-white"
                   : inRange
-                  ? "bg-gray-100 text-gray-950"
+                  ? "bg-[#eef4ff] text-[#3b71e6]"
                   : past
                   ? "cursor-not-allowed text-gray-300"
                   : "hover:bg-gray-100"
@@ -592,10 +614,10 @@ function GuestRow({
   underline,
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-gray-100 py-5 last:border-b-0">
+    <div className="flex items-center justify-between border-b border-gray-100 py-4 last:border-b-0">
       <div>
-        <h4 className="font-heading font-black text-gray-950">{title}</h4>
-        <p className={`text-sm font-medium text-gray-500 ${underline ? "underline" : ""}`}>
+        <h4 className="text-sm font-medium text-gray-950">{title}</h4>
+        <p className={`text-sm text-gray-500 ${underline ? "underline" : ""}`}>
           {subtitle}
         </p>
       </div>
@@ -605,19 +627,19 @@ function GuestRow({
           type="button"
           onClick={onMinus}
           disabled={minusDisabled}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          <Minus size={15} />
+          <Minus size={14} />
         </button>
 
-        <span className="w-5 text-center font-bold">{value}</span>
+        <span className="w-5 text-center text-sm font-medium">{value}</span>
 
         <button
           type="button"
           onClick={onPlus}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-400 text-gray-800 transition hover:border-gray-950"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950"
         >
-          <Plus size={15} />
+          <Plus size={14} />
         </button>
       </div>
     </div>
@@ -625,5 +647,5 @@ function GuestRow({
 }
 
 function Divider() {
-  return <div className="h-8 w-px shrink-0 bg-gray-200" />;
+  return <div className="h-7 w-px shrink-0 bg-gray-200" />;
 }
