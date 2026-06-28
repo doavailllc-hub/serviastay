@@ -6,20 +6,19 @@ import {
   CheckCircle,
   CreditCard,
   Heart,
-  Home,
   LogOut,
   MapPin,
   MessageCircle,
   Settings,
   ShieldCheck,
   Star,
-  Trash2,
   User,
-  Users,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+const BRAND = "#3b71e6";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -31,11 +30,11 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
 
   const menuItems = [
-    { id: "about", label: "About me", icon: <User size={19} /> },
-    { id: "trips", label: "Trips", icon: <CalendarDays size={19} /> },
-    { id: "wishlist", label: "Wishlist", icon: <Heart size={19} /> },
-    { id: "reviews", label: "Reviews", icon: <Star size={19} /> },
-    { id: "account", label: "Account", icon: <Settings size={19} /> },
+    { id: "about", label: "About", icon: <User size={17} /> },
+    { id: "trips", label: "Trips", icon: <CalendarDays size={17} /> },
+    { id: "wishlist", label: "Wishlist", icon: <Heart size={17} /> },
+    { id: "reviews", label: "Reviews", icon: <Star size={17} /> },
+    { id: "account", label: "Account", icon: <Settings size={17} /> },
   ];
 
   useEffect(() => {
@@ -45,14 +44,22 @@ export default function Profile() {
   const formatINR = (amount) =>
     `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
-  const storedUser =
-    JSON.parse(localStorage.getItem("user")) ||
-    JSON.parse(sessionStorage.getItem("user"));
+  const getStoredUser = () => {
+    try {
+      return (
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null")
+      );
+    } catch {
+      return null;
+    }
+  };
 
   const loadProfile = async () => {
     try {
       setLoading(true);
 
+      const storedUser = getStoredUser();
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -112,10 +119,15 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAFC]">
+      <div className="min-h-screen bg-white">
         <Navbar />
-        <main className="mx-auto max-w-7xl px-4 py-20 md:px-8">
-          Loading profile...
+
+        <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+          <div className="h-8 w-48 animate-pulse rounded-xl bg-gray-100" />
+          <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
+            <div className="h-80 animate-pulse rounded-2xl bg-gray-100" />
+            <div className="h-96 animate-pulse rounded-2xl bg-gray-100" />
+          </div>
         </main>
       </div>
     );
@@ -127,63 +139,73 @@ export default function Profile() {
     "U";
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-gray-900">Profile</h1>
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8">
+          <p className="text-sm font-medium text-gray-500">Account</p>
 
-          <p className="mt-2 text-gray-500">
-            Manage your account, trips, saved homes, and travel history.
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+            Profile
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+            Manage your account, trips, saved homes and travel activity.
           </p>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[320px_1fr]">
-          <aside className="h-fit rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-            <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[#3b71e6] text-4xl font-bold text-white">
-                {avatarLetter}
+        <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
+          <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="border-b border-gray-200 pb-5">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
+                  {avatarLetter}
+                </div>
+
+                <div className="min-w-0">
+                  <h2 className="truncate text-base font-semibold text-gray-950">
+                    {user?.fullname || "Guest User"}
+                  </h2>
+
+                  <p className="truncate text-sm text-gray-500">
+                    {user?.email || "No email"}
+                  </p>
+
+                  <p className="mt-1 text-xs capitalize text-[#3b71e6]">
+                    {user?.role || "guest"}
+                  </p>
+                </div>
               </div>
-
-              <h2 className="text-2xl font-bold text-gray-900">
-                {user?.fullname || "Guest User"}
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-500">{user?.email}</p>
-
-              <span className="mt-3 inline-flex rounded-full bg-[#F4F1FF] px-4 py-2 text-xs font-bold capitalize text-[#3b71e6]">
-                {user?.role || "guest"}
-              </span>
             </div>
 
-            <div className="space-y-2">
+            <nav className="mt-4 space-y-1">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setTab(item.id)}
-                  className={`flex w-full items-center gap-4 rounded-2xl px-4 py-4 text-left font-semibold transition ${
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
                     tab === item.id
-                      ? "bg-[#3b71e6] text-white shadow-md"
-                      : "text-gray-700 hover:bg-[#F4F1FF] hover:text-[#3b71e6]"
+                      ? "bg-[#eef4ff] text-[#3b71e6]"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   {item.icon}
                   <span>{item.label}</span>
                 </button>
               ))}
-            </div>
+            </nav>
 
             <button
               onClick={logout}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-3 font-semibold text-red-600 hover:bg-red-50"
+              className="mt-4 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
             >
-              <LogOut size={18} />
+              <LogOut size={17} />
               Logout
             </button>
           </aside>
 
-          <section className="min-h-[600px] rounded-3xl border border-gray-100 bg-white p-6 shadow-sm md:p-8">
+          <section className="min-h-[560px] rounded-2xl border border-gray-200 bg-white p-5 md:p-6">
             {tab === "about" && (
               <AboutTab
                 user={user}
@@ -218,43 +240,58 @@ export default function Profile() {
   );
 }
 
+function SectionHeader({ title, description, action }) {
+  return (
+    <div className="mb-6 flex flex-col gap-4 border-b border-gray-200 pb-5 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight text-gray-950">
+          {title}
+        </h2>
+
+        {description && (
+          <p className="mt-2 text-sm leading-6 text-gray-500">{description}</p>
+        )}
+      </div>
+
+      {action}
+    </div>
+  );
+}
+
 function AboutTab({ user, avatarLetter, stats, formatINR, navigate }) {
   return (
     <>
-      <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">About me</h2>
-          <p className="mt-2 text-gray-500">
-            Your public profile and travel summary.
-          </p>
-        </div>
+      <SectionHeader
+        title="About"
+        description="Your profile details and travel summary."
+        action={
+          <button
+            onClick={() => navigate("/account-settings")}
+            className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+          >
+            Edit profile
+          </button>
+        }
+      />
 
-        <button
-          onClick={() => navigate("/account-settings")}
-          className="rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white hover:bg-[#7152E8]"
-        >
-          Edit profile
-        </button>
-      </div>
-
-      <div className="mb-8 grid gap-6 md:grid-cols-[300px_1fr]">
-        <div className="rounded-3xl border border-gray-100 p-8 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#3b71e6] text-5xl font-bold text-white">
+      <div className="grid gap-6 md:grid-cols-[240px_1fr]">
+        <div className="rounded-2xl border border-gray-200 p-5 text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#eef4ff] text-3xl font-semibold text-[#3b71e6]">
             {avatarLetter}
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h3 className="text-base font-semibold text-gray-950">
             {user?.fullname || "Guest User"}
-          </h2>
+          </h3>
 
-          <p className="mt-1 text-gray-500">{user?.email}</p>
+          <p className="mt-1 text-sm text-gray-500">{user?.email || "-"}</p>
 
-          <p className="mt-3 text-sm font-semibold capitalize text-[#3b71e6]">
+          <p className="mt-2 text-xs capitalize text-[#3b71e6]">
             {user?.role || "guest"}
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <InfoCard label="Full name" value={user?.fullname || "-"} />
           <InfoCard label="Email" value={user?.email || "-"} />
           <InfoCard label="Phone" value={user?.phone || "-"} />
@@ -262,21 +299,19 @@ function AboutTab({ user, avatarLetter, stats, formatINR, navigate }) {
         </div>
       </div>
 
-      <div className="mb-8 grid gap-5 md:grid-cols-4">
-        <StatBox title="Trips" value={stats.trips} icon={<CalendarDays />} />
-        <StatBox title="Completed" value={stats.completedTrips} icon={<CheckCircle />} />
-        <StatBox title="Wishlist" value={stats.wishlist} icon={<Heart />} />
-        <StatBox
-          title="Total Spent"
-          value={formatINR(stats.totalSpent)}
-          icon={<CreditCard />}
-        />
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <StatBox title="Trips" value={stats.trips} />
+        <StatBox title="Completed" value={stats.completedTrips} />
+        <StatBox title="Wishlist" value={stats.wishlist} />
+        <StatBox title="Total spent" value={formatINR(stats.totalSpent)} />
       </div>
 
-      <div className="rounded-3xl border border-gray-100 p-6">
-        <h3 className="mb-5 text-2xl font-bold">Verification</h3>
+      <div className="mt-6">
+        <h3 className="mb-4 text-xl font-semibold tracking-tight text-gray-950">
+          Verification
+        </h3>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <VerifyItem text="Email verified" active />
           <VerifyItem text="Phone verification" active={Boolean(user?.phone)} />
           <VerifyItem text="Government ID" />
@@ -290,32 +325,39 @@ function AboutTab({ user, avatarLetter, stats, formatINR, navigate }) {
 function TripsTab({ trips, navigate, formatINR }) {
   return (
     <>
-      <h2 className="mb-8 text-3xl font-bold text-gray-900">Trips</h2>
+      <SectionHeader
+        title="Trips"
+        description="Your current and past bookings."
+      />
 
       {trips.length === 0 ? (
-        <Empty icon="🧳" text="No trips yet." />
+        <Empty text="No trips yet." />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {trips.slice(0, 6).map((trip) => (
             <div
               key={trip.id}
-              className="flex flex-col gap-4 rounded-2xl border border-gray-100 p-5 transition hover:shadow-md md:flex-row md:items-center md:justify-between"
+              className="flex flex-col gap-4 rounded-2xl border border-gray-200 p-4 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
             >
               <div>
-                <h3 className="text-lg font-bold">{trip.title}</h3>
-                <p className="mt-1 text-gray-500">
+                <h3 className="text-base font-semibold text-gray-950">
+                  {trip.title || "Trip"}
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-500">
                   {trip.checkin} to {trip.checkout}
                 </p>
-                <p className="mt-2 font-bold text-[#3b71e6]">
+
+                <p className="mt-2 text-sm font-medium text-[#3b71e6]">
                   {formatINR(trip.total)}
                 </p>
               </div>
 
               <button
                 onClick={() => navigate(`/trip/${trip.id}`)}
-                className="rounded-xl bg-[#3b71e6] px-5 py-3 font-semibold text-white hover:bg-[#7152E8]"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-white hover:text-[#3b71e6]"
               >
-                View Details
+                View details
               </button>
             </div>
           ))}
@@ -328,16 +370,20 @@ function TripsTab({ trips, navigate, formatINR }) {
 function WishlistTab({ wishlist, navigate }) {
   return (
     <>
-      <h2 className="mb-8 text-3xl font-bold text-gray-900">Wishlist</h2>
+      <SectionHeader
+        title="Wishlist"
+        description="Homes you saved for later."
+      />
 
       {wishlist.length === 0 ? (
-        <Empty icon="❤️" text="No saved homes yet." />
+        <Empty text="No saved homes yet." />
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {wishlist.map((item) => (
-            <div
+            <button
               key={item.wishlist_id || item.id}
-              className="overflow-hidden rounded-2xl border border-gray-100 transition hover:shadow-md"
+              onClick={() => navigate(`/reserve/${item.id}`)}
+              className="overflow-hidden rounded-2xl border border-gray-200 text-left transition hover:bg-gray-50"
             >
               <img
                 src={
@@ -349,21 +395,16 @@ function WishlistTab({ wishlist, navigate }) {
               />
 
               <div className="p-4">
-                <h3 className="font-bold">{item.title}</h3>
+                <h3 className="text-sm font-semibold text-gray-950">
+                  {item.title}
+                </h3>
 
                 <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
                   <MapPin size={14} />
                   {item.location}
                 </p>
-
-                <button
-                  onClick={() => navigate(`/reserve/${item.id}`)}
-                  className="mt-4 h-11 w-full rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8]"
-                >
-                  View Property
-                </button>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -374,8 +415,12 @@ function WishlistTab({ wishlist, navigate }) {
 function ReviewsTab() {
   return (
     <>
-      <h2 className="mb-8 text-3xl font-bold text-gray-900">Reviews</h2>
-      <Empty icon="★" text="Your written reviews will appear here." />
+      <SectionHeader
+        title="Reviews"
+        description="Reviews you have written will appear here."
+      />
+
+      <Empty text="No reviews yet." />
     </>
   );
 }
@@ -383,50 +428,53 @@ function ReviewsTab() {
 function AccountTab({ navigate, logout }) {
   return (
     <>
-      <h2 className="mb-8 text-3xl font-bold text-gray-900">Account</h2>
+      <SectionHeader
+        title="Account"
+        description="Manage account settings, payments and notifications."
+      />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <AccountAction
-          icon={<Settings />}
+          icon={<Settings size={18} />}
           title="Account settings"
           text="Update your personal information."
           onClick={() => navigate("/account-settings")}
         />
 
         <AccountAction
-          icon={<CreditCard />}
+          icon={<CreditCard size={18} />}
           title="Payment methods"
-          text="Manage payment cards and payment history."
+          text="Manage cards and payment history."
           onClick={() => navigate("/payment-methods")}
         />
 
         <AccountAction
-          icon={<Bell />}
+          icon={<Bell size={18} />}
           title="Notifications"
           text="View alerts and booking updates."
           onClick={() => navigate("/notifications")}
         />
 
         <AccountAction
-          icon={<MessageCircle />}
+          icon={<MessageCircle size={18} />}
           title="Messages"
           text="Chat with hosts and guests."
           onClick={() => navigate("/messages")}
         />
       </div>
 
-      <div className="mt-10 rounded-3xl border border-red-100 bg-red-50 p-6">
-        <h3 className="text-xl font-bold text-red-600">Danger Zone</h3>
+      <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+        <h3 className="text-base font-semibold text-red-700">Logout</h3>
 
-        <p className="mt-2 text-sm text-red-500">
-          Logout safely or contact support if you want to deactivate your account.
+        <p className="mt-2 text-sm leading-6 text-red-600">
+          This will end your current session on this device.
         </p>
 
         <button
           onClick={logout}
-          className="mt-5 flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+          className="mt-4 flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700"
         >
-          <LogOut size={18} />
+          <LogOut size={17} />
           Logout
         </button>
       </div>
@@ -436,10 +484,11 @@ function AccountTab({ navigate, logout }) {
 
 function InfoCard({ label, value, capitalize }) {
   return (
-    <div className="rounded-2xl bg-[#FAFAFC] p-5">
+    <div className="rounded-2xl border border-gray-200 p-4">
       <p className="text-sm text-gray-500">{label}</p>
+
       <h3
-        className={`mt-1 font-bold text-gray-900 ${
+        className={`mt-1 text-sm font-medium text-gray-950 ${
           capitalize ? "capitalize" : ""
         }`}
       >
@@ -449,24 +498,24 @@ function InfoCard({ label, value, capitalize }) {
   );
 }
 
-function StatBox({ title, value, icon }) {
+function StatBox({ title, value }) {
   return (
-    <div className="rounded-2xl border border-gray-100 p-5">
-      <div className="mb-3 text-[#3b71e6]">{icon}</div>
+    <div className="rounded-2xl border border-gray-200 p-4">
       <p className="text-sm text-gray-500">{title}</p>
-      <h3 className="mt-1 text-2xl font-bold text-gray-900">{value}</h3>
+      <h3 className="mt-1 text-xl font-semibold text-gray-950">{value}</h3>
     </div>
   );
 }
 
 function VerifyItem({ text, active }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-[#FAFAFC] p-4">
+    <div className="flex items-center gap-3 rounded-2xl border border-gray-200 p-4">
       <ShieldCheck
-        size={22}
+        size={19}
         className={active ? "text-green-600" : "text-gray-300"}
       />
-      <span className="font-semibold text-gray-700">{text}</span>
+
+      <span className="text-sm font-medium text-gray-700">{text}</span>
     </div>
   );
 }
@@ -475,20 +524,21 @@ function AccountAction({ icon, title, text, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="rounded-2xl border border-gray-100 p-5 text-left transition hover:shadow-md"
+      className="rounded-2xl border border-gray-200 p-4 text-left transition hover:bg-gray-50"
     >
       <div className="mb-3 text-[#3b71e6]">{icon}</div>
-      <h3 className="font-bold text-gray-900">{title}</h3>
-      <p className="mt-2 text-sm text-gray-500">{text}</p>
+
+      <h3 className="text-sm font-semibold text-gray-950">{title}</h3>
+
+      <p className="mt-1 text-sm leading-6 text-gray-500">{text}</p>
     </button>
   );
 }
 
-function Empty({ icon, text }) {
+function Empty({ text }) {
   return (
-    <div className="py-20 text-center">
-      <div className="mb-4 text-6xl">{icon}</div>
-      <p className="text-gray-500">{text}</p>
+    <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
+      <p className="text-sm text-gray-500">{text}</p>
     </div>
   );
 }
