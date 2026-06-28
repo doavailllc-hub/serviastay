@@ -64,6 +64,7 @@ import MyExperienceBookings from "./pages/MyExperienceBookings";
 import AddTripPackage from "./pages/AddTripPackage";
 import HostTripPackages from "./pages/HostTripPackages";
 import HostPackageDepartures from "./pages/HostPackageDepartures";
+import EditTripPackage from "./pages/EditTripPackage";
 
 import { Toaster } from "react-hot-toast";
 
