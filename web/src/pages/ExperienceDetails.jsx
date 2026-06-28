@@ -4,25 +4,19 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
-  Clock3,
-  Globe2,
   Heart,
-  Hotel,
   Loader2,
   MapPin,
-  Route,
   Share,
-  ShieldCheck,
   Star,
   Users,
-  Utensils,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#7E4FF5";
+const BRAND = "#3b71e6";
 
 export default function ExperienceDetails() {
   const { id } = useParams();
@@ -182,7 +176,7 @@ export default function ExperienceDetails() {
         alert("Package link copied.");
       }
     } catch {
-      // user cancelled share
+      // share cancelled
     }
   };
 
@@ -190,10 +184,11 @@ export default function ExperienceDetails() {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
+
         <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center px-4">
           <div className="flex items-center gap-3 text-gray-500">
-            <Loader2 className="animate-spin" size={24} />
-            <span className="font-semibold">Loading trip package...</span>
+            <Loader2 className="animate-spin text-[#3b71e6]" size={22} />
+            <span className="text-sm font-medium">Loading trip package...</span>
           </div>
         </div>
       </div>
@@ -204,19 +199,20 @@ export default function ExperienceDetails() {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
-        <div className="mx-auto max-w-4xl px-4 py-20 text-center">
-          <h1 className="text-3xl font-black text-gray-900">
+
+        <div className="mx-auto max-w-4xl px-4 py-24 text-center">
+          <h1 className="text-2xl font-semibold text-gray-950">
             Trip package not found
           </h1>
 
-          <p className="mt-3 text-gray-500">{error}</p>
+          <p className="mt-3 text-sm text-gray-500">{error}</p>
 
           <button
             onClick={() => navigate("/experiences")}
-            className="mt-6 rounded-full px-6 py-3 font-bold text-white"
+            className="mt-6 rounded-xl px-5 py-2.5 text-sm font-medium text-white"
             style={{ backgroundColor: BRAND }}
           >
-            Back to trip packages
+            Back to packages
           </button>
         </div>
       </div>
@@ -224,68 +220,64 @@ export default function ExperienceDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-[#222]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+      <main className="mx-auto max-w-7xl px-4 pb-14 pt-24 md:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="mb-5 flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={17} />
           Back
         </button>
 
         <section>
-          <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
-                {pkg.package_type || pkg.category || "Trip Package"}
+              <p className="text-sm font-medium text-gray-500">
+                {pkg.package_type || pkg.category || "Trip package"}
               </p>
 
-              <h1 className="text-3xl font-black tracking-tight text-gray-900 md:text-5xl">
+              <h1 className="mt-2 max-w-4xl text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
                 {pkg.title}
               </h1>
 
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-semibold text-gray-700">
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
                 <span className="flex items-center gap-1">
-                  <Star size={15} fill="black" />
+                  <Star size={14} fill="currentColor" />
                   {rating ? rating.toFixed(2) : "New"}
                 </span>
 
                 <span>·</span>
                 <span>{reviewCount} reviews</span>
                 <span>·</span>
-
-                <span className="flex items-center gap-1">
-                  <Clock3 size={15} />
-                  {days} Days / {nights} Nights
+                <span>
+                  {days} days · {nights} nights
                 </span>
-
                 <span>·</span>
-
-                <span className="flex items-center gap-1 underline">
-                  <MapPin size={15} />
+                <span className="flex items-center gap-1">
+                  <MapPin size={14} />
                   {pkg.location || pkg.city || "Destination"}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleShare}
-                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold hover:bg-gray-100"
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
               >
-                <Share size={17} />
+                <Share size={16} />
                 Share
               </button>
 
               <button
                 onClick={() => setLiked((prev) => !prev)}
-                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold hover:bg-gray-100"
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
               >
                 <Heart
-                  size={17}
+                  size={16}
                   className={liked ? "text-red-500" : ""}
                   fill={liked ? "currentColor" : "none"}
                 />
@@ -302,102 +294,70 @@ export default function ExperienceDetails() {
           />
         </section>
 
-        <section className="grid gap-10 py-10 lg:grid-cols-[1fr_390px]">
-          <div>
-            <div className="border-b border-gray-200 pb-8">
+        <section className="grid gap-10 py-10 lg:grid-cols-[1fr_360px]">
+          <div className="min-w-0">
+            <Section>
               <div className="flex items-start justify-between gap-5">
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900">
-                    Trip package by{" "}
-                    {pkg.host_name || pkg.host || "Dovail Travel"}
+                  <h2 className="text-xl font-semibold text-gray-950">
+                    Hosted by {pkg.host_name || pkg.host || "Dovail Travel"}
                   </h2>
 
-                  <p className="mt-2 text-gray-500">
-                    {days} Days · {nights} Nights ·{" "}
+                  <p className="mt-2 text-sm text-gray-500">
+                    {days} days · {nights} nights ·{" "}
                     {pkg.group_size ||
                       `Up to ${pkg.max_people || 10} travelers`}
                   </p>
                 </div>
 
-                <HostAvatar
-                  name={pkg.host_name || pkg.host || "Dovail Travel"}
-                />
+                <HostAvatar name={pkg.host_name || pkg.host || "Dovail"} />
               </div>
-            </div>
+            </Section>
 
-            <div className="grid gap-5 border-b border-gray-200 py-8 md:grid-cols-3">
-              <InfoCard
-                icon={<Hotel size={22} />}
-                title="Hotel"
-                text={pkg.hotel_name || "Hotel stay included"}
-              />
-
-              <InfoCard
-                icon={<Route size={22} />}
-                title="Transport"
-                text={pkg.transport || "Private / shared transport"}
-              />
-
-              <InfoCard
-                icon={<Utensils size={22} />}
-                title="Meals"
-                text={pkg.meals || "Breakfast / selected meals"}
-              />
-            </div>
-
-            <div className="grid gap-5 border-b border-gray-200 py-8 md:grid-cols-3">
-              <InfoCard
-                icon={<Clock3 size={22} />}
-                title="Duration"
-                text={`${days} Days / ${nights} Nights`}
-              />
-
-              <InfoCard
-                icon={<Users size={22} />}
-                title="Travelers"
-                text={pkg.group_size || `Up to ${pkg.max_people || 10} travelers`}
-              />
-
-              <InfoCard
-                icon={<Globe2 size={22} />}
-                title="Guide language"
-                text={pkg.language || "English / Local"}
-              />
-            </div>
-
-            <div className="border-b border-gray-200 py-8">
-              <h2 className="text-2xl font-black text-gray-900">
-                Package overview
-              </h2>
-
-              <p className="mt-4 whitespace-pre-line text-[16px] leading-8 text-gray-600">
+            <Section title="Package overview">
+              <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
                 {pkg.description ||
                   "Enjoy a carefully planned trip package with comfortable stay, transport, local support and a day-wise itinerary designed for a smooth travel experience."}
               </p>
-            </div>
+            </Section>
 
-            <div className="border-b border-gray-200 py-8">
-              <h2 className="text-2xl font-black text-gray-900">
-                Package includes
-              </h2>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <Section title="What's included">
+              <div className="grid gap-4 md:grid-cols-2">
                 {includes.map((item) => (
                   <div key={item} className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#7E4FF5]" size={20} />
-                    <span className="font-semibold text-gray-700">{item}</span>
+                    <CheckCircle2 className="text-[#3b71e6]" size={18} />
+                    <span className="text-sm text-gray-700">{item}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Section>
+
+            <Section title="Trip details">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DetailRow label="Hotel" value={pkg.hotel_name || "Included"} />
+                <DetailRow
+                  label="Transport"
+                  value={pkg.transport || "Private / shared transport"}
+                />
+                <DetailRow
+                  label="Meals"
+                  value={pkg.meals || "Breakfast / selected meals"}
+                />
+                <DetailRow
+                  label="Pickup"
+                  value={pkg.pickup_location || "Shared after booking"}
+                />
+                <DetailRow label="Language" value={pkg.language || "English"} />
+                <DetailRow
+                  label="Travelers"
+                  value={pkg.group_size || `Up to ${pkg.max_people || 10}`}
+                />
+              </div>
+            </Section>
 
             {departures.length > 0 && (
-              <div className="border-b border-gray-200 py-8">
-                <h2 className="text-2xl font-black text-gray-900">
-                  Available departures
-                </h2>
-
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <Section title="Available departures">
+                <div className="grid gap-3 md:grid-cols-2">
                   {departures.slice(0, 6).map((departure) => {
                     const remaining =
                       Number(departure.total_seats || 0) -
@@ -406,12 +366,13 @@ export default function ExperienceDetails() {
                     return (
                       <div
                         key={departure.id}
-                        className="rounded-3xl border border-gray-100 p-5"
+                        className="rounded-2xl border border-gray-200 p-4"
                       >
-                        <p className="font-black text-gray-900">
+                        <p className="text-sm font-medium text-gray-950">
                           {formatDisplayDate(departure.departure_date)}
                         </p>
-                        <p className="mt-1 text-sm font-semibold text-gray-500">
+
+                        <p className="mt-1 text-sm text-gray-500">
                           {departure.status === "Available" && remaining > 0
                             ? `${remaining} seats left`
                             : departure.status || "Unavailable"}
@@ -420,86 +381,70 @@ export default function ExperienceDetails() {
                     );
                   })}
                 </div>
-              </div>
+              </Section>
             )}
 
-            <div className="border-b border-gray-200 py-8">
-              <h2 className="text-2xl font-black text-gray-900">
-                Day-wise itinerary
-              </h2>
-
+            <Section title="Itinerary">
               {itinerary.length === 0 ? (
-                <p className="mt-4 text-gray-500">
+                <p className="text-sm text-gray-500">
                   Itinerary details will be shared after booking confirmation.
                 </p>
               ) : (
-                <div className="mt-6 space-y-4">
+                <div className="space-y-5">
                   {itinerary.map((item, index) => (
-                    <div
-                      key={`${item}-${index}`}
-                      className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
-                    >
-                      <p className="text-sm font-black text-[#7E4FF5]">
+                    <div key={`${item}-${index}`} className="relative pl-8">
+                      <div className="absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3b71e6] bg-white">
+                        <span className="h-2 w-2 rounded-full bg-[#3b71e6]" />
+                      </div>
+
+                      {index !== itinerary.length - 1 && (
+                        <div className="absolute left-[9px] top-7 h-full w-px bg-gray-200" />
+                      )}
+
+                      <p className="text-sm font-semibold text-gray-950">
                         Day {index + 1}
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-gray-600">
+
+                      <p className="mt-1 text-sm leading-6 text-gray-600">
                         {item}
                       </p>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </Section>
 
-            <div className="border-b border-gray-200 py-8">
-              <h2 className="text-2xl font-black text-gray-900">
-                Pickup & destination
-              </h2>
+            <Section title="Pickup & destination">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DetailBox
+                  label="Pickup location"
+                  value={
+                    pkg.pickup_location ||
+                    "Pickup details will be shared after booking."
+                  }
+                />
 
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <div className="rounded-3xl border border-gray-100 p-5">
-                  <p className="text-sm font-black text-gray-900">
-                    Pickup location
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-gray-500">
-                    {pkg.pickup_location ||
-                      "Pickup details will be shared after booking."}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-gray-100 p-5">
-                  <p className="text-sm font-black text-gray-900">
-                    Destination
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-gray-500">
-                    {pkg.location ||
-                      pkg.city ||
-                      "Destination details unavailable"}
-                  </p>
-                </div>
+                <DetailBox
+                  label="Destination"
+                  value={
+                    pkg.location ||
+                    pkg.city ||
+                    "Destination details unavailable"
+                  }
+                />
               </div>
 
-              <div className="mt-5 flex h-72 items-center justify-center rounded-[28px] border border-gray-200 bg-gray-100 text-center text-gray-500">
+              <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
                 Google Map can be added here later
               </div>
-            </div>
+            </Section>
 
-            <div className="border-b border-gray-200 py-8">
-              <h2 className="text-2xl font-black text-gray-900">
-                Cancellation policy
-              </h2>
-
-              <div className="mt-4 flex gap-3 rounded-3xl bg-[#F7F5FF] p-5">
-                <ShieldCheck
-                  className="mt-1 shrink-0 text-[#7E4FF5]"
-                  size={22}
-                />
-                <p className="text-sm leading-7 text-gray-600">
-                  {pkg.cancellation_policy ||
-                    "Free cancellation support is available according to host/package rules. Contact Dovail Stay support for schedule changes or package availability issues."}
-                </p>
-              </div>
-            </div>
+            <Section title="Cancellation policy">
+              <p className="rounded-2xl bg-gray-50 p-5 text-sm leading-7 text-gray-600">
+                {pkg.cancellation_policy ||
+                  "Free cancellation support is available according to host/package rules. Contact Dovail Stay support for schedule changes or package availability issues."}
+              </p>
+            </Section>
 
             <ReviewsSection
               reviews={reviews}
@@ -508,12 +453,8 @@ export default function ExperienceDetails() {
             />
 
             {similar.length > 0 && (
-              <div className="py-8">
-                <h2 className="text-2xl font-black text-gray-900">
-                  Similar trip packages
-                </h2>
-
-                <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <Section title="Similar trip packages" last>
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                   {similar.map((item) => (
                     <button
                       key={item.id}
@@ -528,7 +469,7 @@ export default function ExperienceDetails() {
                         />
                       </div>
 
-                      <h3 className="mt-3 line-clamp-2 text-sm font-bold text-gray-900">
+                      <h3 className="mt-3 line-clamp-2 text-sm font-medium text-gray-950">
                         {item.title}
                       </h3>
 
@@ -539,7 +480,7 @@ export default function ExperienceDetails() {
                     </button>
                   ))}
                 </div>
-              </div>
+              </Section>
             )}
           </div>
 
@@ -572,12 +513,12 @@ function PackageGallery({ images, title, selectedImage, setSelectedImage }) {
   const main = images[selectedImage] || images[0];
 
   return (
-    <div className="grid gap-3 md:grid-cols-[1fr_300px]">
-      <div className="overflow-hidden rounded-[32px] bg-gray-100">
+    <div className="grid gap-3 md:grid-cols-[1fr_260px]">
+      <div className="overflow-hidden rounded-2xl bg-gray-100">
         <img
           src={main}
           alt={title}
-          className="h-[360px] w-full object-cover md:h-[560px]"
+          className="h-[300px] w-full object-cover md:h-[460px]"
         />
       </div>
 
@@ -586,14 +527,14 @@ function PackageGallery({ images, title, selectedImage, setSelectedImage }) {
           <button
             key={`${img}-${index}`}
             onClick={() => setSelectedImage(index)}
-            className={`overflow-hidden rounded-2xl border-2 bg-gray-100 ${
-              selectedImage === index ? "border-[#7E4FF5]" : "border-transparent"
+            className={`overflow-hidden rounded-xl border-2 bg-gray-100 ${
+              selectedImage === index ? "border-[#3b71e6]" : "border-transparent"
             }`}
           >
             <img
               src={img}
               alt={`${title} ${index + 1}`}
-              className="h-20 w-full object-cover md:h-[104px]"
+              className="h-20 w-full object-cover md:h-[86px]"
             />
           </button>
         ))}
@@ -602,50 +543,72 @@ function PackageGallery({ images, title, selectedImage, setSelectedImage }) {
   );
 }
 
+function Section({ title, children, last }) {
+  return (
+    <section className={`${last ? "py-8" : "border-b border-gray-200 py-8"}`}>
+      {title && (
+        <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950">
+          {title}
+        </h2>
+      )}
+
+      {children}
+    </section>
+  );
+}
+
 function HostAvatar({ name }) {
   return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#F5F2FF] text-2xl font-black text-[#7E4FF5]">
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
       {String(name || "D").charAt(0).toUpperCase()}
     </div>
   );
 }
 
-function InfoCard({ icon, title, text }) {
+function DetailRow({ label, value }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-      <div className="mb-3 text-[#7E4FF5]">{icon}</div>
-      <h3 className="font-black text-gray-900">{title}</h3>
-      <p className="mt-1 text-sm leading-6 text-gray-500">{text}</p>
+    <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-3">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-right text-sm font-medium text-gray-950">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function DetailBox({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 p-4">
+      <p className="text-sm font-medium text-gray-950">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-gray-500">{value}</p>
     </div>
   );
 }
 
 function ReviewsSection({ reviews, rating, reviewCount }) {
   return (
-    <div className="border-b border-gray-200 py-8">
-      <h2 className="flex items-center gap-2 text-2xl font-black text-gray-900">
-        <Star size={22} fill="black" />
+    <section className="border-b border-gray-200 py-8">
+      <h2 className="mb-5 flex items-center gap-2 text-xl font-semibold tracking-tight text-gray-950">
+        <Star size={18} fill="currentColor" />
         {rating ? rating.toFixed(2) : "New"} · {reviewCount} reviews
       </h2>
 
       {reviews.length === 0 ? (
-        <p className="mt-4 text-gray-500">No reviews yet for this package.</p>
+        <p className="text-sm text-gray-500">No reviews yet for this package.</p>
       ) : (
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <div className="grid gap-8 md:grid-cols-2">
           {reviews.slice(0, 6).map((review) => (
-            <div
-              key={review.id}
-              className="rounded-3xl border border-gray-100 p-5"
-            >
+            <div key={review.id}>
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 font-black">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold">
                   {(review.guest_name || "G").charAt(0).toUpperCase()}
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-gray-900">
+                  <h3 className="text-sm font-medium text-gray-950">
                     {review.guest_name || "Guest"}
                   </h3>
+
                   <p className="text-xs text-gray-500">
                     {review.created_at
                       ? new Date(review.created_at).toLocaleDateString("en-IN")
@@ -658,10 +621,10 @@ function ReviewsSection({ reviews, rating, reviewCount }) {
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Star
                     key={index}
-                    size={14}
+                    size={13}
                     fill={
                       index < Math.round(Number(review.rating || 0))
-                        ? "black"
+                        ? "currentColor"
                         : "none"
                     }
                   />
@@ -675,7 +638,7 @@ function ReviewsSection({ reviews, rating, reviewCount }) {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -702,29 +665,29 @@ function BookingCard({
     : null;
 
   return (
-    <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(0,0,0,0.14)]">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-end justify-between">
         <p>
-          <span className="text-2xl font-black text-gray-900">
+          <span className="text-2xl font-semibold text-gray-950">
             ₹{price.toLocaleString("en-IN")}
           </span>{" "}
-          <span className="text-gray-500">/ person</span>
+          <span className="text-sm text-gray-500">/ person</span>
         </p>
 
-        <p className="flex items-center gap-1 text-sm font-bold">
-          <Star size={14} fill="black" />
+        <p className="flex items-center gap-1 text-sm font-medium">
+          <Star size={14} fill="currentColor" />
           {rating ? rating.toFixed(2) : "New"}
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-300">
-        <div className="border-b border-gray-300 p-4">
-          <label className="mb-2 block text-xs font-black uppercase text-gray-700">
-            Choose departure
+      <div className="overflow-hidden rounded-xl border border-gray-200">
+        <div className="border-b border-gray-200 p-4">
+          <label className="mb-3 block text-xs font-medium uppercase tracking-wide text-gray-500">
+            Departure
           </label>
 
           {hasDepartures ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {departures.map((departure) => {
                 const remaining =
                   Number(departure.total_seats || 0) -
@@ -744,23 +707,23 @@ function BookingCard({
                       setSelectedDeparture(departure);
                       setSelectedDate(formatInputDate(departure.departure_date));
                     }}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                    className={`w-full rounded-xl border p-3 text-left transition ${
                       active
-                        ? "border-[#7E4FF5] bg-[#F7F5FF]"
-                        : "border-gray-200 bg-white hover:border-gray-900"
+                        ? "border-[#3b71e6] bg-[#eef4ff]"
+                        : "border-gray-200 bg-white hover:bg-gray-50"
                     } ${
                       disabled
-                        ? "cursor-not-allowed opacity-50 hover:border-gray-200"
+                        ? "cursor-not-allowed opacity-50 hover:bg-white"
                         : ""
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="font-black text-gray-900">
+                        <p className="text-sm font-medium text-gray-950">
                           {formatDisplayDate(departure.departure_date)}
                         </p>
 
-                        <p className="mt-1 text-xs font-semibold text-gray-500">
+                        <p className="mt-1 text-xs text-gray-500">
                           {disabled
                             ? departure.status || "Unavailable"
                             : `${remaining} seats left`}
@@ -770,7 +733,7 @@ function BookingCard({
                       <span
                         className={`h-4 w-4 rounded-full border ${
                           active
-                            ? "border-[#7E4FF5] bg-[#7E4FF5]"
+                            ? "border-[#3b71e6] bg-[#3b71e6]"
                             : "border-gray-300"
                         }`}
                       />
@@ -781,29 +744,29 @@ function BookingCard({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <CalendarDays size={18} className="text-gray-400" />
+              <CalendarDays size={17} className="text-gray-400" />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full bg-transparent text-sm font-semibold outline-none"
+                className="w-full bg-transparent text-sm outline-none"
               />
             </div>
           )}
         </div>
 
         <div className="p-4">
-          <label className="mb-1 block text-xs font-black uppercase text-gray-700">
+          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
             Travelers
           </label>
 
           <div className="flex items-center gap-2">
-            <Users size={18} className="text-gray-400" />
+            <Users size={17} className="text-gray-400" />
 
             <select
               value={travelers}
               onChange={(e) => setTravelers(Number(e.target.value))}
-              className="w-full bg-transparent text-sm font-semibold outline-none"
+              className="w-full bg-transparent text-sm outline-none"
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <option
@@ -818,8 +781,8 @@ function BookingCard({
           </div>
 
           {remainingSeats !== null && (
-            <p className="mt-2 text-xs font-semibold text-gray-500">
-              {remainingSeats} seats available for selected departure
+            <p className="mt-2 text-xs text-gray-500">
+              {remainingSeats} seats available
             </p>
           )}
         </div>
@@ -827,8 +790,7 @@ function BookingCard({
 
       <button
         onClick={handleBookPackage}
-        className="mt-5 w-full rounded-2xl py-4 text-base font-black text-white transition hover:scale-[1.01]"
-        style={{ backgroundColor: BRAND }}
+        className="mt-5 h-12 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition hover:bg-[#2f63d8]"
       >
         Book package
       </button>
@@ -837,11 +799,9 @@ function BookingCard({
         You won't be charged yet
       </p>
 
-      <div className="mt-6 space-y-3 border-t border-gray-200 pt-5 text-sm">
+      <div className="mt-5 space-y-3 border-t border-gray-200 pt-5 text-sm">
         <PriceRow
-          label={`₹${price.toLocaleString("en-IN")} x ${travelers} traveler${
-            travelers > 1 ? "s" : ""
-          }`}
+          label={`₹${price.toLocaleString("en-IN")} × ${travelers}`}
           value={`₹${subtotal.toLocaleString("en-IN")}`}
         />
 
@@ -850,7 +810,7 @@ function BookingCard({
           value={`₹${serviceFee.toLocaleString("en-IN")}`}
         />
 
-        <div className="flex justify-between border-t border-gray-200 pt-4 text-base font-black">
+        <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
           <span>Total</span>
           <span>₹{total.toLocaleString("en-IN")}</span>
         </div>
@@ -862,7 +822,7 @@ function BookingCard({
 function PriceRow({ label, value }) {
   return (
     <div className="flex justify-between gap-4 text-gray-600">
-      <span className="underline underline-offset-4">{label}</span>
+      <span>{label}</span>
       <span>{value}</span>
     </div>
   );
