@@ -38,7 +38,7 @@ export default function HostType() {
               "Manage stay bookings",
             ]}
             buttonText="List a stay"
-            onClick={() => navigate("/add-listing")}
+            onClick={() => navigate("/become-a-host")}
           />
 
           <HostOption

@@ -15,10 +15,19 @@ import {
   MapPin,
   X,
   Camera,
+  ArrowLeft,
 } from "lucide-react";
-import { GoogleMap, Marker, Autocomplete, useLoadScript } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  Marker,
+  Autocomplete,
+  useLoadScript,
+} from "@react-google-maps/api";
+
 import api from "../api/api";
 
+const BRAND = "#3b71e6";
+const BRAND_HOVER = "#2f5fc2";
 const libraries = ["places"];
 
 const steps = [
@@ -38,7 +47,7 @@ const amenitiesList = [
   { key: "washer", label: "Washer", icon: WashingMachine },
   { key: "parking", label: "Free parking", icon: Car },
   { key: "ac", label: "Air conditioning", icon: Snowflake },
-  { key: "workspace", label: "Dedicated workspace", icon: BriefcaseBusiness },
+  { key: "workspace", label: "Workspace", icon: BriefcaseBusiness },
   { key: "pool", label: "Pool", icon: Waves },
   { key: "firepit", label: "Fire pit", icon: Flame },
 ];
@@ -55,21 +64,16 @@ export default function BecomeHost() {
     location: "",
     latitude: 24.7136,
     longitude: 46.6753,
-
     guests: 2,
     bedrooms: 1,
     beds: 1,
     bedroomLock: "",
-
     privateAttachedBath: 0,
     dedicatedBath: 0,
     sharedBath: 0,
-
     amenities: [],
-
     images: [],
     previews: [],
-
     weekdayPrice: 150,
     weekendPrice: 155,
   });
@@ -104,7 +108,6 @@ export default function BecomeHost() {
     if (!autocomplete) return;
 
     const place = autocomplete.getPlace();
-
     if (!place.geometry) return;
 
     update("location", place.formatted_address || place.name);
@@ -122,8 +125,7 @@ export default function BecomeHost() {
   };
 
   const handleImages = (e) => {
-    const files = Array.from(e.target.files);
-
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     if (form.images.length + files.length > 10) {
@@ -200,7 +202,7 @@ export default function BecomeHost() {
         data.append("images", file);
       });
 
-  await api.post("/properties/host-create", data, {
+      await api.post("/properties/host-create", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -214,114 +216,132 @@ export default function BecomeHost() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#222222]">
-      <HostHeader />
+    <div className="min-h-screen bg-white text-gray-950">
+      <HostHeader navigate={navigate} />
 
-      <main className="min-h-[calc(100vh-160px)] flex items-center justify-center px-6 pb-28">
-        <div className="w-full max-w-[580px]">
+      <main className="mx-auto flex min-h-[calc(100vh-170px)] max-w-7xl items-center justify-center px-4 pb-28 pt-8 md:px-8">
+        <div className="w-full max-w-3xl">
           {steps[step] === "location" && (
             <section>
-              <h1 className="text-3xl font-semibold">
-                Where&apos;s your place located?
-              </h1>
-              <p className="text-gray-500 mt-2">
-                Your address is only shared with guests after they&apos;ve made a reservation.
-              </p>
+              <PageTitle
+                eyebrow="Step 1"
+                title="Where is your place located?"
+                description="Your exact address is only shared with guests after their reservation is confirmed."
+              />
 
-              <div className="mt-10 h-[560px] rounded-none overflow-hidden relative bg-gray-100">
-                {isLoaded && (
-                  <>
-                    <GoogleMap
-                      center={center}
-                      zoom={13}
-                      mapContainerStyle={{ width: "100%", height: "100%" }}
-                      onClick={(e) => {
-                        update("latitude", e.latLng.lat());
-                        update("longitude", e.latLng.lng());
-                      }}
-                      options={{
-                        streetViewControl: false,
-                        mapTypeControl: false,
-                        fullscreenControl: false,
-                      }}
-                    >
-                      <Marker position={center} />
-                    </GoogleMap>
-
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 w-[88%]">
-                      <Autocomplete
-                        onLoad={setAutocomplete}
-                        onPlaceChanged={handlePlaceChanged}
+              <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                <div className="relative h-[520px]">
+                  {isLoaded && (
+                    <>
+                      <GoogleMap
+                        center={center}
+                        zoom={13}
+                        mapContainerStyle={{ width: "100%", height: "100%" }}
+                        onClick={(e) => {
+                          update("latitude", e.latLng.lat());
+                          update("longitude", e.latLng.lng());
+                        }}
+                        options={{
+                          streetViewControl: false,
+                          mapTypeControl: false,
+                          fullscreenControl: false,
+                        }}
                       >
-                        <div className="h-16 bg-white rounded-full shadow-xl flex items-center px-7 gap-4">
-                          <MapPin size={24} />
-                          <input
-                            value={form.location}
-                            onChange={(e) => update("location", e.target.value)}
-                            placeholder="Enter your address"
-                            className="w-full outline-none text-sm font-medium"
-                          />
-                        </div>
-                      </Autocomplete>
-                    </div>
-                  </>
-                )}
+                        <Marker position={center} />
+                      </GoogleMap>
+
+                      <div className="absolute left-1/2 top-5 w-[92%] -translate-x-1/2 md:w-[82%]">
+                        <Autocomplete
+                          onLoad={setAutocomplete}
+                          onPlaceChanged={handlePlaceChanged}
+                        >
+                          <div className="flex h-12 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 shadow-sm">
+                            <MapPin size={18} className="text-gray-500" />
+
+                            <input
+                              value={form.location}
+                              onChange={(e) =>
+                                update("location", e.target.value)
+                              }
+                              placeholder="Enter your address"
+                              className="w-full text-sm outline-none placeholder:text-gray-400"
+                            />
+                          </div>
+                        </Autocomplete>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </section>
           )}
 
           {steps[step] === "floor" && (
             <section>
-              <h1 className="text-3xl font-semibold">
-                Let&apos;s start with the basics
-              </h1>
+              <PageTitle
+                eyebrow="Step 2"
+                title="Add the basic details"
+                description="Tell guests how many people can stay comfortably."
+              />
 
-              <p className="font-medium mt-10">How many people can stay here?</p>
+              <div className="mt-8 rounded-2xl border border-gray-200 bg-white">
+                <CounterRow
+                  label="Guests"
+                  value={form.guests}
+                  onMinus={() => counter("guests", "minus")}
+                  onPlus={() => counter("guests", "plus")}
+                />
 
-              <div className="mt-8 space-y-0">
-                <CounterRow label="Guests" value={form.guests} onMinus={() => counter("guests", "minus")} onPlus={() => counter("guests", "plus")} />
-                <CounterRow label="Bedrooms" value={form.bedrooms} onMinus={() => counter("bedrooms", "minus")} onPlus={() => counter("bedrooms", "plus")} />
-                <CounterRow label="Beds" value={form.beds} onMinus={() => counter("beds", "minus")} onPlus={() => counter("beds", "plus")} />
+                <CounterRow
+                  label="Bedrooms"
+                  value={form.bedrooms}
+                  onMinus={() => counter("bedrooms", "minus")}
+                  onPlus={() => counter("bedrooms", "plus")}
+                />
+
+                <CounterRow
+                  label="Beds"
+                  value={form.beds}
+                  onMinus={() => counter("beds", "minus")}
+                  onPlus={() => counter("beds", "plus")}
+                  last
+                />
               </div>
 
-              <div className="mt-10">
-                <p className="font-semibold">Does every bedroom have a lock?</p>
+              <div className="mt-8">
+                <h2 className="text-xl font-semibold tracking-tight text-gray-950 md:text-2xl">
+                  Does every bedroom have a lock?
+                </h2>
 
-                <label className="flex items-center gap-3 mt-6 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="lock"
-                    checked={form.bedroomLock === "yes"}
-                    onChange={() => update("bedroomLock", "yes")}
-                    className="w-5 h-5"
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <RadioCard
+                    label="Yes"
+                    active={form.bedroomLock === "yes"}
+                    onClick={() => update("bedroomLock", "yes")}
                   />
-                  Yes
-                </label>
 
-                <label className="flex items-center gap-3 mt-5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="lock"
-                    checked={form.bedroomLock === "no"}
-                    onChange={() => update("bedroomLock", "no")}
-                    className="w-5 h-5"
+                  <RadioCard
+                    label="No"
+                    active={form.bedroomLock === "no"}
+                    onClick={() => update("bedroomLock", "no")}
                   />
-                  No
-                </label>
+                </div>
               </div>
             </section>
           )}
 
           {steps[step] === "bathrooms" && (
             <section>
-              <h1 className="text-3xl font-semibold leading-tight">
-                What kind of bathrooms are available to guests?
-              </h1>
+              <PageTitle
+                eyebrow="Step 3"
+                title="What bathrooms are available?"
+                description="Help guests understand what type of bathroom access they will have."
+              />
 
-              <div className="mt-10">
+              <div className="mt-8 rounded-2xl border border-gray-200 bg-white">
                 <CounterRow
                   label="Private and attached"
-                  sub="It’s connected to the guest’s room and is just for them."
+                  sub="Connected to the guest’s room and only for them."
                   value={form.privateAttachedBath}
                   onMinus={() => counter("privateAttachedBath", "minus")}
                   onPlus={() => counter("privateAttachedBath", "plus")}
@@ -329,7 +349,7 @@ export default function BecomeHost() {
 
                 <CounterRow
                   label="Dedicated"
-                  sub="It’s private, but accessed via a shared space, like a hallway."
+                  sub="Private bathroom accessed through a shared space."
                   value={form.dedicatedBath}
                   onMinus={() => counter("dedicatedBath", "minus")}
                   onPlus={() => counter("dedicatedBath", "plus")}
@@ -337,10 +357,11 @@ export default function BecomeHost() {
 
                 <CounterRow
                   label="Shared"
-                  sub="It’s shared with other people."
+                  sub="Shared with other guests or residents."
                   value={form.sharedBath}
                   onMinus={() => counter("sharedBath", "minus")}
                   onPlus={() => counter("sharedBath", "plus")}
+                  last
                 />
               </div>
             </section>
@@ -348,18 +369,13 @@ export default function BecomeHost() {
 
           {steps[step] === "amenities" && (
             <section>
-              <h1 className="text-3xl font-semibold">
-                Tell guests what your place has to offer
-              </h1>
-              <p className="text-gray-500 mt-2">
-                You can add more amenities after you publish your listing.
-              </p>
+              <PageTitle
+                eyebrow="Step 4"
+                title="What does your place offer?"
+                description="Choose the amenities guests can use during their stay."
+              />
 
-              <p className="font-semibold mt-8 mb-5">
-                What about these guest favorites?
-              </p>
-
-              <div className="grid grid-cols-3 gap-3">
+              <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3">
                 {amenitiesList.map((item) => {
                   const Icon = item.icon;
                   const active = form.amenities.includes(item.key);
@@ -369,12 +385,15 @@ export default function BecomeHost() {
                       key={item.key}
                       type="button"
                       onClick={() => toggleAmenity(item.key)}
-                      className={`h-28 border rounded-xl p-4 text-left hover:border-black transition ${
-                        active ? "border-black bg-gray-50" : "border-gray-300"
+                      className={`rounded-2xl border p-4 text-left transition hover:bg-gray-50 ${
+                        active
+                          ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6]"
+                          : "border-gray-200 bg-white text-gray-700"
                       }`}
                     >
-                      <Icon size={26} />
-                      <span className="block mt-5 text-sm font-semibold">
+                      <Icon size={22} />
+
+                      <span className="mt-4 block text-sm font-medium">
                         {item.label}
                       </span>
                     </button>
@@ -388,18 +407,23 @@ export default function BecomeHost() {
             <section>
               {form.previews.length === 0 ? (
                 <>
-                  <h1 className="text-3xl font-semibold">
-                    Add some photos of your house
-                  </h1>
-                  <p className="text-gray-500 mt-2">
-                    You&apos;ll need 5 photos to get started. You can add more or make changes later.
-                  </p>
+                  <PageTitle
+                    eyebrow="Step 5"
+                    title="Add photos of your place"
+                    description="Upload at least 5 photos. The first photo will be used as the cover."
+                  />
 
-                  <label className="mt-12 h-[500px] border border-dashed border-gray-400 rounded-xl flex flex-col items-center justify-center cursor-pointer">
-                    <Camera size={80} className="text-gray-500" />
-                    <span className="mt-8 px-5 py-3 rounded-lg bg-gray-100 font-semibold">
+                  <label className="mt-8 flex min-h-[420px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-[#3b71e6] hover:bg-[#f8fbff]">
+                    <Camera size={42} className="text-[#3b71e6]" />
+
+                    <span className="mt-5 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white">
                       Add photos
                     </span>
+
+                    <p className="mt-3 text-sm text-gray-500">
+                      JPG, PNG or WEBP. Max 10 photos.
+                    </p>
+
                     <input
                       type="file"
                       multiple
@@ -414,16 +438,16 @@ export default function BecomeHost() {
                 </>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h1 className="text-2xl font-semibold">
-                        Choose at least 5 photos
-                      </h1>
-                      <p className="text-gray-500">Drag to reorder</p>
-                    </div>
+                  <div className="flex items-end justify-between gap-4">
+                    <PageTitle
+                      eyebrow="Step 5"
+                      title="Choose at least 5 photos"
+                      description={`${form.images.length} selected. Add more or remove photos before continuing.`}
+                      compact
+                    />
 
-                    <label className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer">
-                      <Plus size={20} />
+                    <label className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white transition hover:bg-gray-50">
+                      <Plus size={18} />
                       <input
                         type="file"
                         multiple
@@ -438,28 +462,28 @@ export default function BecomeHost() {
                     {form.previews.map((src, index) => (
                       <div
                         key={src}
-                        className={`relative rounded-xl overflow-hidden bg-gray-100 ${
+                        className={`relative overflow-hidden rounded-2xl bg-gray-100 ${
                           index === 0 ? "col-span-2 h-80" : "h-44"
                         }`}
                       >
                         <img
                           src={src}
                           alt=""
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
                         />
 
                         {index === 0 && (
-                          <span className="absolute top-4 left-4 bg-white px-4 py-2 rounded-md text-sm font-semibold">
-                            Cover Photo
+                          <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1.5 text-xs font-medium shadow-sm">
+                            Cover
                           </span>
                         )}
 
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
-                          className="absolute top-4 right-4 bg-white rounded-full p-2 shadow"
+                          className="absolute right-3 top-3 rounded-full bg-white p-2 text-gray-700 shadow-sm transition hover:bg-gray-100"
                         >
-                          <X size={16} />
+                          <X size={15} />
                         </button>
                       </div>
                     ))}
@@ -468,78 +492,29 @@ export default function BecomeHost() {
               )}
 
               {uploadModal && (
-                <div className="fixed inset-0 bg-black/35 z-50 flex items-center justify-center">
-                  <div className="w-[520px] bg-white rounded-3xl overflow-hidden">
-                    <div className="h-16 flex items-center justify-between px-6 border-b">
-                      <button onClick={() => setUploadModal(false)}>
-                        <X size={20} />
-                      </button>
-                      <div className="text-center">
-                        <p className="font-semibold">Upload photos</p>
-                        <p className="text-xs text-gray-500">
-                          {form.images.length} items selected
-                        </p>
-                      </div>
-
-                      <label className="cursor-pointer">
-                        <Plus size={20} />
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={handleImages}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="p-6 min-h-[230px]">
-                      <div className="grid grid-cols-3 gap-3">
-                        {form.previews.map((src, index) => (
-                          <div key={src} className="relative h-32 rounded-xl overflow-hidden">
-                            <img src={src} alt="" className="w-full h-full object-cover" />
-                            <button
-                              onClick={() => removePhoto(index)}
-                              className="absolute top-2 right-2 bg-black text-white rounded-full p-1"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="h-20 border-t flex items-center justify-between px-6">
-                      <button onClick={() => setUploadModal(false)}>
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => setUploadModal(false)}
-                        className="bg-black text-white px-8 py-3 rounded-lg font-semibold"
-                      >
-                        Upload
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <UploadModal
+                  previews={form.previews}
+                  imageCount={form.images.length}
+                  onClose={() => setUploadModal(false)}
+                  onAdd={handleImages}
+                  onRemove={removePhoto}
+                />
               )}
             </section>
           )}
 
           {steps[step] === "finish" && (
-            <section className="grid grid-cols-1 md:grid-cols-2 items-center gap-10 max-w-5xl mx-auto">
+            <section className="grid items-center gap-10 md:grid-cols-2">
               <div>
-                <p className="font-semibold">Step 3</p>
-                <h1 className="text-4xl font-semibold mt-5">
-                  Finish up and publish
-                </h1>
-                <p className="text-gray-600 mt-5 leading-7">
-                  Finally, you&apos;ll choose booking settings, set up pricing, and publish your listing.
-                </p>
+                <PageTitle
+                  eyebrow="Step 6"
+                  title="Finish up and publish"
+                  description="Next, set pricing and publish your listing. You can edit details anytime from your dashboard."
+                />
               </div>
 
               <div className="hidden md:block">
-                <div className="w-full h-[360px] rounded-3xl bg-gray-100 flex items-center justify-center text-8xl">
+                <div className="flex h-[320px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-7xl">
                   🏠
                 </div>
               </div>
@@ -548,12 +523,13 @@ export default function BecomeHost() {
 
           {steps[step] === "pricing" && (
             <section>
-              <h1 className="text-3xl font-semibold">Now, set your prices</h1>
-              <p className="text-gray-500 mt-2">
-                These suggestions are based on guest demand for similar listings.
-              </p>
+              <PageTitle
+                eyebrow="Step 7"
+                title="Set your prices"
+                description="Add weekday and weekend pricing for your listing."
+              />
 
-              <div className="mt-10 space-y-4">
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
                 <PriceBox
                   label="Weekday"
                   value={form.weekdayPrice}
@@ -567,8 +543,8 @@ export default function BecomeHost() {
                 />
               </div>
 
-              <button className="mx-auto mt-8 flex items-center gap-2 border rounded-full px-5 py-3 shadow-md text-sm font-semibold">
-                <MapPin size={18} className="text-[#FF385C]" />
+              <button className="mt-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                <MapPin size={17} className="text-[#3b71e6]" />
                 View similar listings
               </button>
             </section>
@@ -576,20 +552,21 @@ export default function BecomeHost() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white z-40">
-        <div className="h-1 bg-gray-200">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white">
+        <div className="h-1 bg-gray-100">
           <div
-            className="h-full bg-black transition-all"
+            className="h-full bg-[#3b71e6] transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <div className="h-20 px-10 flex items-center justify-between">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 md:px-8">
           <button
             onClick={back}
             disabled={step === 0}
-            className="font-semibold disabled:opacity-30"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 transition hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
           >
+            <ArrowLeft size={16} />
             Back
           </button>
 
@@ -597,7 +574,7 @@ export default function BecomeHost() {
             <button
               onClick={publishListing}
               disabled={loading}
-              className="bg-black text-white px-8 py-3 rounded-lg font-semibold disabled:opacity-50"
+              className="rounded-xl bg-[#3b71e6] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Publishing..." : "Publish"}
             </button>
@@ -605,7 +582,7 @@ export default function BecomeHost() {
             <button
               onClick={next}
               disabled={!canNext()}
-              className="bg-black text-white px-8 py-3 rounded-lg font-semibold disabled:bg-gray-100 disabled:text-gray-400"
+              className="rounded-xl bg-[#3b71e6] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
             >
               Next
             </button>
@@ -616,17 +593,22 @@ export default function BecomeHost() {
   );
 }
 
-function HostHeader() {
+function HostHeader({ navigate }) {
   return (
-    <header className="h-24 px-10 flex items-center justify-between">
-      <div className="text-4xl font-bold">⌂</div>
+    <header className="flex h-20 items-center justify-between border-b border-gray-200 px-4 md:px-8">
+      <button
+        onClick={() => navigate("/")}
+        className="text-lg font-semibold tracking-tight text-gray-950"
+      >
+        Dovail Stay
+      </button>
 
-      <div className="flex items-center gap-4">
-        <button className="border rounded-full px-5 py-3 text-sm font-semibold">
+      <div className="flex items-center gap-2">
+        <button className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
           Questions?
         </button>
 
-        <button className="border rounded-full px-5 py-3 text-sm font-semibold">
+        <button className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
           Save & exit
         </button>
       </div>
@@ -634,51 +616,168 @@ function HostHeader() {
   );
 }
 
-function CounterRow({ label, sub, value, onMinus, onPlus }) {
+function PageTitle({ eyebrow, title, description, compact }) {
   return (
-    <div className="py-5 border-b flex items-center justify-between">
+    <div>
+      <p className="text-sm font-medium text-gray-500">{eyebrow}</p>
+
+      <h1
+        className={`mt-2 font-semibold tracking-tight text-gray-950 ${
+          compact ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"
+        }`}
+      >
+        {title}
+      </h1>
+
+      {description && (
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RadioCard({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border p-4 text-left text-sm font-medium transition ${
+        active
+          ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6]"
+          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CounterRow({ label, sub, value, onMinus, onPlus, last }) {
+  return (
+    <div
+      className={`flex items-center justify-between px-5 py-5 ${
+        last ? "" : "border-b border-gray-100"
+      }`}
+    >
       <div>
-        <p className="font-medium">{label}</p>
-        {sub && <p className="text-sm text-gray-500 mt-1">{sub}</p>}
+        <p className="text-sm font-medium text-gray-950">{label}</p>
+        {sub && <p className="mt-1 max-w-md text-sm text-gray-500">{sub}</p>}
       </div>
 
       <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={onMinus}
-          className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-        >
-          <Minus size={16} />
-        </button>
+        <CounterButton onClick={onMinus}>
+          <Minus size={14} />
+        </CounterButton>
 
-        <span className="w-4 text-center">{value}</span>
+        <span className="w-5 text-center text-sm font-medium">{value}</span>
 
-        <button
-          type="button"
-          onClick={onPlus}
-          className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-        >
-          <Plus size={16} />
-        </button>
+        <CounterButton onClick={onPlus}>
+          <Plus size={14} />
+        </CounterButton>
       </div>
     </div>
   );
 }
 
+function CounterButton({ children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 hover:bg-gray-50"
+    >
+      {children}
+    </button>
+  );
+}
+
 function PriceBox({ label, value, onChange }) {
   return (
-    <label className="block border rounded-xl p-6">
-      <span className="text-sm">{label}</span>
-      <div className="flex items-center gap-2 mt-2">
-        <span className="text-3xl font-semibold">₹</span>
+    <label className="block rounded-2xl border border-gray-200 bg-white p-5">
+      <span className="text-sm font-medium text-gray-500">{label}</span>
+
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-3xl font-semibold text-gray-950">₹</span>
+
         <input
           type="number"
           min="1"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="text-3xl font-semibold outline-none w-full"
+          className="w-full text-3xl font-semibold text-gray-950 outline-none"
         />
       </div>
     </label>
+  );
+}
+
+function UploadModal({ previews, imageCount, onClose, onAdd, onRemove }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+      <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="flex h-16 items-center justify-between border-b border-gray-200 px-5">
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-gray-600 transition hover:bg-gray-100"
+          >
+            <X size={18} />
+          </button>
+
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-950">Upload photos</p>
+            <p className="text-xs text-gray-500">{imageCount} selected</p>
+          </div>
+
+          <label className="cursor-pointer rounded-full p-2 transition hover:bg-gray-100">
+            <Plus size={18} />
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={onAdd}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        <div className="max-h-[420px] overflow-y-auto p-5">
+          <div className="grid grid-cols-3 gap-3">
+            {previews.map((src, index) => (
+              <div
+                key={src}
+                className="relative h-32 overflow-hidden rounded-xl bg-gray-100"
+              >
+                <img src={src} alt="" className="h-full w-full object-cover" />
+
+                <button
+                  onClick={() => onRemove(index)}
+                  className="absolute right-2 top-2 rounded-full bg-white p-1.5 text-gray-700 shadow-sm"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex h-16 items-center justify-between border-t border-gray-200 px-5">
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-gray-700 hover:underline"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
