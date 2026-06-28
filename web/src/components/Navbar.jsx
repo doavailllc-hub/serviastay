@@ -148,7 +148,7 @@ export default function Navbar() {
 
         <div ref={menuRef} className="relative flex items-center gap-3">
           <Link
-            to="/become-a-host"
+            to="/host-type"
             onClick={closeMenu}
             className="hidden rounded-full px-4 py-3 text-sm font-semibold text-[#222] no-underline transition hover:bg-gray-100 lg:block"
           >

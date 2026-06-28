@@ -65,6 +65,7 @@ import AddTripPackage from "./pages/AddTripPackage";
 import HostTripPackages from "./pages/HostTripPackages";
 import HostPackageDepartures from "./pages/HostPackageDepartures";
 import EditTripPackage from "./pages/EditTripPackage";
+import HostType from "./pages/HostType";
 
 import { Toaster } from "react-hot-toast";
 
@@ -103,6 +104,8 @@ export default function App() {
       <Route path="/reserve/:id" element={<ResortDetails />} />
       <Route path="/service/:id" element={<ServiceDetails />} />
       <Route path="/experience-checkout/:id" element={<ExperienceCheckout />} />
+
+<Route path="/host-type" element={<HostType />} />
       <Route path="/add-trip-package" element={<AddTripPackage />} />
       <Route
         path="/service-booking/:id"
