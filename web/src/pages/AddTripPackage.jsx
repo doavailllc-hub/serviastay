@@ -7,13 +7,24 @@ import {
   Loader2,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#7E4FF5";
+const BRAND = "#3b71e6";
+const BRAND_HOVER = "#2f5fc2";
+
+const steps = [
+  "basic",
+  "pricing",
+  "includes",
+  "transport",
+  "itinerary",
+  "policy",
+  "photos",
+  "review",
+];
 
 const categoryOptions = [
   "Family",
@@ -40,6 +51,10 @@ const includeOptions = [
 
 export default function AddTripPackage() {
   const navigate = useNavigate();
+
+  const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -86,8 +101,8 @@ export default function AddTripPackage() {
 
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+
+  const progress = ((step + 1) / steps.length) * 100;
 
   const canSubmit = useMemo(() => {
     return (
@@ -124,8 +139,9 @@ export default function AddTripPackage() {
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files || []);
-    const nextFiles = [...images, ...files].slice(0, 10);
+    if (!files.length) return;
 
+    const nextFiles = [...images, ...files].slice(0, 10);
     setImages(nextFiles);
     setPreviews(nextFiles.map((file) => URL.createObjectURL(file)));
   };
@@ -134,6 +150,47 @@ export default function AddTripPackage() {
     const nextImages = images.filter((_, i) => i !== index);
     setImages(nextImages);
     setPreviews(nextImages.map((file) => URL.createObjectURL(file)));
+  };
+
+  const canNext = () => {
+    const current = steps[step];
+
+    if (current === "basic") {
+      return form.title.trim() && form.location.trim() && form.city.trim();
+    }
+
+    if (current === "pricing") {
+      return (
+        Number(form.price) > 0 &&
+        Number(form.package_days) > 0 &&
+        Number(form.max_people) > 0
+      );
+    }
+
+    if (current === "includes") {
+      return selectedIncludes.length > 0;
+    }
+
+    if (current === "itinerary") {
+      return itinerary.some(
+        (day) => day.title.trim() || day.description.trim()
+      );
+    }
+
+    if (current === "photos") {
+      return images.length > 0;
+    }
+
+    return true;
+  };
+
+  const next = () => {
+    if (!canNext()) return;
+    setStep((prev) => Math.min(prev + 1, steps.length - 1));
+  };
+
+  const back = () => {
+    setStep((prev) => Math.max(prev - 1, 0));
   };
 
   const submitPackage = async () => {
@@ -194,57 +251,25 @@ export default function AddTripPackage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
-      <Navbar />
+      <HostHeader navigate={navigate} />
 
-      <main className="mx-auto max-w-7xl px-4 pb-14 pt-24 md:px-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
-        >
-          <ArrowLeft size={17} />
-          Back
-        </button>
+      <main className="mx-auto flex min-h-[calc(100vh-170px)] max-w-7xl items-center justify-center px-4 pb-28 pt-8 md:px-8">
+        <div className="w-full max-w-3xl">
+          {error && (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </div>
+          )}
 
-        <div className="mb-8 flex flex-col gap-5 border-b border-gray-200 pb-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-500">Host setup</p>
+          {steps[step] === "basic" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 1"
+                title="Start with the basic details"
+                description="Add the main information guests will see first."
+              />
 
-            <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
-              Add trip package
-            </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
-              Create a complete travel package with pricing, itinerary,
-              transport, hotel details and gallery images.
-            </p>
-          </div>
-
-          <button
-            onClick={submitPackage}
-            disabled={submitting}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-[#7E4FF5] px-6 text-sm font-semibold text-white transition hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300"
-          >
-            {submitting ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin" size={16} />
-                Publishing
-              </span>
-            ) : (
-              "Publish package"
-            )}
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
-        <section className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div className="space-y-6">
-            <Card title="Basic details">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
                 <Input
                   label="Package title"
                   value={form.title}
@@ -294,16 +319,29 @@ export default function AddTripPackage() {
                 onChange={(e) => updateField("description", e.target.value)}
                 placeholder="Describe the package, travel experience and highlights..."
               />
-            </Card>
+            </section>
+          )}
 
-            <Card title="Pricing and duration">
-              <div className="grid gap-4 md:grid-cols-4">
-                <Input
+          {steps[step] === "pricing" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 2"
+                title="Set pricing and duration"
+                description="Add the package price, trip duration and maximum travelers."
+              />
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                <PriceBox
                   label="Price / person"
-                  type="number"
                   value={form.price}
-                  onChange={(e) => updateField("price", e.target.value)}
-                  placeholder="899"
+                  onChange={(value) => updateField("price", value)}
+                />
+
+                <Input
+                  label="Max travelers"
+                  type="number"
+                  value={form.max_people}
+                  onChange={(e) => updateField("max_people", e.target.value)}
                 />
 
                 <Input
@@ -321,18 +359,19 @@ export default function AddTripPackage() {
                     updateField("package_nights", e.target.value)
                   }
                 />
-
-                <Input
-                  label="Max travelers"
-                  type="number"
-                  value={form.max_people}
-                  onChange={(e) => updateField("max_people", e.target.value)}
-                />
               </div>
-            </Card>
+            </section>
+          )}
 
-            <Card title="Package includes">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {steps[step] === "includes" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 3"
+                title="What is included?"
+                description="Select everything included in this trip package."
+              />
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {includeOptions.map((item) => {
                   const active = selectedIncludes.includes(item);
 
@@ -341,22 +380,33 @@ export default function AddTripPackage() {
                       key={item}
                       type="button"
                       onClick={() => toggleInclude(item)}
-                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
+                      className={`rounded-2xl border p-4 text-left transition hover:bg-gray-50 ${
                         active
-                          ? "border-[#7E4FF5] bg-[#F7F5FF] text-[#7E4FF5]"
-                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
+                          ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6]"
+                          : "border-gray-200 bg-white text-gray-700"
                       }`}
                     >
-                      <CheckCircle2 size={17} />
-                      {item}
+                      <CheckCircle2 size={18} />
+
+                      <span className="mt-4 block text-sm font-medium">
+                        {item}
+                      </span>
                     </button>
                   );
                 })}
               </div>
-            </Card>
+            </section>
+          )}
 
-            <Card title="Hotel and transport">
-              <div className="grid gap-4 md:grid-cols-2">
+          {steps[step] === "transport" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 4"
+                title="Add hotel, transport and pickup"
+                description="Give guests clear package logistics before they book."
+              />
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
                 <Input
                   label="Hotel"
                   value={form.hotel_name}
@@ -387,14 +437,22 @@ export default function AddTripPackage() {
                   placeholder="Airport / Hotel pickup"
                 />
               </div>
-            </Card>
+            </section>
+          )}
 
-            <Card title="Itinerary">
-              <div className="space-y-4">
+          {steps[step] === "itinerary" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 5"
+                title="Create the itinerary"
+                description="Add a simple day-wise plan for this package."
+              />
+
+              <div className="mt-8 space-y-4">
                 {itinerary.map((day, index) => (
                   <div
                     key={index}
-                    className="rounded-2xl border border-gray-200 p-4"
+                    className="rounded-2xl border border-gray-200 bg-white p-5"
                   >
                     <div className="mb-4 flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-gray-950">
@@ -405,7 +463,7 @@ export default function AddTripPackage() {
                         <button
                           type="button"
                           onClick={() => removeDay(index)}
-                          className="flex items-center gap-1 text-sm font-medium text-red-600"
+                          className="inline-flex items-center gap-1 text-sm font-medium text-red-600"
                         >
                           <Trash2 size={15} />
                           Remove
@@ -436,15 +494,23 @@ export default function AddTripPackage() {
                 <button
                   type="button"
                   onClick={addDay}
-                  className="inline-flex h-11 items-center gap-2 rounded-full border border-gray-300 px-5 text-sm font-medium transition hover:border-gray-950"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-gray-200 px-5 text-sm font-medium transition hover:bg-gray-50"
                 >
                   <Plus size={16} />
                   Add day
                 </button>
               </div>
-            </Card>
+            </section>
+          )}
 
-            <Card title="Cancellation policy">
+          {steps[step] === "policy" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 6"
+                title="Add cancellation policy"
+                description="Explain cancellation rules in a simple and clear way."
+              />
+
               <Textarea
                 label="Policy"
                 value={form.cancellation_policy}
@@ -453,18 +519,26 @@ export default function AddTripPackage() {
                 }
                 placeholder="Write cancellation rules..."
               />
-            </Card>
+            </section>
+          )}
 
-            <Card title="Gallery images">
-              <label className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-[#7E4FF5] hover:bg-[#FAF8FF]">
-                <ImagePlus size={30} className="text-[#7E4FF5]" />
+          {steps[step] === "photos" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 7"
+                title="Add package images"
+                description="Upload images for this package. The first image will be used as the cover."
+              />
 
-                <p className="mt-3 text-sm font-semibold text-gray-950">
-                  Upload package images
-                </p>
+              <label className="mt-8 flex min-h-[360px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-[#3b71e6] hover:bg-[#f8fbff]">
+                <ImagePlus size={42} className="text-[#3b71e6]" />
 
-                <p className="mt-1 text-sm text-gray-500">
-                  First image becomes cover. Max 10 images.
+                <span className="mt-5 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white">
+                  Upload images
+                </span>
+
+                <p className="mt-3 text-sm text-gray-500">
+                  Max 10 images. JPG, PNG or WEBP.
                 </p>
 
                 <input
@@ -477,20 +551,22 @@ export default function AddTripPackage() {
               </label>
 
               {previews.length > 0 && (
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-6 grid grid-cols-2 gap-3">
                   {previews.map((src, index) => (
                     <div
                       key={src}
-                      className="relative overflow-hidden rounded-2xl bg-gray-100"
+                      className={`relative overflow-hidden rounded-2xl bg-gray-100 ${
+                        index === 0 ? "col-span-2 h-80" : "h-44"
+                      }`}
                     >
                       <img
                         src={src}
                         alt={`Preview ${index + 1}`}
-                        className="aspect-[4/3] w-full object-cover"
+                        className="h-full w-full object-cover"
                       />
 
                       {index === 0 && (
-                        <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">
+                        <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1.5 text-xs font-medium shadow-sm">
                           Cover
                         </span>
                       )}
@@ -498,7 +574,7 @@ export default function AddTripPackage() {
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
-                        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-red-600 shadow-sm"
+                        className="absolute right-3 top-3 rounded-full bg-white p-2 text-red-600 shadow-sm transition hover:bg-gray-100"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -506,95 +582,170 @@ export default function AddTripPackage() {
                   ))}
                 </div>
               )}
-            </Card>
-          </div>
+            </section>
+          )}
 
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-3xl border border-gray-200 bg-white p-5">
-              <h2 className="text-lg font-bold text-gray-950">Preview</h2>
+          {steps[step] === "review" && (
+            <section>
+              <PageTitle
+                eyebrow="Step 8"
+                title="Review and publish"
+                description="Check the package details before publishing."
+              />
 
-              <div className="mt-4 overflow-hidden rounded-2xl bg-gray-100">
-                {previews[0] ? (
-                  <img
-                    src={previews[0]}
-                    alt="Cover preview"
-                    className="aspect-[4/3] w-full object-cover"
+              <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
+                <div className="overflow-hidden rounded-2xl bg-gray-100">
+                  {previews[0] ? (
+                    <img
+                      src={previews[0]}
+                      alt="Cover preview"
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex aspect-[4/3] items-center justify-center text-sm text-gray-400">
+                      Cover image
+                    </div>
+                  )}
+                </div>
+
+                <h2 className="mt-5 text-xl font-semibold tracking-tight text-gray-950">
+                  {form.title || "Trip package title"}
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  {form.location || "Destination"}
+                </p>
+
+                <div className="mt-5 space-y-3 text-sm">
+                  <PreviewRow
+                    label="Price"
+                    value={`₹${Number(form.price || 0).toLocaleString(
+                      "en-IN"
+                    )}`}
                   />
-                ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center text-sm text-gray-400">
-                    Cover image
-                  </div>
-                )}
+
+                  <PreviewRow
+                    label="Duration"
+                    value={`${form.package_days || 1}D / ${
+                      form.package_nights || 0
+                    }N`}
+                  />
+
+                  <PreviewRow label="Category" value={form.category} />
+
+                  <PreviewRow
+                    label="Travelers"
+                    value={`Max ${form.max_people || 10}`}
+                  />
+                </div>
               </div>
-
-              <h3 className="mt-4 line-clamp-2 text-base font-semibold text-gray-950">
-                {form.title || "Trip package title"}
-              </h3>
-
-              <p className="mt-1 text-sm text-gray-500">
-                {form.location || "Destination"}
-              </p>
-
-              <div className="mt-4 space-y-3 text-sm">
-                <PreviewRow
-                  label="Price"
-                  value={`₹${Number(form.price || 0).toLocaleString("en-IN")}`}
-                />
-
-                <PreviewRow
-                  label="Duration"
-                  value={`${form.package_days || 1}D / ${
-                    form.package_nights || 0
-                  }N`}
-                />
-
-                <PreviewRow label="Category" value={form.category} />
-
-                <PreviewRow
-                  label="Travelers"
-                  value={`Max ${form.max_people || 10}`}
-                />
-              </div>
-
-              <button
-                onClick={submitPackage}
-                disabled={submitting}
-                className="mt-6 h-12 w-full rounded-full bg-[#7E4FF5] text-sm font-semibold text-white transition hover:bg-[#6F42EA] disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-                {submitting ? "Publishing..." : "Publish package"}
-              </button>
-            </div>
-          </aside>
-        </section>
+            </section>
+          )}
+        </div>
       </main>
 
-      <Footer />
+      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white">
+        <div className="h-1 bg-gray-100">
+          <div
+            className="h-full bg-[#3b71e6] transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 md:px-8">
+          <button
+            onClick={back}
+            disabled={step === 0}
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 transition hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
+
+          {step === steps.length - 1 ? (
+            <button
+              onClick={submitPackage}
+              disabled={submitting || !canSubmit}
+              className="rounded-xl bg-[#3b71e6] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+            >
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="animate-spin" size={16} />
+                  Publishing
+                </span>
+              ) : (
+                "Publish"
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={next}
+              disabled={!canNext()}
+              className="rounded-xl bg-[#3b71e6] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+            >
+              Next
+            </button>
+          )}
+        </div>
+      </footer>
     </div>
   );
 }
 
-function Card({ title, children }) {
+function HostHeader({ navigate }) {
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-5 md:p-6">
-      <h2 className="mb-5 text-xl font-bold tracking-tight text-gray-950">
-        {title}
-      </h2>
+    <header className="flex h-20 items-center justify-between border-b border-gray-200 px-4 md:px-8">
+      <button
+        onClick={() => navigate("/")}
+        className="text-lg font-semibold tracking-tight text-gray-950"
+      >
+        Dovail Stay
+      </button>
 
-      {children}
-    </section>
+      <div className="flex items-center gap-2">
+        <button className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+          Questions?
+        </button>
+
+        <button
+          onClick={() => navigate("/")}
+          className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+        >
+          Save & exit
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function PageTitle({ eyebrow, title, description }) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-gray-500">{eyebrow}</p>
+
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+        {title}
+      </h1>
+
+      {description && (
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+          {description}
+        </p>
+      )}
+    </div>
   );
 }
 
 function Input({ label, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </span>
 
       <input
         {...props}
-        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#7E4FF5] focus:ring-2 focus:ring-[#7E4FF5]/10"
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       />
     </label>
   );
@@ -603,13 +754,13 @@ function Input({ label, ...props }) {
 function Select({ label, options, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </span>
 
       <select
         {...props}
-        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#7E4FF5] focus:ring-2 focus:ring-[#7E4FF5]/10"
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       >
         {options.map((item) => (
           <option key={item} value={item}>
@@ -624,15 +775,35 @@ function Select({ label, options, ...props }) {
 function Textarea({ label, ...props }) {
   return (
     <label className="mt-4 block">
-      <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </span>
 
       <textarea
         rows={4}
         {...props}
-        className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#7E4FF5] focus:ring-2 focus:ring-[#7E4FF5]/10"
+        className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       />
+    </label>
+  );
+}
+
+function PriceBox({ label, value, onChange }) {
+  return (
+    <label className="block rounded-2xl border border-gray-200 bg-white p-5">
+      <span className="text-sm font-medium text-gray-500">{label}</span>
+
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-3xl font-semibold text-gray-950">₹</span>
+
+        <input
+          type="number"
+          min="1"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-3xl font-semibold text-gray-950 outline-none"
+        />
+      </div>
     </label>
   );
 }
@@ -641,7 +812,7 @@ function PreviewRow({ label, value }) {
   return (
     <div className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
       <span className="text-gray-500">{label}</span>
-      <span className="font-semibold text-gray-950">{value}</span>
+      <span className="font-medium text-gray-950">{value}</span>
     </div>
   );
 }
