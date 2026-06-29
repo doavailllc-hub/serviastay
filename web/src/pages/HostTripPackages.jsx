@@ -29,52 +29,110 @@ export default function HostTripPackages() {
     loadPackages();
   }, []);
 
- const loadPackages = async () => {
-  try {
-    setLoading(true);
-    setError("");
+  const getArray = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.packages)) return data.packages;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  };
 
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user") || "null");
+  const loadPackages = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-    if (!token || !user?.id) {
-      navigate("/login");
-      return;
-    }
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user") || "null");
 
-    const res = await api.get(`/host/trip-packages/${user.id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+      if (!token || !user?.id) {
+        navigate("/login");
+        return;
+      }
 
-    const data = Array.isArray(res.data)
-      ? res.data
-      : Array.isArray(res.data?.packages)
-      ? res.data.packages
-      : Array.isArray(res.data?.data)
-      ? res.data.data
-      : [];
+      const headers = { Authorization: `Bearer ${token}` };
 
-    const hostPackages = data.filter((pkg) => {
+      let res;
+
+      try {
+        res = await api.get(`/host/trip-packages/${user.id}`, { headers });
+      } catch {
+        res = await api.get("/host/trip-packages", { headers });
+      }
+
+      const data = getArray(res.data);
       const hostId = String(user.id);
 
-      return (
-        String(pkg.host_id || "") === hostId ||
-        String(pkg.user_id || "") === hostId ||
-        String(pkg.created_by || "") === hostId ||
-        String(pkg.owner_id || "") === hostId
-      );
-    });
+      const filtered = data.filter((pkg) => {
+        const owner =
+          pkg.host_id ??
+          pkg.hostId ??
+          pkg.user_id ??
+          pkg.userId ??
+          pkg.owner_id ??
+          pkg.ownerId ??
+          pkg.created_by ??
+          pkg.createdBy;
 
-    setPackages(hostPackages);
-  } catch (err) {
-    console.error("Host trip packages load failed:", err);
-    setError("Unable to load your trip packages.");
-  } finally {
-    setLoading(false);
-  }
-};
+        return String(owner || "") === hostId;
+      });
+
+      setPackages(filtered);
+    } catch (err) {
+      console.error("Host trip packages load failed:", err);
+      setError("Unable to load your trip packages.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stats = useMemo(() => {
+    const totalPackages = packages.length;
+    const activePackages = packages.filter(
+      (p) => String(p.status || "active").toLowerCase() === "active"
+    ).length;
+
+    const totalBookings = packages.reduce(
+      (sum, p) => sum + Number(p.bookings_count || 0),
+      0
+    );
+
+    const totalRevenue = packages.reduce(
+      (sum, p) => sum + Number(p.revenue || 0),
+      0
+    );
+
+    return {
+      totalPackages,
+      activePackages,
+      totalBookings,
+      totalRevenue,
+    };
+  }, [packages]);
+
+  const deletePackage = async (id) => {
+    const ok = window.confirm("Delete this trip package?");
+    if (!ok) return;
+
+    try {
+      setDeletingId(id);
+
+      const token = localStorage.getItem("token");
+
+      await api.delete(`/trip-packages/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setPackages((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      console.error("Delete package failed:", err);
+      alert(err.response?.data?.message || "Package delete failed");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
@@ -92,7 +150,8 @@ export default function HostTripPackages() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-gray-500">
-              Manage your travel packages, pricing, bookings and availability.
+              Manage only your uploaded travel packages, pricing, bookings and
+              availability.
             </p>
           </div>
 
@@ -107,7 +166,7 @@ export default function HostTripPackages() {
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total packages" value={stats.totalPackages} />
+          <StatCard label="Your packages" value={stats.totalPackages} />
           <StatCard label="Active packages" value={stats.activePackages} />
           <StatCard label="Bookings" value={stats.totalBookings} />
           <StatCard
@@ -120,7 +179,7 @@ export default function HostTripPackages() {
           {loading ? (
             <StateBox>
               <Loader2 className="animate-spin" size={24} />
-              <p className="font-semibold">Loading trip packages...</p>
+              <p className="font-semibold">Loading your trip packages...</p>
             </StateBox>
           ) : error ? (
             <StateBox>
@@ -174,9 +233,10 @@ export default function HostTripPackages() {
 function PackageRow({ pkg, deleting, onView, onEdit, onDelete }) {
   const image =
     pkg.image ||
+    pkg.cover_image ||
     "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
 
-  const days = Number(pkg.package_days || 1);
+  const days = Number(pkg.package_days || pkg.days || 1);
   const nights = Number(pkg.package_nights || Math.max(days - 1, 0));
 
   return (
@@ -200,7 +260,7 @@ function PackageRow({ pkg, deleting, onView, onEdit, onDelete }) {
           </div>
 
           <h2 className="text-2xl font-black text-gray-900">
-            {pkg.title}
+            {pkg.title || "Untitled package"}
           </h2>
 
           <p className="mt-2 flex items-center gap-2 text-gray-500">
@@ -225,10 +285,7 @@ function PackageRow({ pkg, deleting, onView, onEdit, onDelete }) {
               }
             />
 
-            <MiniInfo
-              label="Bookings"
-              value={Number(pkg.bookings_count || 0)}
-            />
+            <MiniInfo label="Bookings" value={Number(pkg.bookings_count || 0)} />
 
             <MiniInfo
               label="Revenue"
