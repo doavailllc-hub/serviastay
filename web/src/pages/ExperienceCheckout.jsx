@@ -2,17 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  CalendarDays,
   CheckCircle2,
   CreditCard,
-  Hotel,
   Loader2,
   MapPin,
-  Route,
   ShieldCheck,
-  Star,
-  Users,
-  Utensils,
+  Smartphone,
+  Wallet,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -20,28 +16,25 @@ import Footer from "../components/Footer";
 import api from "../api/api";
 
 const BRAND = "#3b71e6";
+const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
 
 export default function ExperienceCheckout() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const passedState = location.state || {};
+  const state = location.state || {};
 
-  const [departureId] = useState(passedState.departureId || null);
-  const [selectedDeparture] = useState(passedState.selectedDeparture || null);
-
-  const [pkg, setPkg] = useState(passedState.experience || null);
-  const [selectedDate, setSelectedDate] = useState(
-    passedState.selectedDate || ""
-  );
-  const [travelers, setTravelers] = useState(Number(passedState.guests || 1));
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [pickupNote, setPickupNote] = useState("");
-  const [specialRequest, setSpecialRequest] = useState("");
-  const [loading, setLoading] = useState(!passedState.experience);
-  const [submitting, setSubmitting] = useState(false);
+  const [pkg, setPkg] = useState(state.experience || null);
+  const [loading, setLoading] = useState(!state.experience);
+  const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [error, setError] = useState("");
+
+  const selectedDate = state.selectedDate || "";
+  const travelers = Number(state.guests || 1);
+  const departureId = state.departureId || null;
+  const selectedDeparture = state.selectedDeparture || null;
 
   useEffect(() => {
     if (!pkg) loadPackage();
@@ -55,114 +48,228 @@ export default function ExperienceCheckout() {
       const res = await api.get(`/experiences/${id}`);
       setPkg(res.data);
     } catch (err) {
-      console.error("Package checkout load failed:", err);
-      setError("Unable to load package checkout.");
+      console.error("Package payment load failed:", err);
+      setError("Unable to load payment details.");
     } finally {
       setLoading(false);
     }
   };
 
   const image = useMemo(() => {
-    const firstImage = pkg?.images?.[0]?.image_url;
-
     return (
-      firstImage ||
+      pkg?.images?.[0]?.image_url ||
       pkg?.image ||
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
     );
   }, [pkg]);
 
   const price = Number(pkg?.price || 0);
-  const subtotal = price * travelers;
-  const serviceFee = Math.round(subtotal * 0.08);
-  const total = subtotal + serviceFee;
+  const subtotal = Number(state.subtotal || price * travelers);
+  const serviceFee = Number(state.serviceFee || Math.round(subtotal * 0.08));
+  const total = Number(state.total || subtotal + serviceFee);
 
-  const days = Number(pkg?.package_days || 1);
-  const nights = Number(pkg?.package_nights || Math.max(days - 1, 0));
+  const loadRazorpay = () =>
+    new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
 
-  const handleConfirmBooking = async () => {
+      const script = document.createElement("script");
+      script.src = RAZORPAY_SCRIPT;
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
+  const getUser = () => {
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (!token || !user?.id) {
+      navigate("/login");
+      return null;
+    }
+
+    return { token, user };
+  };
+
+  const createBooking = async ({ paymentStatus, paymentId = null, orderId = null }) => {
+    const auth = getUser();
+    if (!auth) return;
+
+    const res = await api.post(
+      "/experience-bookings",
+      {
+        experience_id: Number(id),
+        user_id: Number(auth.user.id),
+        departure_id: departureId,
+        booking_date: selectedDate,
+        guests: travelers,
+        total,
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        status: paymentStatus === "Paid" ? "Confirmed" : "Pending",
+        razorpay_payment_id: paymentId,
+        razorpay_order_id: orderId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      }
+    );
+
+    navigate("/experience-booking-success", {
+      replace: true,
+      state: {
+        bookingId: res.data?.bookingId,
+        experience: pkg,
+        selectedDate,
+        guests: travelers,
+        departureId,
+        selectedDeparture,
+        total,
+        paymentStatus,
+        paymentId,
+      },
+    });
+  };
+
+  const payWithRazorpay = async () => {
+    const auth = getUser();
+    if (!auth) return;
+
+    const loaded = await loadRazorpay();
+
+    if (!loaded) {
+      setError("Razorpay failed to load. Please try again.");
+      return;
+    }
+
+    const orderRes = await api.post(
+      "/experience-payments/create-order",
+      {
+        experience_id: Number(id),
+        user_id: Number(auth.user.id),
+        amount: total,
+        currency: "INR",
+        guests: travelers,
+        booking_date: selectedDate,
+        departure_id: departureId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      }
+    );
+
+    const options = {
+      key: orderRes.data.key,
+      amount: orderRes.data.order.amount,
+      currency: "INR",
+      name: "Dovail Stay",
+      description: pkg?.title || "Trip package payment",
+      order_id: orderRes.data.order.id,
+      theme: {
+        color: BRAND,
+      },
+      prefill: {
+        name: auth.user.fullname || auth.user.name || "",
+        email: auth.user.email || "",
+        contact: auth.user.phone || auth.user.phone_number || "",
+      },
+      handler: async (response) => {
+        await api.post(
+          "/experience-payments/verify",
+          {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${auth.token}`,
+            },
+          }
+        );
+
+        await createBooking({
+          paymentStatus: "Paid",
+          paymentId: response.razorpay_payment_id,
+          orderId: response.razorpay_order_id,
+        });
+      },
+      modal: {
+        ondismiss: () => setPaying(false),
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+
+    razorpay.on("payment.failed", (response) => {
+      console.log("Payment failed:", response.error);
+      setError(response.error?.description || "Payment failed. Please try again.");
+      setPaying(false);
+    });
+
+    razorpay.open();
+  };
+
+  const handlePayment = async () => {
     try {
       setError("");
-
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "null");
-
-      if (!token || !user?.id) {
-        navigate("/login");
-        return;
-      }
+      setPaying(true);
 
       if (!selectedDate) {
-        setError("Please select a travel date.");
+        setError("Travel date is missing. Please go back and select a package date.");
         return;
       }
 
-      setSubmitting(true);
+      if (paymentMethod === "pay_later") {
+        await createBooking({
+          paymentStatus: "Pay at trip",
+        });
+        return;
+      }
 
-      const res = await api.post(
-        "/experience-bookings",
-        {
-          experience_id: Number(id),
-          user_id: Number(user.id),
-          departure_id: departureId,
-          booking_date: selectedDate,
-          guests: travelers,
-          total,
-          payment_method: paymentMethod,
-          payment_status: paymentMethod === "cash" ? "Pay at trip" : "Pending",
-          status: paymentMethod === "cash" ? "Confirmed" : "Pending",
-          pickup_note: pickupNote,
-          special_request: specialRequest,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      navigate("/experience-booking-success", {
-        state: {
-          bookingId: res.data?.bookingId,
-          experience: pkg,
-          selectedDate,
-          guests: travelers,
-          departureId,
-          selectedDeparture,
-          total,
-        },
-      });
+      await payWithRazorpay();
     } catch (err) {
-      console.error("Package booking failed:", err);
-      setError(
-        err.response?.data?.message ||
-          "Package booking failed. Please try again."
-      );
+      console.error("Payment failed:", err);
+      setError(err.response?.data?.message || "Payment failed. Please try again.");
     } finally {
-      setSubmitting(false);
+      setPaying(false);
     }
   };
 
-  if (loading) return <LoadingPage />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="flex items-center gap-3 text-gray-500">
+            <Loader2 className="animate-spin text-[#3b71e6]" size={22} />
+            <span className="text-sm font-medium">Loading payment...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!pkg) {
     return (
-      <div className="min-h-screen bg-white text-gray-950">
+      <div className="min-h-screen bg-white">
         <Navbar />
-
         <main className="mx-auto flex min-h-[70vh] max-w-4xl items-center justify-center px-4 text-center">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Checkout unavailable
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+              Payment unavailable
             </h1>
-
             <p className="mt-3 text-sm text-gray-500">{error}</p>
-
             <button
               onClick={() => navigate("/experiences")}
-              className="mt-6 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+              className="mt-6 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white"
             >
-              Back to trip packages
+              Back to packages
             </button>
           </div>
         </main>
@@ -184,133 +291,69 @@ export default function ExperienceCheckout() {
             Back
           </button>
 
-          <p className="text-sm font-medium text-gray-500">Checkout</p>
+          <p className="text-sm font-medium text-gray-500">Payment</p>
 
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
-            Confirm package booking
+            Confirm and pay
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
-            Review your travel date, travelers, pickup details and payment
-            method before confirming your trip package.
+            Complete your payment securely to confirm this trip package.
           </p>
         </header>
 
         <section className="grid gap-10 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">
-            <Card title="Your trip package">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FieldBox icon={<CalendarDays size={18} />} label="Travel date">
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    disabled={Boolean(selectedDeparture)}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="mt-2 w-full bg-transparent text-sm outline-none disabled:text-gray-500"
-                  />
-                </FieldBox>
-
-                <FieldBox icon={<Users size={18} />} label="Travelers">
-                  <select
-                    value={travelers}
-                    onChange={(e) => setTravelers(Number(e.target.value))}
-                    className="mt-2 w-full bg-transparent text-sm outline-none"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                      <option key={n} value={n}>
-                        {n} traveler{n > 1 ? "s" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </FieldBox>
-              </div>
-
-              {selectedDeparture && (
-                <div className="mt-4 rounded-2xl border border-blue-200 bg-[#eef4ff] p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-[#3b71e6]">
-                    Selected departure
-                  </p>
-
-                  <p className="mt-1 text-sm font-semibold text-gray-950">
-                    {formatDisplayDate(selectedDeparture.departure_date)}
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    {Math.max(
-                      Number(selectedDeparture.total_seats || 0) -
-                        Number(selectedDeparture.booked_seats || 0),
-                      0
-                    )}{" "}
-                    seats left
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <MiniBox
-                  icon={<Hotel size={17} />}
-                  label="Hotel"
-                  value={pkg.hotel_name || "Included"}
-                />
-
-                <MiniBox
-                  icon={<Route size={17} />}
-                  label="Transport"
-                  value={pkg.transport || "Included"}
-                />
-
-                <MiniBox
-                  icon={<Utensils size={17} />}
-                  label="Meals"
-                  value={pkg.meals || "Selected meals"}
-                />
-              </div>
-            </Card>
-
-            <Card title="Pickup details">
-              <p className="text-sm leading-6 text-gray-500">
-                Pickup location:{" "}
-                <span className="font-medium text-gray-950">
-                  {pkg.pickup_location || "Will be confirmed after booking"}
-                </span>
-              </p>
-
-              <Textarea
-                value={pickupNote}
-                onChange={(e) => setPickupNote(e.target.value)}
-                placeholder="Add hotel name, airport terminal, or pickup note..."
-              />
-            </Card>
-
-            <Card title="Special requests">
-              <p className="text-sm leading-6 text-gray-500">
-                Share any food preference, child seat request, timing note or
-                travel requirement.
-              </p>
-
-              <Textarea
-                value={specialRequest}
-                onChange={(e) => setSpecialRequest(e.target.value)}
-                placeholder="Optional"
-              />
-            </Card>
-
             <Card title="Payment method">
               <div className="space-y-3">
                 <PaymentOption
-                  active={paymentMethod === "cash"}
-                  title="Pay at trip"
-                  text="Confirm now and pay directly before or during the package."
-                  icon={<CreditCard size={20} />}
-                  onClick={() => setPaymentMethod("cash")}
+                  active={paymentMethod === "razorpay"}
+                  title="Razorpay secure checkout"
+                  text="Pay using UPI, card, net banking or wallet."
+                  icon={<Wallet size={20} />}
+                  onClick={() => setPaymentMethod("razorpay")}
                 />
 
                 <PaymentOption
-                  active={paymentMethod === "razorpay"}
-                  title="Online payment"
-                  text="Reserve using secure online payment."
-                  icon={<ShieldCheck size={20} />}
+                  active={paymentMethod === "upi"}
+                  title="UPI / Google Pay"
+                  text="UPI payment handled securely through Razorpay."
+                  icon={<Smartphone size={20} />}
                   onClick={() => setPaymentMethod("razorpay")}
+                />
+
+                <PaymentOption
+                  active={paymentMethod === "card"}
+                  title="Credit or debit card"
+                  text="Card payment handled securely through Razorpay."
+                  icon={<CreditCard size={20} />}
+                  onClick={() => setPaymentMethod("razorpay")}
+                />
+
+                <PaymentOption
+                  active={paymentMethod === "pay_later"}
+                  title="Pay at trip"
+                  text="Confirm now and pay before or during the package."
+                  icon={<ShieldCheck size={20} />}
+                  onClick={() => setPaymentMethod("pay_later")}
+                />
+              </div>
+            </Card>
+
+            <Card title="Trip summary">
+              <div className="space-y-4">
+                <SummaryRow label="Travel date" value={formatDisplayDate(selectedDate)} />
+                <SummaryRow
+                  label="Travelers"
+                  value={`${travelers} traveler${travelers > 1 ? "s" : ""}`}
+                />
+                <SummaryRow
+                  label="Departure"
+                  value={
+                    selectedDeparture
+                      ? formatDisplayDate(selectedDeparture.departure_date)
+                      : "Flexible"
+                  }
                 />
               </div>
             </Card>
@@ -318,17 +361,10 @@ export default function ExperienceCheckout() {
             <div className="rounded-2xl border border-blue-200 bg-[#eef4ff] p-5">
               <div className="flex gap-3">
                 <CheckCircle2 className="mt-0.5 text-[#3b71e6]" size={20} />
-
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-950">
-                    Package booking support
-                  </h3>
-
-                  <p className="mt-1 text-sm leading-6 text-gray-600">
-                    Contact Dovail Stay support if pickup timing, package
-                    schedule or host availability changes.
-                  </p>
-                </div>
+                <p className="text-sm leading-6 text-gray-600">
+                  Your booking will be confirmed after successful payment
+                  verification.
+                </p>
               </div>
             </div>
 
@@ -339,137 +375,71 @@ export default function ExperienceCheckout() {
             )}
 
             <button
-              onClick={handleConfirmBooking}
-              disabled={submitting}
+              onClick={handlePayment}
+              disabled={paying}
               className="h-12 w-full rounded-xl bg-[#3b71e6] px-6 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300 md:w-auto"
             >
-              {submitting ? "Confirming..." : "Confirm package booking"}
+              {paying
+                ? "Processing..."
+                : paymentMethod === "pay_later"
+                ? "Confirm booking"
+                : `Pay ₹${total.toLocaleString("en-IN")}`}
             </button>
           </div>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <SummaryCard
-              pkg={pkg}
-              image={image}
-              days={days}
-              nights={nights}
-              selectedDeparture={selectedDeparture}
-              price={price}
-              travelers={travelers}
-              subtotal={subtotal}
-              serviceFee={serviceFee}
-              total={total}
-            />
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex gap-4">
+                <img
+                  src={image}
+                  alt={pkg.title}
+                  className="h-24 w-24 rounded-xl object-cover"
+                />
+
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Trip package
+                  </p>
+
+                  <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-gray-950">
+                    {pkg.title}
+                  </h3>
+
+                  <p className="mt-2 flex items-center gap-1 text-sm text-gray-500">
+                    <MapPin size={14} />
+                    {pkg.location || pkg.city || "Destination"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-gray-200 pt-5">
+                <h3 className="text-lg font-semibold tracking-tight text-gray-950">
+                  Price details
+                </h3>
+
+                <div className="mt-4 space-y-3 text-sm">
+                  <PriceRow
+                    label={`₹${price.toLocaleString("en-IN")} × ${travelers}`}
+                    value={`₹${subtotal.toLocaleString("en-IN")}`}
+                  />
+
+                  <PriceRow
+                    label="Service fee"
+                    value={`₹${serviceFee.toLocaleString("en-IN")}`}
+                  />
+
+                  <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
+                    <span>Total</span>
+                    <span>₹{total.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </aside>
         </section>
       </main>
 
       <Footer />
-    </div>
-  );
-}
-
-function LoadingPage() {
-  return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-500">
-          <Loader2 className="animate-spin text-[#3b71e6]" size={22} />
-          <span className="text-sm font-medium">
-            Loading package checkout...
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({
-  pkg,
-  image,
-  days,
-  nights,
-  selectedDeparture,
-  price,
-  travelers,
-  subtotal,
-  serviceFee,
-  total,
-}) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex gap-4">
-        <img
-          src={image}
-          alt={pkg.title}
-          className="h-24 w-24 rounded-xl object-cover"
-        />
-
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            Trip package
-          </p>
-
-          <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-gray-950">
-            {pkg.title}
-          </h3>
-
-          <p className="mt-2 flex items-center gap-1 text-sm text-gray-500">
-            <MapPin size={14} />
-            {pkg.location || pkg.city || "Destination"}
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            {days} days / {Math.max(nights, 0)} nights
-          </p>
-
-          <p className="mt-1 flex items-center gap-1 text-sm font-medium text-gray-700">
-            <Star size={13} fill="currentColor" />
-            {Number(pkg.rating || 0)
-              ? Number(pkg.rating).toFixed(2)
-              : "New"}
-          </p>
-        </div>
-      </div>
-
-      {selectedDeparture && (
-        <div className="mt-5 rounded-2xl bg-[#eef4ff] p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-[#3b71e6]">
-            Departure
-          </p>
-
-          <p className="mt-1 text-sm font-medium text-gray-950">
-            {formatDisplayDate(selectedDeparture.departure_date)}
-          </p>
-        </div>
-      )}
-
-      <div className="mt-5 border-t border-gray-200 pt-5">
-        <h3 className="text-lg font-semibold tracking-tight text-gray-950">
-          Price details
-        </h3>
-
-        <div className="mt-4 space-y-3 text-sm">
-          <PriceRow
-            label={`₹${price.toLocaleString("en-IN")} × ${travelers} traveler${
-              travelers > 1 ? "s" : ""
-            }`}
-            value={`₹${subtotal.toLocaleString("en-IN")}`}
-          />
-
-          <PriceRow
-            label="Service fee"
-            value={`₹${serviceFee.toLocaleString("en-IN")}`}
-          />
-
-          <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
-            <span>Total</span>
-            <span>₹{total.toLocaleString("en-IN")}</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -480,49 +450,8 @@ function Card({ title, children }) {
       <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950">
         {title}
       </h2>
-
       {children}
     </section>
-  );
-}
-
-function FieldBox({ icon, label, children }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 p-4">
-      <div className="flex items-center gap-2 text-gray-400">
-        {icon}
-
-        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          {label}
-        </span>
-      </div>
-
-      {children}
-    </div>
-  );
-}
-
-function MiniBox({ icon, label, value }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 p-4">
-      <div className="mb-2 text-[#3b71e6]">{icon}</div>
-
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm font-medium text-gray-950">{value}</p>
-    </div>
-  );
-}
-
-function Textarea(props) {
-  return (
-    <textarea
-      rows={4}
-      {...props}
-      className="mt-4 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
-    />
   );
 }
 
@@ -563,6 +492,17 @@ function PaymentOption({ active, title, text, icon, onClick }) {
   );
 }
 
+function SummaryRow({ label, value }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-right text-sm font-medium text-gray-950">
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function PriceRow({ label, value }) {
   return (
     <div className="flex justify-between gap-4 text-gray-600">
@@ -573,7 +513,7 @@ function PriceRow({ label, value }) {
 }
 
 function formatDisplayDate(value) {
-  if (!value) return "No date";
+  if (!value) return "Not selected";
 
   try {
     return new Date(value).toLocaleDateString("en-IN", {
