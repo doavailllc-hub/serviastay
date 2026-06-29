@@ -19,7 +19,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#7E4FF5";
+const BRAND = "#3b71e6";
 
 export default function ExperienceCheckout() {
   const { id } = useParams();
@@ -85,7 +85,7 @@ export default function ExperienceCheckout() {
       setError("");
 
       const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user"));
+      const user = JSON.parse(localStorage.getItem("user") || "null");
 
       if (!token || !user?.id) {
         navigate("/login");
@@ -109,8 +109,7 @@ export default function ExperienceCheckout() {
           guests: travelers,
           total,
           payment_method: paymentMethod,
-          payment_status:
-            paymentMethod === "cash" ? "Pay at trip" : "Pending",
+          payment_status: paymentMethod === "cash" ? "Pay at trip" : "Pending",
           status: paymentMethod === "cash" ? "Confirmed" : "Pending",
           pickup_note: pickupNote,
           special_request: specialRequest,
@@ -135,7 +134,6 @@ export default function ExperienceCheckout() {
       });
     } catch (err) {
       console.error("Package booking failed:", err);
-
       setError(
         err.response?.data?.message ||
           "Package booking failed. Please try again."
@@ -145,90 +143,78 @@ export default function ExperienceCheckout() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Navbar />
-
-        <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="flex items-center gap-3 text-gray-500">
-            <Loader2 className="animate-spin" size={24} />
-            <span className="font-semibold">Loading package checkout...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingPage />;
 
   if (!pkg) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white text-gray-950">
         <Navbar />
 
-        <div className="mx-auto max-w-4xl px-4 py-20 text-center">
-          <h1 className="text-3xl font-black text-gray-900">
-            Checkout unavailable
-          </h1>
+        <main className="mx-auto flex min-h-[70vh] max-w-4xl items-center justify-center px-4 text-center">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Checkout unavailable
+            </h1>
 
-          <p className="mt-3 text-gray-500">{error}</p>
+            <p className="mt-3 text-sm text-gray-500">{error}</p>
 
-          <button
-            onClick={() => navigate("/experiences")}
-            className="mt-6 rounded-full px-6 py-3 font-bold text-white"
-            style={{ backgroundColor: BRAND }}
-          >
-            Back to trip packages
-          </button>
-        </div>
+            <button
+              onClick={() => navigate("/experiences")}
+              className="mt-6 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+            >
+              Back to trip packages
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white text-[#222]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button>
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
+          >
+            <ArrowLeft size={17} />
+            Back
+          </button>
 
-        <h1 className="text-3xl font-black tracking-tight text-gray-900 md:text-5xl">
-          Confirm package booking
-        </h1>
+          <p className="text-sm font-medium text-gray-500">Checkout</p>
 
-        <p className="mt-3 max-w-2xl text-gray-500">
-          Review your travel date, travelers, pickup details and payment method
-          before confirming your trip package.
-        </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+            Confirm package booking
+          </h1>
 
-        <section className="mt-8 grid gap-10 lg:grid-cols-[1fr_420px]">
-          <div className="space-y-8">
-            <div className="rounded-[28px] border border-gray-200 p-6">
-              <h2 className="text-2xl font-black text-gray-900">
-                Your trip package
-              </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+            Review your travel date, travelers, pickup details and payment
+            method before confirming your trip package.
+          </p>
+        </header>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <FieldBox icon={<CalendarDays size={20} />} label="Travel date">
+        <section className="grid gap-10 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-6">
+            <Card title="Your trip package">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FieldBox icon={<CalendarDays size={18} />} label="Travel date">
                   <input
                     type="date"
                     value={selectedDate}
                     disabled={Boolean(selectedDeparture)}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="mt-1 w-full bg-transparent text-sm font-semibold outline-none disabled:text-gray-500"
+                    className="mt-2 w-full bg-transparent text-sm outline-none disabled:text-gray-500"
                   />
                 </FieldBox>
 
-                <FieldBox icon={<Users size={20} />} label="Travelers">
+                <FieldBox icon={<Users size={18} />} label="Travelers">
                   <select
                     value={travelers}
                     onChange={(e) => setTravelers(Number(e.target.value))}
-                    className="mt-1 w-full bg-transparent text-sm font-semibold outline-none"
+                    className="mt-2 w-full bg-transparent text-sm outline-none"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                       <option key={n} value={n}>
@@ -240,16 +226,16 @@ export default function ExperienceCheckout() {
               </div>
 
               {selectedDeparture && (
-                <div className="mt-5 rounded-2xl border border-[#E8E0FF] bg-[#F7F5FF] p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-[#7E4FF5]">
+                <div className="mt-4 rounded-2xl border border-blue-200 bg-[#eef4ff] p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#3b71e6]">
                     Selected departure
                   </p>
 
-                  <p className="mt-1 text-sm font-black text-gray-900">
+                  <p className="mt-1 text-sm font-semibold text-gray-950">
                     {formatDisplayDate(selectedDeparture.departure_date)}
                   </p>
 
-                  <p className="mt-1 text-xs font-semibold text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500">
                     {Math.max(
                       Number(selectedDeparture.total_seats || 0) -
                         Number(selectedDeparture.booked_seats || 0),
@@ -260,78 +246,62 @@ export default function ExperienceCheckout() {
                 </div>
               )}
 
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
                 <MiniBox
-                  icon={<Hotel size={18} />}
+                  icon={<Hotel size={17} />}
                   label="Hotel"
                   value={pkg.hotel_name || "Included"}
                 />
 
                 <MiniBox
-                  icon={<Route size={18} />}
+                  icon={<Route size={17} />}
                   label="Transport"
                   value={pkg.transport || "Included"}
                 />
 
                 <MiniBox
-                  icon={<Utensils size={18} />}
+                  icon={<Utensils size={17} />}
                   label="Meals"
                   value={pkg.meals || "Selected meals"}
                 />
               </div>
-            </div>
+            </Card>
 
-            <div className="rounded-[28px] border border-gray-200 p-6">
-              <h2 className="text-2xl font-black text-gray-900">
-                Pickup details
-              </h2>
-
-              <p className="mt-2 text-sm text-gray-500">
+            <Card title="Pickup details">
+              <p className="text-sm leading-6 text-gray-500">
                 Pickup location:{" "}
-                <span className="font-bold text-gray-800">
+                <span className="font-medium text-gray-950">
                   {pkg.pickup_location || "Will be confirmed after booking"}
                 </span>
               </p>
 
-              <textarea
+              <Textarea
                 value={pickupNote}
                 onChange={(e) => setPickupNote(e.target.value)}
                 placeholder="Add hotel name, airport terminal, or pickup note..."
-                rows={4}
-                className="mt-5 w-full rounded-2xl border border-gray-200 p-4 text-sm outline-none transition focus:border-[#7E4FF5]"
               />
-            </div>
+            </Card>
 
-            <div className="rounded-[28px] border border-gray-200 p-6">
-              <h2 className="text-2xl font-black text-gray-900">
-                Special requests
-              </h2>
-
-              <p className="mt-2 text-sm text-gray-500">
+            <Card title="Special requests">
+              <p className="text-sm leading-6 text-gray-500">
                 Share any food preference, child seat request, timing note or
                 travel requirement.
               </p>
 
-              <textarea
+              <Textarea
                 value={specialRequest}
                 onChange={(e) => setSpecialRequest(e.target.value)}
                 placeholder="Optional"
-                rows={4}
-                className="mt-5 w-full rounded-2xl border border-gray-200 p-4 text-sm outline-none transition focus:border-[#7E4FF5]"
               />
-            </div>
+            </Card>
 
-            <div className="rounded-[28px] border border-gray-200 p-6">
-              <h2 className="text-2xl font-black text-gray-900">
-                Payment method
-              </h2>
-
-              <div className="mt-5 space-y-3">
+            <Card title="Payment method">
+              <div className="space-y-3">
                 <PaymentOption
                   active={paymentMethod === "cash"}
                   title="Pay at trip"
                   text="Confirm now and pay directly before or during the package."
-                  icon={<CreditCard size={22} />}
+                  icon={<CreditCard size={20} />}
                   onClick={() => setPaymentMethod("cash")}
                 />
 
@@ -339,31 +309,31 @@ export default function ExperienceCheckout() {
                   active={paymentMethod === "razorpay"}
                   title="Online payment"
                   text="Reserve using secure online payment."
-                  icon={<ShieldCheck size={22} />}
+                  icon={<ShieldCheck size={20} />}
                   onClick={() => setPaymentMethod("razorpay")}
                 />
               </div>
-            </div>
+            </Card>
 
-            <div className="rounded-[28px] border border-gray-200 bg-[#F7F5FF] p-6">
+            <div className="rounded-2xl border border-blue-200 bg-[#eef4ff] p-5">
               <div className="flex gap-3">
-                <CheckCircle2 className="mt-1 text-[#7E4FF5]" size={22} />
+                <CheckCircle2 className="mt-0.5 text-[#3b71e6]" size={20} />
 
                 <div>
-                  <h3 className="font-black text-gray-900">
+                  <h3 className="text-sm font-semibold text-gray-950">
                     Package booking support
                   </h3>
 
                   <p className="mt-1 text-sm leading-6 text-gray-600">
-                    You can contact Dovail Stay support if pickup timing,
-                    package schedule or host availability changes.
+                    Contact Dovail Stay support if pickup timing, package
+                    schedule or host availability changes.
                   </p>
                 </div>
               </div>
             </div>
 
             {error && (
-              <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                 {error}
               </div>
             )}
@@ -371,81 +341,25 @@ export default function ExperienceCheckout() {
             <button
               onClick={handleConfirmBooking}
               disabled={submitting}
-              className="w-full rounded-2xl py-4 text-base font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70 md:w-auto md:px-10"
-              style={{ backgroundColor: BRAND }}
+              className="h-12 w-full rounded-xl bg-[#3b71e6] px-6 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300 md:w-auto"
             >
               {submitting ? "Confirming..." : "Confirm package booking"}
             </button>
           </div>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[30px] border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.14)]">
-              <div className="flex gap-4">
-                <img
-                  src={image}
-                  alt={pkg.title}
-                  className="h-28 w-32 rounded-2xl object-cover"
-                />
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                    Trip Package
-                  </p>
-
-                  <h3 className="mt-1 line-clamp-2 font-black text-gray-900">
-                    {pkg.title}
-                  </h3>
-
-                  <p className="mt-2 flex items-center gap-1 text-sm text-gray-500">
-                    <MapPin size={14} />
-                    {pkg.location || pkg.city || "Destination"}
-                  </p>
-
-                  <p className="mt-2 text-sm font-bold text-gray-700">
-                    {days} Days / {Math.max(nights, 0)} Nights
-                  </p>
-
-                  {selectedDeparture && (
-                    <p className="mt-2 text-xs font-black text-[#7E4FF5]">
-                      Departure:{" "}
-                      {formatDisplayDate(selectedDeparture.departure_date)}
-                    </p>
-                  )}
-
-                  <p className="mt-2 flex items-center gap-1 text-sm font-bold text-gray-700">
-                    <Star size={14} fill="black" />
-                    {Number(pkg.rating || 0)
-                      ? Number(pkg.rating).toFixed(2)
-                      : "New"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-gray-200 pt-5">
-                <h3 className="text-xl font-black text-gray-900">
-                  Price details
-                </h3>
-
-                <div className="mt-4 space-y-3 text-sm">
-                  <PriceRow
-                    label={`₹${price.toLocaleString(
-                      "en-IN"
-                    )} x ${travelers} traveler${travelers > 1 ? "s" : ""}`}
-                    value={`₹${subtotal.toLocaleString("en-IN")}`}
-                  />
-
-                  <PriceRow
-                    label="Service fee"
-                    value={`₹${serviceFee.toLocaleString("en-IN")}`}
-                  />
-
-                  <div className="flex justify-between border-t border-gray-200 pt-4 text-base font-black">
-                    <span>Total</span>
-                    <span>₹{total.toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SummaryCard
+              pkg={pkg}
+              image={image}
+              days={days}
+              nights={nights}
+              selectedDeparture={selectedDeparture}
+              price={price}
+              travelers={travelers}
+              subtotal={subtotal}
+              serviceFee={serviceFee}
+              total={total}
+            />
           </aside>
         </section>
       </main>
@@ -455,12 +369,130 @@ export default function ExperienceCheckout() {
   );
 }
 
+function LoadingPage() {
+  return (
+    <div className="min-h-screen bg-white">
+      <Navbar />
+
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-gray-500">
+          <Loader2 className="animate-spin text-[#3b71e6]" size={22} />
+          <span className="text-sm font-medium">
+            Loading package checkout...
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  pkg,
+  image,
+  days,
+  nights,
+  selectedDeparture,
+  price,
+  travelers,
+  subtotal,
+  serviceFee,
+  total,
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex gap-4">
+        <img
+          src={image}
+          alt={pkg.title}
+          className="h-24 w-24 rounded-xl object-cover"
+        />
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            Trip package
+          </p>
+
+          <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-gray-950">
+            {pkg.title}
+          </h3>
+
+          <p className="mt-2 flex items-center gap-1 text-sm text-gray-500">
+            <MapPin size={14} />
+            {pkg.location || pkg.city || "Destination"}
+          </p>
+
+          <p className="mt-1 text-sm text-gray-500">
+            {days} days / {Math.max(nights, 0)} nights
+          </p>
+
+          <p className="mt-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+            <Star size={13} fill="currentColor" />
+            {Number(pkg.rating || 0)
+              ? Number(pkg.rating).toFixed(2)
+              : "New"}
+          </p>
+        </div>
+      </div>
+
+      {selectedDeparture && (
+        <div className="mt-5 rounded-2xl bg-[#eef4ff] p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-[#3b71e6]">
+            Departure
+          </p>
+
+          <p className="mt-1 text-sm font-medium text-gray-950">
+            {formatDisplayDate(selectedDeparture.departure_date)}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-5 border-t border-gray-200 pt-5">
+        <h3 className="text-lg font-semibold tracking-tight text-gray-950">
+          Price details
+        </h3>
+
+        <div className="mt-4 space-y-3 text-sm">
+          <PriceRow
+            label={`₹${price.toLocaleString("en-IN")} × ${travelers} traveler${
+              travelers > 1 ? "s" : ""
+            }`}
+            value={`₹${subtotal.toLocaleString("en-IN")}`}
+          />
+
+          <PriceRow
+            label="Service fee"
+            value={`₹${serviceFee.toLocaleString("en-IN")}`}
+          />
+
+          <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
+            <span>Total</span>
+            <span>₹{total.toLocaleString("en-IN")}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, children }) {
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-5">
+      <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950">
+        {title}
+      </h2>
+
+      {children}
+    </section>
+  );
+}
+
 function FieldBox({ icon, label, children }) {
   return (
     <div className="rounded-2xl border border-gray-200 p-4">
-      <div className="flex items-center gap-2 text-gray-500">
+      <div className="flex items-center gap-2 text-gray-400">
         {icon}
-        <span className="text-xs font-black uppercase text-gray-700">
+
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {label}
         </span>
       </div>
@@ -472,11 +504,25 @@ function FieldBox({ icon, label, children }) {
 
 function MiniBox({ icon, label, value }) {
   return (
-    <div className="rounded-2xl bg-gray-50 p-4">
-      <div className="mb-2 text-[#7E4FF5]">{icon}</div>
-      <p className="text-xs font-black uppercase text-gray-400">{label}</p>
-      <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
+    <div className="rounded-2xl border border-gray-200 p-4">
+      <div className="mb-2 text-[#3b71e6]">{icon}</div>
+
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-medium text-gray-950">{value}</p>
     </div>
+  );
+}
+
+function Textarea(props) {
+  return (
+    <textarea
+      rows={4}
+      {...props}
+      className="mt-4 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
+    />
   );
 }
 
@@ -485,24 +531,34 @@ function PaymentOption({ active, title, text, icon, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition ${
+      className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left transition ${
         active
-          ? "border-[#7E4FF5] bg-[#F7F5FF]"
-          : "border-gray-200 bg-white hover:border-gray-900"
+          ? "border-[#3b71e6] bg-[#eef4ff]"
+          : "border-gray-200 bg-white hover:bg-gray-50"
       }`}
     >
-      <div
-        className={`flex h-11 w-11 items-center justify-center rounded-full ${
-          active ? "bg-[#7E4FF5] text-white" : "bg-gray-100 text-gray-600"
-        }`}
-      >
-        {icon}
+      <div className="flex items-center gap-4">
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+            active ? "bg-[#3b71e6] text-white" : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          {icon}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-gray-950">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-gray-500">{text}</p>
+        </div>
       </div>
 
-      <div>
-        <h3 className="font-black text-gray-900">{title}</h3>
-        <p className="mt-1 text-sm text-gray-500">{text}</p>
-      </div>
+      <span
+        className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+          active ? "border-[#3b71e6]" : "border-gray-300"
+        }`}
+      >
+        {active && <span className="h-2.5 w-2.5 rounded-full bg-[#3b71e6]" />}
+      </span>
     </button>
   );
 }
@@ -510,8 +566,8 @@ function PaymentOption({ active, title, text, icon, onClick }) {
 function PriceRow({ label, value }) {
   return (
     <div className="flex justify-between gap-4 text-gray-600">
-      <span className="underline underline-offset-4">{label}</span>
-      <span>{value}</span>
+      <span>{label}</span>
+      <span className="font-medium text-gray-950">{value}</span>
     </div>
   );
 }
