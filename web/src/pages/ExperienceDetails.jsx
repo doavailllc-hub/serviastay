@@ -334,6 +334,7 @@ export default function ExperienceDetails() {
             </Section>
 
             <Section title="Trip details">
+                        <bR></bR>
               <div className="grid gap-4 md:grid-cols-2">
                 <DetailRow label="Hotel" value={pkg.hotel_name || "Included"} />
                 <DetailRow
@@ -386,6 +387,7 @@ export default function ExperienceDetails() {
             )}
 
             <Section title="Itinerary">
+                        <bR></bR>
               {itinerary.length === 0 ? (
                 <p className="text-sm text-gray-500">
                   Itinerary details will be shared after booking confirmation.
@@ -416,6 +418,7 @@ export default function ExperienceDetails() {
             </Section>
 
             <Section title="Pickup & destination">
+                        <bR></bR>
               <div className="grid gap-4 md:grid-cols-2">
                 <DetailBox
                   label="Pickup location"
