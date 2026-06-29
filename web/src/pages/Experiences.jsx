@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
+  Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Loader2,
   MapPin,
@@ -10,6 +13,7 @@ import {
   SlidersHorizontal,
   Star,
   Users,
+  X,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -29,13 +33,48 @@ const categories = [
   "Budget",
 ];
 
+const suggestions = [
+  "Wayanad",
+  "Dubai",
+  "Riyadh",
+  "Munnar",
+  "Kochi",
+  "Kozhikode",
+  "Bengaluru",
+  "Abu Dhabi",
+];
+
+function todayISO() {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDate(value) {
+  if (!value) return "Today";
+
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function addMonths(date, count) {
+  return new Date(date.getFullYear(), date.getMonth() + count, 1);
+}
+
 export default function Experiences() {
   const navigate = useNavigate();
+  const searchRef = useRef(null);
 
   const [where, setWhere] = useState("");
   const [searchText, setSearchText] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(todayISO());
   const [guests, setGuests] = useState(1);
+  const [activePanel, setActivePanel] = useState(null);
+  const [viewMonth, setViewMonth] = useState(new Date());
+
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("recommended");
   const [packages, setPackages] = useState([]);
@@ -45,6 +84,17 @@ export default function Experiences() {
   useEffect(() => {
     loadPackages();
   }, [searchText, activeCategory]);
+
+  useEffect(() => {
+    const close = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setActivePanel(null);
+      }
+    };
+
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
   const loadPackages = async () => {
     try {
@@ -66,6 +116,10 @@ export default function Experiences() {
       setLoading(false);
     }
   };
+
+  const filteredSuggestions = suggestions.filter((item) =>
+    item.toLowerCase().includes(where.toLowerCase())
+  );
 
   const sortedPackages = useMemo(() => {
     const data = [...packages];
@@ -93,15 +147,17 @@ export default function Experiences() {
 
   const handleSearch = () => {
     setSearchText(where.trim());
+    setActivePanel(null);
   };
 
   const clearFilters = () => {
     setWhere("");
     setSearchText("");
-    setDate("");
+    setDate(todayISO());
     setGuests(1);
     setActiveCategory("All");
     setSortBy("recommended");
+    setActivePanel(null);
   };
 
   return (
@@ -112,57 +168,107 @@ export default function Experiences() {
         <section className="border-b border-gray-200 bg-white">
           <div className="mx-auto max-w-7xl px-4 pb-6 md:px-8">
             <div className="mb-6">
-              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+              <p className="text-sm font-medium text-gray-500">Explore</p>
+
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
                 Trip packages
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
                 Find complete travel packages with stay, transport, pickup and
                 itinerary.
               </p>
             </div>
 
-            <div className="grid max-w-5xl overflow-hidden rounded-2xl border border-gray-200 bg-white md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
-              <SearchBox label="Destination" icon={<Search size={16} />}>
-                <input
-                  value={where}
-                  onChange={(e) => setWhere(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  placeholder="Search destination"
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                />
-              </SearchBox>
-
-              <SearchBox label="Date" icon={<CalendarDays size={16} />}>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-transparent text-sm outline-none"
-                />
-              </SearchBox>
-
-              <SearchBox label="Travelers" icon={<Users size={16} />}>
-                <select
-                  value={guests}
-                  onChange={(e) => setGuests(Number(e.target.value))}
-                  className="w-full cursor-pointer bg-transparent text-sm outline-none"
+            <div ref={searchRef} className="relative max-w-5xl">
+              <div className="grid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
+                <SearchBox
+                  label="Destination"
+                  active={activePanel === "where"}
+                  icon={<Search size={16} />}
+                  onClick={() => setActivePanel("where")}
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <option key={n} value={n}>
-                      {n} traveler{n > 1 ? "s" : ""}
-                    </option>
-                  ))}
-                </select>
-              </SearchBox>
+                  <input
+                    value={where}
+                    onChange={(e) => {
+                      setWhere(e.target.value);
+                      setActivePanel("where");
+                    }}
+                    onFocus={() => setActivePanel("where")}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    placeholder="Search destination"
+                    className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                  />
+                </SearchBox>
 
-              <button
-                onClick={handleSearch}
-                className="m-2 flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium text-white transition hover:bg-[#2f63d8]"
-                style={{ backgroundColor: BRAND }}
-              >
-                Search
-              </button>
+                <SearchBox
+                  label="Date"
+                  active={activePanel === "date"}
+                  icon={<CalendarDays size={16} />}
+                  onClick={() => setActivePanel("date")}
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-left text-sm font-medium text-gray-950"
+                  >
+                    {formatDate(date)}
+                    <ChevronDown size={15} className="text-gray-400" />
+                  </button>
+                </SearchBox>
+
+                <SearchBox
+                  label="Travelers"
+                  active={activePanel === "guests"}
+                  icon={<Users size={16} />}
+                  onClick={() => setActivePanel("guests")}
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-left text-sm font-medium text-gray-950"
+                  >
+                    {guests} traveler{guests > 1 ? "s" : ""}
+                    <ChevronDown size={15} className="text-gray-400" />
+                  </button>
+                </SearchBox>
+
+                <button
+                  onClick={handleSearch}
+                  className="m-2 flex h-11 items-center justify-center rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] active:scale-[0.98]"
+                >
+                  Search
+                </button>
+              </div>
+
+              {activePanel === "where" && (
+                <DestinationDropdown
+                  where={where}
+                  suggestions={filteredSuggestions}
+                  onClose={() => setActivePanel(null)}
+                  onSelect={(value) => {
+                    setWhere(value);
+                    setSearchText(value);
+                    setActivePanel("date");
+                  }}
+                />
+              )}
+
+              {activePanel === "date" && (
+                <DateDropdown
+                  value={date}
+                  setValue={setDate}
+                  viewMonth={viewMonth}
+                  setViewMonth={setViewMonth}
+                  onDone={() => setActivePanel("guests")}
+                />
+              )}
+
+              {activePanel === "guests" && (
+                <GuestDropdown
+                  guests={guests}
+                  setGuests={setGuests}
+                  onDone={() => setActivePanel(null)}
+                />
+              )}
             </div>
           </div>
         </section>
@@ -173,10 +279,10 @@ export default function Experiences() {
               <button
                 key={item}
                 onClick={() => setActiveCategory(item)}
-                className={`min-w-fit rounded-full border px-4 py-2 text-sm font-medium transition ${
+                className={`min-w-fit rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98] ${
                   activeCategory === item
                     ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6]"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 {item}
@@ -184,22 +290,17 @@ export default function Experiences() {
             ))}
 
             <div className="ml-auto flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 md:flex">
-                <span>Sort</span>
-                <ChevronDown size={14} />
-
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="cursor-pointer bg-transparent outline-none"
-                >
-                  <option value="recommended">Recommended</option>
-                  <option value="rating">Highest rated</option>
-                  <option value="priceLow">Lowest price</option>
-                  <option value="priceHigh">Highest price</option>
-                  <option value="duration">Shortest duration</option>
-                </select>
-              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="hidden h-10 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 outline-none transition hover:bg-gray-50 md:block"
+              >
+                <option value="recommended">Recommended</option>
+                <option value="rating">Highest rated</option>
+                <option value="priceLow">Lowest price</option>
+                <option value="priceHigh">Highest price</option>
+                <option value="duration">Shortest duration</option>
+              </select>
 
               <button className="flex min-w-fit items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
                 <SlidersHorizontal size={16} />
@@ -232,19 +333,13 @@ export default function Experiences() {
           </div>
 
           {loading ? (
-            <StateBox>
-              <Loader2 className="animate-spin text-[#3b71e6]" size={22} />
-              <span className="text-sm font-medium">
-                Loading trip packages...
-              </span>
-            </StateBox>
+            <PackageSkeleton />
           ) : error ? (
             <StateBox>
               <h3 className="text-base font-medium text-red-600">{error}</h3>
               <button
                 onClick={loadPackages}
-                className="mt-4 rounded-xl px-5 py-2 text-sm font-medium text-white"
-                style={{ backgroundColor: BRAND }}
+                className="mt-4 rounded-xl bg-[#3b71e6] px-5 py-2 text-sm font-medium text-white"
               >
                 Try again
               </button>
@@ -259,12 +354,19 @@ export default function Experiences() {
               </p>
             </StateBox>
           ) : (
-            <div className="grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {sortedPackages.map((item) => (
                 <PackageCard
                   key={item.id}
                   item={item}
-                  onClick={() => navigate(`/experiences/${item.id}`)}
+                  onClick={() =>
+                    navigate(`/experiences/${item.id}`, {
+                      state: {
+                        selectedDate: date,
+                        guests,
+                      },
+                    })
+                  }
                 />
               ))}
             </div>
@@ -277,10 +379,16 @@ export default function Experiences() {
   );
 }
 
-function SearchBox({ label, icon, children }) {
+function SearchBox({ label, icon, children, active, onClick }) {
   return (
-    <div className="flex min-h-[58px] items-center gap-3 border-b border-gray-100 px-4 py-2 md:border-b-0 md:border-r">
-      <div className="text-gray-400">{icon}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[58px] items-center gap-3 border-b border-gray-100 px-4 py-2 text-left transition md:border-b-0 md:border-r ${
+        active ? "bg-[#f8fbff]" : "bg-white hover:bg-gray-50"
+      }`}
+    >
+      <div className={active ? "text-[#3b71e6]" : "text-gray-400"}>{icon}</div>
 
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
@@ -288,6 +396,183 @@ function SearchBox({ label, icon, children }) {
         </p>
         <div className="mt-0.5">{children}</div>
       </div>
+    </button>
+  );
+}
+
+function DestinationDropdown({ where, suggestions, onSelect, onClose }) {
+  const list = suggestions.length ? suggestions : ["Wayanad", "Dubai", "Riyadh"];
+
+  return (
+    <div className="absolute left-0 top-[72px] z-50 w-full max-w-[420px] rounded-2xl border border-gray-200 bg-white p-3 shadow-lg">
+      <div className="mb-2 flex items-center justify-between px-2">
+        <p className="text-sm font-semibold text-gray-950">
+          Suggested destinations
+        </p>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-2 text-gray-400 transition hover:bg-gray-100"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        {list.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => onSelect(item)}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50 active:scale-[0.99]"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef4ff] text-[#3b71e6]">
+              <MapPin size={17} />
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-950">{item}</p>
+              <p className="text-xs text-gray-500">
+                Search packages in {item}
+              </p>
+            </div>
+
+            {where === item && (
+              <Check size={16} className="ml-auto text-[#3b71e6]" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DateDropdown({ value, setValue, viewMonth, setViewMonth, onDone }) {
+  const days = useMemo(() => getMonthDays(viewMonth), [viewMonth]);
+  const today = todayISO();
+
+  return (
+    <div className="absolute left-1/2 top-[72px] z-50 w-[94vw] max-w-[420px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-4 shadow-lg md:left-[42%] md:translate-x-0">
+      <div className="mb-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setViewMonth(addMonths(viewMonth, -1))}
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
+        >
+          <ChevronLeft size={17} />
+        </button>
+
+        <p className="text-sm font-semibold text-gray-950">
+          {viewMonth.toLocaleString("en-IN", {
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
+        >
+          <ChevronRight size={17} />
+        </button>
+      </div>
+
+      <div className="mb-2 grid grid-cols-7 text-center text-xs font-medium text-gray-400">
+        {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+          <div key={`${day}-${index}`}>{day}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-y-1">
+        {days.map((day, index) => {
+          if (!day) return <div key={`blank-${index}`} className="h-10" />;
+
+          const iso = toISO(day);
+          const past = iso < today;
+          const selected = value === iso;
+
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={past}
+              onClick={() => setValue(iso)}
+              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition active:scale-[0.95] ${
+                selected
+                  ? "bg-[#3b71e6] text-white"
+                  : past
+                  ? "cursor-not-allowed text-gray-300"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              {day.getDate()}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setValue(todayISO())}
+          className="text-sm font-medium text-[#3b71e6] hover:underline"
+        >
+          Today
+        </button>
+
+        <button
+          type="button"
+          onClick={onDone}
+          className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GuestDropdown({ guests, setGuests, onDone }) {
+  return (
+    <div className="absolute right-0 top-[72px] z-50 w-[320px] rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-gray-950">Travelers</p>
+          <p className="mt-1 text-sm text-gray-500">Select group size</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={guests <= 1}
+            onClick={() => setGuests(Math.max(1, guests - 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            -
+          </button>
+
+          <span className="w-5 text-center text-sm font-medium">{guests}</span>
+
+          <button
+            type="button"
+            disabled={guests >= 10}
+            onClick={() => setGuests(Math.min(10, guests + 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onDone}
+        className="mt-5 h-10 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+      >
+        Done
+      </button>
     </div>
   );
 }
@@ -313,7 +598,7 @@ function PackageCard({ item, onClick }) {
           src={image}
           alt={item.title || "Trip package"}
           loading="lazy"
-          className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
+          className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.035]"
         />
 
         <button
@@ -322,11 +607,11 @@ function PackageCard({ item, onClick }) {
             e.stopPropagation();
             setLiked((prev) => !prev);
           }}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition hover:scale-105"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow-sm transition hover:bg-white active:scale-[0.95]"
         >
           <Heart
             size={18}
-            className={liked ? "text-red-500" : "text-gray-900"}
+            className={liked ? "text-red-500" : "text-gray-800"}
             fill={liked ? "currentColor" : "none"}
           />
         </button>
@@ -353,20 +638,28 @@ function PackageCard({ item, onClick }) {
           {days} days · {nights} nights
         </p>
 
-        <div className="mt-2 flex items-end justify-between gap-3">
-          <p className="text-[15px] text-gray-700">
-            <span className="font-semibold text-gray-950">
-              ₹{price.toLocaleString("en-IN")}
-            </span>{" "}
-            / person
-          </p>
-
-          <span className="text-sm font-medium text-[#3b71e6]">
-            View
-          </span>
-        </div>
+        <p className="mt-2 text-[15px] text-gray-700">
+          <span className="font-semibold text-gray-950">
+            ₹{price.toLocaleString("en-IN")}
+          </span>{" "}
+          / person
+        </p>
       </div>
     </article>
+  );
+}
+
+function PackageSkeleton() {
+  return (
+    <div className="grid gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index}>
+          <div className="aspect-[4/3] animate-pulse rounded-2xl bg-gray-100" />
+          <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-gray-100" />
+          <div className="mt-2 h-4 w-1/2 animate-pulse rounded-full bg-gray-100" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -376,4 +669,25 @@ function StateBox({ children }) {
       {children}
     </div>
   );
+}
+
+function getMonthDays(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const first = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const blanks = Array.from({ length: first.getDay() }, () => null);
+  const days = Array.from(
+    { length: daysInMonth },
+    (_, i) => new Date(year, month, i + 1)
+  );
+
+  return [...blanks, ...days];
+}
+
+function toISO(date) {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
 }
