@@ -29,75 +29,52 @@ export default function HostTripPackages() {
     loadPackages();
   }, []);
 
-  const loadPackages = async () => {
-    try {
-      setLoading(true);
-      setError("");
+ const loadPackages = async () => {
+  try {
+    setLoading(true);
+    setError("");
 
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
 
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
-      const res = await api.get("/host/trip-packages", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setPackages(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Host trip packages load failed:", err);
-      setError("Unable to load trip packages.");
-    } finally {
-      setLoading(false);
+    if (!token || !user?.id) {
+      navigate("/login");
+      return;
     }
-  };
 
-  const stats = useMemo(() => {
-    const totalPackages = packages.length;
-    const activePackages = packages.filter((p) => p.status === "active").length;
-    const totalBookings = packages.reduce(
-      (sum, p) => sum + Number(p.bookings_count || 0),
-      0
-    );
-    const totalRevenue = packages.reduce(
-      (sum, p) => sum + Number(p.revenue || 0),
-      0
-    );
+    const res = await api.get(`/host/trip-packages/${user.id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-    return {
-      totalPackages,
-      activePackages,
-      totalBookings,
-      totalRevenue,
-    };
-  }, [packages]);
+    const data = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.packages)
+      ? res.data.packages
+      : Array.isArray(res.data?.data)
+      ? res.data.data
+      : [];
 
-  const deletePackage = async (id) => {
-    const ok = window.confirm("Delete this trip package?");
-    if (!ok) return;
+    const hostPackages = data.filter((pkg) => {
+      const hostId = String(user.id);
 
-    try {
-      setDeletingId(id);
-      const token = localStorage.getItem("token");
+      return (
+        String(pkg.host_id || "") === hostId ||
+        String(pkg.user_id || "") === hostId ||
+        String(pkg.created_by || "") === hostId ||
+        String(pkg.owner_id || "") === hostId
+      );
+    });
 
-      await api.delete(`/trip-packages/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setPackages((prev) => prev.filter((item) => item.id !== id));
-    } catch (err) {
-      console.error("Delete package failed:", err);
-      alert(err.response?.data?.message || "Package delete failed");
-    } finally {
-      setDeletingId(null);
-    }
-  };
+    setPackages(hostPackages);
+  } catch (err) {
+    console.error("Host trip packages load failed:", err);
+    setError("Unable to load your trip packages.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
