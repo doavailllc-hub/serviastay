@@ -2,17 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
-  Users,
-  CreditCard,
   CheckCircle,
-  XCircle,
+  CreditCard,
   Eye,
-  RefreshCw,
-  Search,
   LogIn,
   LogOut,
   MessageCircle,
   ReceiptText,
+  RefreshCw,
+  Search,
+  Users,
+  XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -20,6 +20,7 @@ import Navbar from "../components/Navbar";
 import api from "../api/api";
 
 const BRAND = "#3b71e6";
+
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
@@ -68,9 +69,7 @@ export default function HostReservations() {
     try {
       setUpdatingId(bookingId);
 
-      await api.put(`/host/bookings/${bookingId}/status`, {
-        status,
-      });
+      await api.put(`/host/bookings/${bookingId}/status`, { status });
 
       toast.success(`Reservation marked as ${status}`);
       await loadReservations();
@@ -109,24 +108,30 @@ export default function HostReservations() {
     .reduce((sum, item) => sum + Number(item.total || 0), 0);
 
   const pendingCount = bookings.filter((item) => item.status === "Pending").length;
-  const confirmedCount = bookings.filter((item) => item.status === "Confirmed").length;
-  const checkedInCount = bookings.filter((item) => item.status === "Checked-in").length;
-  const checkedOutCount = bookings.filter((item) => item.status === "Checked-out").length;
-  const cancelledCount = bookings.filter((item) =>
-    ["Cancelled", "Declined"].includes(item.status)
+  const confirmedCount = bookings.filter(
+    (item) => item.status === "Confirmed"
+  ).length;
+  const checkedInCount = bookings.filter(
+    (item) => item.status === "Checked-in"
+  ).length;
+  const closedCount = bookings.filter((item) =>
+    ["Checked-out", "Cancelled", "Declined"].includes(item.status)
   ).length;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
-        <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Host Reservations
+            <p className="text-sm font-medium text-gray-500">Host</p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+              Reservations
             </h1>
-            <p className="mt-2 text-gray-500">
+
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
               Manage guest bookings, check-ins, cancellations and payments.
             </p>
           </div>
@@ -134,37 +139,38 @@ export default function HostReservations() {
           <button
             type="button"
             onClick={loadReservations}
-            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#2f5fc2]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
-            <RefreshCw size={18} />
+            <RefreshCw size={17} />
             Refresh
           </button>
-        </div>
+        </header>
 
-        <div className="mb-10 grid gap-6 md:grid-cols-5">
-          <StatCard title="Revenue" value={formatINR(activeRevenue)} color="text-[#3b71e6]" />
-          <StatCard title="Pending" value={pendingCount} color="text-yellow-600" />
-          <StatCard title="Confirmed" value={confirmedCount} color="text-green-600" />
-          <StatCard title="Checked-in" value={checkedInCount} color="text-[#3b71e6]" />
-          <StatCard title="Closed" value={checkedOutCount + cancelledCount} color="text-blue-600" />
-        </div>
+        <section className="mb-8 grid gap-4 md:grid-cols-5">
+          <StatCard title="Revenue" value={formatINR(activeRevenue)} />
+          <StatCard title="Pending" value={pendingCount} />
+          <StatCard title="Confirmed" value={confirmedCount} />
+          <StatCard title="Checked-in" value={checkedInCount} />
+          <StatCard title="Closed" value={closedCount} />
+        </section>
 
-        <div className="mb-8 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-            <div className="flex h-12 items-center gap-3 rounded-xl border border-gray-300 bg-white px-4">
-              <Search size={18} className="text-gray-400" />
+        <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <div className="flex h-11 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 transition focus-within:border-[#3b71e6] focus-within:ring-2 focus-within:ring-[#3b71e6]/10">
+              <Search size={17} className="text-gray-400" />
+
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search guest, property, location, payment..."
-                className="flex-1 bg-white text-sm outline-none"
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-12 rounded-xl border border-gray-300 bg-white px-4 text-sm outline-none"
+              className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
             >
               <option>All</option>
               <option>Pending</option>
@@ -175,26 +181,27 @@ export default function HostReservations() {
               <option>Declined</option>
             </select>
           </div>
-        </div>
+        </section>
 
-        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-          <div className="border-b p-6">
-            <h2 className="text-2xl font-semibold">Guest Reservations</h2>
-            <p className="mt-1 text-gray-500">
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+          <div className="border-b border-gray-200 px-5 py-4">
+            <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+              Guest reservations
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
               Showing {filteredBookings.length} reservations.
             </p>
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-gray-500">
-              Loading reservations...
-            </div>
+            <LoadingState />
           ) : filteredBookings.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-gray-100">
               {filteredBookings.map((booking) => (
-                <ReservationCard
+                <ReservationRow
                   key={booking.id}
                   booking={booking}
                   formatINR={formatINR}
@@ -218,13 +225,13 @@ export default function HostReservations() {
               ))}
             </div>
           )}
-        </div>
+        </section>
       </main>
     </div>
   );
 }
 
-function ReservationCard({
+function ReservationRow({
   booking,
   formatINR,
   updating,
@@ -241,50 +248,50 @@ function ReservationCard({
   const nights = getNights(booking.checkin, booking.checkout);
 
   return (
-    <div className="p-6 transition hover:bg-gray-50">
-      <div className="grid gap-6 xl:grid-cols-[320px_1fr_auto] xl:items-center">
+    <article className="px-5 py-4 transition hover:bg-gray-50">
+      <div className="grid gap-5 xl:grid-cols-[280px_1fr_auto] xl:items-center">
         <div className="flex gap-4">
           <img
             src={booking.image || FALLBACK_IMAGE}
             alt={booking.title || "Property"}
-            className="h-28 w-28 rounded-2xl object-cover"
+            className="h-20 w-20 rounded-xl object-cover"
             onError={(event) => {
               event.currentTarget.src = FALLBACK_IMAGE;
             }}
           />
 
-          <div>
-            <h3 className="font-bold text-gray-900">
-              {booking.title || "Room Booking"}
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold text-gray-950">
+              {booking.title || "Room booking"}
             </h3>
 
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 truncate text-sm text-gray-500">
               {booking.location || "Location unavailable"}
             </p>
 
-            <p className="mt-1 text-sm text-gray-500">Order #{booking.id}</p>
+            <p className="mt-1 text-xs text-gray-400">Order #{booking.id}</p>
 
             <StatusBadge status={status} />
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-4">
           <InfoItem
-            icon={<Users size={18} />}
+            icon={<Users size={16} />}
             label="Guest"
             value={booking.guest_name || "Guest"}
             subValue={booking.guest_email}
           />
 
           <InfoItem
-            icon={<CalendarDays size={18} />}
+            icon={<CalendarDays size={16} />}
             label="Stay"
             value={`${booking.checkin} - ${booking.checkout}`}
             subValue={`${nights} ${nights === 1 ? "night" : "nights"}`}
           />
 
           <InfoItem
-            icon={<Users size={18} />}
+            icon={<Users size={16} />}
             label="Guests"
             value={`${booking.guests || 1} ${
               Number(booking.guests || 1) > 1 ? "guests" : "guest"
@@ -292,7 +299,7 @@ function ReservationCard({
           />
 
           <InfoItem
-            icon={<CreditCard size={18} />}
+            icon={<CreditCard size={16} />}
             label="Payment"
             value={booking.payment_status || booking.payment_method || "Pending"}
             subValue={booking.payment_method || "cash"}
@@ -300,22 +307,22 @@ function ReservationCard({
           />
         </div>
 
-        <div className="flex flex-col gap-3 xl:items-end">
-          <p className="text-xl font-bold text-[#3b71e6]">
+        <div className="xl:text-right">
+          <p className="text-base font-semibold text-gray-950">
             {formatINR(booking.total)}
           </p>
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <SmallButton icon={<Eye size={16} />} label="View" onClick={onView} />
+          <div className="mt-3 flex flex-wrap gap-2 xl:justify-end">
+            <SmallButton icon={<Eye size={15} />} label="View" onClick={onView} />
 
             <SmallButton
-              icon={<MessageCircle size={16} />}
+              icon={<MessageCircle size={15} />}
               label="Message"
               onClick={onMessage}
             />
 
             <SmallButton
-              icon={<ReceiptText size={16} />}
+              icon={<ReceiptText size={15} />}
               label="Receipt"
               onClick={onReceipt}
             />
@@ -323,14 +330,15 @@ function ReservationCard({
             {status === "Pending" && (
               <>
                 <ActionButton
-                  icon={<CheckCircle size={16} />}
+                  icon={<CheckCircle size={15} />}
                   label="Accept"
                   onClick={onAccept}
                   disabled={updating}
                   type="success"
                 />
+
                 <ActionButton
-                  icon={<XCircle size={16} />}
+                  icon={<XCircle size={15} />}
                   label="Decline"
                   onClick={onDecline}
                   disabled={updating}
@@ -341,27 +349,27 @@ function ReservationCard({
 
             {status === "Confirmed" && (
               <ActionButton
-                icon={<LogIn size={16} />}
+                icon={<LogIn size={15} />}
                 label="Check-in"
                 onClick={onCheckIn}
                 disabled={updating}
-                type="purple"
+                type="brand"
               />
             )}
 
             {status === "Checked-in" && (
               <ActionButton
-                icon={<LogOut size={16} />}
+                icon={<LogOut size={15} />}
                 label="Check-out"
                 onClick={onCheckOut}
                 disabled={updating}
-                type="blue"
+                type="brand"
               />
             )}
 
             {!["Cancelled", "Declined", "Checked-out"].includes(status) && (
               <ActionButton
-                icon={<XCircle size={16} />}
+                icon={<XCircle size={15} />}
                 label="Cancel"
                 onClick={onCancel}
                 disabled={updating}
@@ -371,35 +379,33 @@ function ReservationCard({
           </div>
 
           {updating && (
-            <p className="text-xs font-semibold text-gray-400">Updating...</p>
+            <p className="mt-2 text-xs font-medium text-gray-400">Updating...</p>
           )}
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
 function InfoItem({ icon, label, value, subValue, capitalize }) {
   return (
-    <div className="rounded-2xl bg-[#FAFAFC] p-4">
-      <div className="mb-2 flex items-center gap-2 text-[#3b71e6]">
+    <div className="rounded-2xl border border-gray-200 bg-white p-3">
+      <div className="mb-2 flex items-center gap-2 text-gray-400">
         {icon}
-        <span className="text-xs font-bold uppercase text-gray-500">
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {label}
         </span>
       </div>
 
       <p
-        className={`text-sm font-semibold text-gray-900 ${
+        className={`truncate text-sm font-medium text-gray-950 ${
           capitalize ? "capitalize" : ""
         }`}
       >
         {value}
       </p>
 
-      {subValue && (
-        <p className="mt-1 truncate text-xs text-gray-500">{subValue}</p>
-      )}
+      {subValue && <p className="mt-1 truncate text-xs text-gray-500">{subValue}</p>}
     </div>
   );
 }
@@ -409,7 +415,7 @@ function SmallButton({ icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+      className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white hover:text-[#3b71e6]"
     >
       {icon}
       {label}
@@ -419,10 +425,9 @@ function SmallButton({ icon, label, onClick }) {
 
 function ActionButton({ icon, label, onClick, disabled, type }) {
   const styles = {
-    success: "border-green-300 text-green-700 hover:bg-green-50",
-    danger: "border-red-300 text-red-600 hover:bg-red-50",
-    purple: "border-[#d8ccff] text-[#3b71e6] hover:bg-[#f7f4ff]",
-    blue: "border-blue-300 text-blue-700 hover:bg-blue-50",
+    success: "border-green-200 text-green-700 hover:bg-green-50",
+    danger: "border-red-200 text-red-600 hover:bg-red-50",
+    brand: "border-[#3b71e6] text-[#3b71e6] hover:bg-[#eef4ff]",
   };
 
   return (
@@ -430,8 +435,8 @@ function ActionButton({ icon, label, onClick, disabled, type }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center gap-1 rounded-xl border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
-        styles[type] || styles.purple
+      className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        styles[type] || styles.brand
       }`}
     >
       {icon}
@@ -443,43 +448,63 @@ function ActionButton({ icon, label, onClick, disabled, type }) {
 function StatusBadge({ status }) {
   const style =
     status === "Cancelled"
-      ? "bg-red-100 text-red-600"
+      ? "border-red-200 bg-red-50 text-red-600"
       : status === "Declined"
-      ? "bg-gray-200 text-gray-700"
+      ? "border-gray-200 bg-gray-50 text-gray-700"
       : status === "Pending"
-      ? "bg-yellow-100 text-yellow-700"
+      ? "border-yellow-200 bg-yellow-50 text-yellow-700"
       : status === "Checked-in"
-      ? "bg-[#f4f0ff] text-[#3b71e6]"
+      ? "border-[#bfdbfe] bg-[#eef4ff] text-[#3b71e6]"
       : status === "Checked-out"
-      ? "bg-blue-100 text-blue-700"
-      : "bg-green-100 text-green-700";
+      ? "border-blue-200 bg-blue-50 text-blue-700"
+      : "border-green-200 bg-green-50 text-green-700";
 
   return (
     <span
-      className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold ${style}`}
+      className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${style}`}
     >
       {status}
     </span>
   );
 }
 
-function StatCard({ title, value, color }) {
+function StatCard({ title, value }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+    <article className="rounded-2xl border border-gray-200 bg-white p-4">
       <p className="text-sm text-gray-500">{title}</p>
-      <h2 className={`mt-2 text-3xl font-bold ${color}`}>{value}</h2>
+
+      <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+        {value}
+      </h2>
+    </article>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="space-y-0">
+      {[1, 2, 3].map((item) => (
+        <div
+          key={item}
+          className="h-32 animate-pulse border-b border-gray-100 bg-gray-50"
+        />
+      ))}
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="p-14 text-center">
-      <div className="mb-4 text-6xl">📋</div>
-      <h3 className="text-2xl font-bold">No reservations found</h3>
-      <p className="mt-2 text-gray-500">
-        New guest bookings for your rooms will appear here.
-      </p>
+    <div className="flex min-h-[280px] items-center justify-center px-5 text-center">
+      <div>
+        <h3 className="text-xl font-semibold tracking-tight text-gray-950">
+          No reservations found
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-gray-500">
+          New guest bookings for your rooms will appear here.
+        </p>
+      </div>
     </div>
   );
 }
