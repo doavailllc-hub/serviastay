@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
+import {
+  CalendarDays,
+  Home,
+  IndianRupee,
+  ListChecks,
+  Plus,
+  Star,
+} from "lucide-react";
+
+import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+const BRAND = "#3b71e6";
 
 export default function HostDashboard() {
   const navigate = useNavigate();
@@ -23,7 +34,7 @@ export default function HostDashboard() {
       setLoading(true);
       setLoadError("");
 
-      const user = JSON.parse(localStorage.getItem("user"));
+      const user = JSON.parse(localStorage.getItem("user") || "null");
       const token = localStorage.getItem("token");
 
       if (!user || !token) {
@@ -97,190 +108,154 @@ export default function HostDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-10">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-10">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Host Dashboard
+            <p className="text-sm font-medium text-gray-500">Host</p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+              Dashboard
             </h1>
 
-            <p className="text-gray-500 mt-2">
-              Manage your listings, bookings and earnings.
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+              Manage your listings, reservations and earnings from one place.
             </p>
           </div>
 
           <button
             onClick={() => navigate("/become-a-host")}
-            className="mt-5 md:mt-0 px-6 py-3 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold shadow-lg transition"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
-            + Add Listing
+            <Plus size={17} />
+            Add listing
           </button>
-        </div>
+        </header>
 
         {loadError && (
-          <div className="mb-6 rounded-2xl border border-yellow-200 bg-yellow-50 px-5 py-4 text-sm font-semibold text-yellow-800">
+          <div className="mb-6 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
             {loadError}
           </div>
         )}
 
         {loading ? (
-          <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
-            <p className="font-semibold text-gray-700">
-              Loading host dashboard...
-            </p>
-          </div>
+          <LoadingState />
         ) : (
           <>
-            <div className="grid gap-6 md:grid-cols-3">
+            <section className="grid gap-4 md:grid-cols-3">
               <StatCard
-                title="Total Earnings"
+                title="Total earnings"
                 value={formatINR(totalEarnings)}
-                subtitle="Total confirmed revenue"
-                highlight
+                subtitle="Confirmed revenue"
+                icon={<IndianRupee size={18} />}
               />
 
               <StatCard
-                title="Active Listings"
+                title="Active listings"
                 value={listings.length}
                 subtitle="Properties you host"
+                icon={<Home size={18} />}
               />
 
               <StatCard
                 title="Bookings"
                 value={bookings.length}
                 subtitle="Guest reservations"
+                icon={<CalendarDays size={18} />}
               />
-            </div>
+            </section>
 
-            <div className="mt-10 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b flex justify-between items-center">
-                <h2 className="text-2xl font-semibold">Your Listings</h2>
+            <section className="mt-8 rounded-2xl border border-gray-200 bg-white">
+              <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+                    Recent listings
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Latest properties added to your host account.
+                  </p>
+                </div>
 
                 <button
                   onClick={() => navigate("/host-listings")}
-                  className="text-[#3b71e6] font-semibold hover:underline"
+                  className="text-sm font-medium text-[#3b71e6] hover:underline"
                 >
                   View all
                 </button>
               </div>
 
               {listings.length === 0 ? (
-                <div className="p-8 text-center">
-                  <h3 className="text-xl font-bold">No listings yet</h3>
-                  <p className="text-gray-500 mt-2">
-                    Add your first property to start hosting.
-                  </p>
-
-                  <button
-                    onClick={() => navigate("/become-a-host")}
-                    className="mt-5 px-6 py-3 rounded-xl bg-[#3b71e6] text-white font-semibold"
-                  >
-                    Add Listing
-                  </button>
-                </div>
+                <EmptyListing navigate={navigate} />
               ) : (
-                <div className="divide-y">
+                <div className="divide-y divide-gray-100">
                   {listings.slice(0, 3).map((listing) => (
-                    <div
+                    <ListingRow
                       key={listing.id}
-                      className="flex flex-col md:flex-row justify-between items-center gap-5 p-6 hover:bg-gray-50 transition"
-                    >
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={
-                            listing.image ||
-                            "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
-                          }
-                          alt={listing.title}
-                          className="w-20 h-20 rounded-2xl object-cover"
-                        />
-
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            {listing.title}
-                          </h3>
-
-                          <p className="text-gray-500 mt-1">
-                            📍 {listing.location}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-6 mt-4 md:mt-0">
-                        <span className="font-bold text-[#3b71e6]">
-                          {formatINR(listing.price)} / night
-                        </span>
-
-                        <span className="px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
-                          Active
-                        </span>
-
-                        <button
-                          onClick={() =>
-                            navigate(`/edit-listing/${listing.id}`)
-                          }
-                          className="px-5 py-2 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white transition"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
+                      listing={listing}
+                      navigate={navigate}
+                      formatINR={formatINR}
+                    />
                   ))}
                 </div>
               )}
-            </div>
+            </section>
 
-            <div className="mt-10 grid gap-6 md:grid-cols-5">
-              <QuickAction
-                icon="🏠"
-                title="Listings"
-                desc="Manage properties"
-                onClick={() => navigate("/host-listings")}
-              />
-
-              <QuickAction
-                icon="📋"
-                title="Reservations"
-                desc="Manage bookings"
-                onClick={() => navigate("/host-reservations")}
-              />
-
-              <QuickAction
-                icon="📅"
-                title="Calendar"
-                desc="Manage availability"
-                onClick={() => navigate("/host-calendar")}
-              />
-
-              <QuickAction
-                icon="💰"
-                title="Earnings"
-                desc="View payouts"
-                onClick={() => navigate("/earnings")}
-              />
-
-              <QuickAction
-                icon="★"
-                title="Reviews"
-                desc="Guest feedback"
-                onClick={() => navigate("/host-reviews")}
-              />
-            </div>
-
-            <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6D4EEB] p-8 text-white shadow-xl">
-              <h2 className="text-2xl font-bold">
-                You're doing great! 🎉
+            <section className="mt-8">
+              <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+                Quick actions
               </h2>
 
-              <p className="mt-3 text-white/90 max-w-2xl">
-                Keep your listings updated with quality photos, competitive
-                pricing, and quick responses to maximize your bookings and
-                earnings.
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <QuickAction
+                  icon={<Home size={19} />}
+                  title="Listings"
+                  desc="Manage properties"
+                  onClick={() => navigate("/host-listings")}
+                />
+
+                <QuickAction
+                  icon={<ListChecks size={19} />}
+                  title="Reservations"
+                  desc="View bookings"
+                  onClick={() => navigate("/host-reservations")}
+                />
+
+                <QuickAction
+                  icon={<CalendarDays size={19} />}
+                  title="Calendar"
+                  desc="Availability"
+                  onClick={() => navigate("/host-calendar")}
+                />
+
+                <QuickAction
+                  icon={<IndianRupee size={19} />}
+                  title="Earnings"
+                  desc="View payouts"
+                  onClick={() => navigate("/earnings")}
+                />
+
+                <QuickAction
+                  icon={<Star size={19} />}
+                  title="Reviews"
+                  desc="Guest feedback"
+                  onClick={() => navigate("/host-reviews")}
+                />
+              </div>
+            </section>
+
+            <section className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+              <h2 className="text-base font-semibold text-gray-950">
+                Hosting tip
+              </h2>
+
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+                Keep listings updated with clear photos, accurate pricing and
+                fast responses to improve bookings.
               </p>
-            </div>
+            </section>
           </>
         )}
       </main>
@@ -288,21 +263,106 @@ export default function HostDashboard() {
   );
 }
 
-function StatCard({ title, value, subtitle, highlight }) {
+function LoadingState() {
   return (
-    <div className="bg-white rounded-3xl p-7 border border-gray-100 shadow-sm hover:shadow-lg transition">
-      <p className="text-gray-500">{title}</p>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        {[1, 2, 3].map((item) => (
+          <div
+            key={item}
+            className="h-32 animate-pulse rounded-2xl bg-gray-100"
+          />
+        ))}
+      </div>
 
-      <h2
-        className={`text-4xl font-bold mt-3 ${
-          highlight ? "text-[#3b71e6]" : "text-gray-900"
-        }`}
-      >
+      <div className="h-80 animate-pulse rounded-2xl bg-gray-100" />
+    </div>
+  );
+}
+
+function EmptyListing({ navigate }) {
+  return (
+    <div className="flex min-h-[240px] items-center justify-center px-5 text-center">
+      <div>
+        <h3 className="text-xl font-semibold tracking-tight text-gray-950">
+          No listings yet
+        </h3>
+
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-gray-500">
+          Add your first property to start hosting.
+        </p>
+
+        <button
+          onClick={() => navigate("/become-a-host")}
+          className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+        >
+          <Plus size={17} />
+          Add listing
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ListingRow({ listing, navigate, formatINR }) {
+  return (
+    <div className="flex flex-col gap-4 px-5 py-4 transition hover:bg-gray-50 md:flex-row md:items-center md:justify-between">
+      <div className="flex items-center gap-4">
+        <img
+          src={
+            listing.image ||
+            "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+          }
+          alt={listing.title || "Listing"}
+          className="h-16 w-16 rounded-xl object-cover"
+        />
+
+        <div>
+          <h3 className="text-sm font-semibold text-gray-950">
+            {listing.title || "Untitled listing"}
+          </h3>
+
+          <p className="mt-1 text-sm text-gray-500">
+            {listing.location || "Location unavailable"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 md:justify-end">
+        <span className="text-sm font-medium text-gray-950">
+          {formatINR(listing.price)} / night
+        </span>
+
+        <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+          Active
+        </span>
+
+        <button
+          onClick={() => navigate(`/edit-listing/${listing.id}`)}
+          className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-white hover:text-[#3b71e6]"
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, subtitle, icon }) {
+  return (
+    <article className="rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef4ff] text-[#3b71e6]">
+        {icon}
+      </div>
+
+      <p className="text-sm text-gray-500">{title}</p>
+
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-gray-950">
         {value}
       </h2>
 
-      <p className="text-gray-500 mt-4">{subtitle}</p>
-    </div>
+      <p className="mt-2 text-sm text-gray-500">{subtitle}</p>
+    </article>
   );
 }
 
@@ -310,11 +370,13 @@ function QuickAction({ icon, title, desc, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition text-left"
+      className="rounded-2xl border border-gray-200 bg-white p-4 text-left transition hover:bg-gray-50"
     >
-      <div className="text-3xl mb-3">{icon}</div>
-      <h3 className="font-bold">{title}</h3>
-      <p className="text-gray-500 text-sm mt-2">{desc}</p>
+      <div className="mb-3 text-[#3b71e6]">{icon}</div>
+
+      <h3 className="text-sm font-semibold text-gray-950">{title}</h3>
+
+      <p className="mt-1 text-sm text-gray-500">{desc}</p>
     </button>
   );
 }
