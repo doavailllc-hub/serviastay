@@ -290,6 +290,7 @@ export default function ExperienceDetails() {
             </Section>
 
             <Section title="Package overview">
+                         <br></br>
               <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
                 {pkg.description ||
                   "Enjoy a carefully planned trip package with comfortable stay, transport, local support and a day-wise itinerary designed for a smooth travel experience."}
@@ -297,6 +298,7 @@ export default function ExperienceDetails() {
             </Section>
 
             <Section title="What's included">
+                         <br></br>
               <div className="grid gap-4 md:grid-cols-2">
                 {includes.map((item) => (
                   <div key={item} className="flex items-center gap-3">
@@ -308,6 +310,7 @@ export default function ExperienceDetails() {
             </Section>
 
             <Section title="Trip details">
+                         <br></br>
               <div className="grid gap-4 md:grid-cols-2">
                 <DetailRow label="Hotel" value={pkg.hotel_name || "Included"} />
                 <DetailRow label="Transport" value={pkg.transport || "Private / shared transport"} />
@@ -344,6 +347,7 @@ export default function ExperienceDetails() {
             )}
 
             <Section title="Itinerary">
+           <br></br>
               {itinerary.length === 0 ? (
                 <p className="text-sm text-gray-500">
                   Itinerary details will be shared after booking confirmation.
