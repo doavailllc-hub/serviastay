@@ -322,6 +322,7 @@ export default function ExperienceDetails() {
             </Section>
 
             <Section title="What's included">
+              <bR></bR>
               <div className="grid gap-4 md:grid-cols-2">
                 {includes.map((item) => (
                   <div key={item} className="flex items-center gap-3">
