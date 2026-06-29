@@ -394,31 +394,29 @@ export default function ExperienceDetails() {
                 </p>
               ) : (
                 <div className="space-y-5">
-                  {itinerary.map((item, index) => (
-                    <div key={`${item}-${index}`} className="relative pl-8">
-                      <div className="absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3b71e6] bg-white">
-                        <span className="h-2 w-2 rounded-full bg-[#3b71e6]" />
-                      </div>
+               {itinerary.map((item, index) => (
+  <div key={`${item.title}-${index}`} className="relative pl-8">
+    <div className="absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3b71e6] bg-white">
+      <span className="h-2 w-2 rounded-full bg-[#3b71e6]" />
+    </div>
 
-                      {index !== itinerary.length - 1 && (
-                        <div className="absolute left-[9px] top-7 h-full w-px bg-gray-200" />
-                      )}
+    {index !== itinerary.length - 1 && (
+      <div className="absolute left-[9px] top-7 h-full w-px bg-gray-200" />
+    )}
 
-                      <p className="text-sm font-semibold text-gray-950">
-                        Day {index + 1}
-                      </p>
+    <p className="text-sm font-semibold text-gray-950">{item.title}</p>
 
-                      <p className="mt-1 text-sm leading-6 text-gray-600">
-                        {item}
-                      </p>
-                    </div>
-                  ))}
+    <p className="mt-1 text-sm leading-6 text-gray-600">
+      {item.description}
+    </p>
+  </div>
+))}
                 </div>
               )}
             </Section>
 
             <Section title="Pickup & destination">
-                        <bR></bR>
+                   <br />
               <div className="grid gap-4 md:grid-cols-2">
                 <DetailBox
                   label="Pickup location"
@@ -844,10 +842,32 @@ function parseList(value, fallback = []) {
 function parseItinerary(value) {
   if (!value) return [];
 
-  return String(value)
-    .split(/\n|Day\s*\d+:/i)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const text = String(value).trim();
+
+  const dayMatches = [...text.matchAll(/Day\s*(\d+)\s*:\s*/gi)];
+
+  if (!dayMatches.length) {
+    return [
+      {
+        title: "Day 1",
+        description: text,
+      },
+    ];
+  }
+
+  return dayMatches.map((match, index) => {
+    const start = match.index + match[0].length;
+    const end =
+      index + 1 < dayMatches.length ? dayMatches[index + 1].index : text.length;
+
+    const content = text.slice(start, end).trim();
+    const lines = content.split("\n").map((line) => line.trim()).filter(Boolean);
+
+    return {
+      title: `Day ${match[1]}`,
+      description: lines.join(" "),
+    };
+  });
 }
 
 function formatInputDate(value) {
