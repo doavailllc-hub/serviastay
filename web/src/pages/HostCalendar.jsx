@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import api from "../api/api";
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const BRAND = "#3b71e6";
 
 function toLocalISO(date = new Date()) {
   const local = new Date(date);
@@ -166,15 +166,20 @@ export default function HostCalendar() {
   }, [days, bookedRanges, calendarMap, viewDate]);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
-        <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">Host Calendar</h1>
-            <p className="mt-2 text-gray-500">
-              Block unavailable dates and manage booking availability.
+            <p className="text-sm font-medium text-gray-500">Host</p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+              Calendar
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+              Manage availability by blocking or opening dates for your listing.
             </p>
           </div>
 
@@ -186,31 +191,31 @@ export default function HostCalendar() {
                 loadBookedDates(selectedPropertyId);
               }
             }}
-            className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white shadow-lg hover:bg-[#2f5fc2]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
           >
-            <RefreshCw size={18} />
+            <RefreshCw size={17} />
             Refresh
           </button>
-        </div>
+        </header>
 
-        <div className="mb-8 grid gap-6 md:grid-cols-4">
-          <Stat title="Available" value={stats.available} color="text-[#3b71e6]" />
-          <Stat title="Booked" value={stats.booked} color="text-green-600" />
-          <Stat title="Blocked" value={stats.blocked} color="text-red-500" />
-          <Stat title="Month Days" value={stats.total} color="text-gray-900" />
-        </div>
+        <section className="mb-8 grid gap-4 md:grid-cols-4">
+          <Stat title="Available" value={stats.available} />
+          <Stat title="Booked" value={stats.booked} />
+          <Stat title="Blocked" value={stats.blocked} />
+          <Stat title="Month days" value={stats.total} />
+        </section>
 
-        <div className="mb-8 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 md:grid-cols-[1fr_260px] md:items-center">
-            <div>
-              <p className="text-sm font-semibold text-gray-500">
-                Selected Property
-              </p>
+        <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="grid gap-4 md:grid-cols-[1fr_220px] md:items-end">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-gray-700">
+                Selected property
+              </span>
 
               <select
                 value={selectedPropertyId}
                 onChange={(e) => setSelectedPropertyId(e.target.value)}
-                className="mt-2 h-12 w-full rounded-xl border border-gray-300 bg-white px-4 outline-none focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/20"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
               >
                 {properties.length === 0 ? (
                   <option value="">No properties found</option>
@@ -222,30 +227,30 @@ export default function HostCalendar() {
                   ))
                 )}
               </select>
-            </div>
+            </label>
 
-            <div className="rounded-2xl bg-[#FAFAFC] p-4">
+            <div className="rounded-2xl border border-gray-200 p-4">
               <p className="text-sm text-gray-500">Base price</p>
-              <h3 className="mt-1 text-2xl font-bold text-[#3b71e6]">
+              <h3 className="mt-1 text-xl font-semibold text-gray-950">
                 {formatINR(selectedProperty?.price)}
               </h3>
             </div>
           </div>
-        </div>
+        </section>
 
-        <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-          <div className="flex flex-col justify-between gap-4 border-b p-6 md:flex-row md:items-center">
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+          <div className="flex flex-col gap-4 border-b border-gray-200 px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                <CalendarDays className="text-[#3b71e6]" />
+              <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-gray-950">
+                <CalendarDays size={20} className="text-[#3b71e6]" />
                 {viewDate.toLocaleString("en-IN", {
                   month: "long",
                   year: "numeric",
                 })}
               </h2>
 
-              <p className="mt-1 text-gray-500">
-                Click available dates to block/unblock.
+              <p className="mt-1 text-sm text-gray-500">
+                Click an available date to block or unblock it.
               </p>
             </div>
 
@@ -253,15 +258,15 @@ export default function HostCalendar() {
               <button
                 type="button"
                 onClick={() => setViewDate(addMonths(viewDate, -1))}
-                className="rounded-xl border border-gray-300 p-3 hover:bg-gray-50"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 transition hover:bg-gray-50"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={18} />
               </button>
 
               <button
                 type="button"
                 onClick={() => setViewDate(new Date())}
-                className="rounded-xl border border-gray-300 px-5 py-3 font-semibold hover:bg-gray-50"
+                className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium transition hover:bg-gray-50"
               >
                 Today
               </button>
@@ -269,20 +274,18 @@ export default function HostCalendar() {
               <button
                 type="button"
                 onClick={() => setViewDate(addMonths(viewDate, 1))}
-                className="rounded-xl border border-gray-300 p-3 hover:bg-gray-50"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 transition hover:bg-gray-50"
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-gray-500">
-              Loading calendar...
-            </div>
+            <LoadingState />
           ) : (
-            <div className="p-4 md:p-6">
-              <div className="mb-3 grid grid-cols-7 text-center text-xs font-bold uppercase text-gray-400">
+            <div className="p-4 md:p-5">
+              <div className="mb-3 grid grid-cols-7 text-center text-xs font-medium uppercase tracking-wide text-gray-400">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                   <div key={day}>{day}</div>
                 ))}
@@ -304,33 +307,35 @@ export default function HostCalendar() {
                       type="button"
                       disabled={booked || past || inactive || saving}
                       onClick={() => updateDateStatus(day.iso, nextStatus)}
-                      className={`min-h-[96px] rounded-2xl border p-3 text-left transition ${
+                      className={`min-h-[82px] rounded-2xl border p-3 text-left transition ${
                         inactive
-                          ? "bg-gray-50 text-gray-300"
+                          ? "border-gray-100 bg-gray-50 text-gray-300"
                           : booked
                           ? "border-green-200 bg-green-50 text-green-700"
                           : blocked
                           ? "border-red-200 bg-red-50 text-red-600"
                           : past
-                          ? "bg-gray-50 text-gray-300"
-                          : "border-gray-200 bg-white hover:border-[#3b71e6] hover:bg-[#f7f4ff]"
+                          ? "border-gray-100 bg-gray-50 text-gray-300"
+                          : "border-gray-200 bg-white hover:border-[#3b71e6] hover:bg-[#eef4ff]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-bold">{day.date.getDate()}</span>
+                        <span className="text-sm font-semibold">
+                          {day.date.getDate()}
+                        </span>
 
                         {booked ? (
-                          <span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-bold">
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium">
                             Booked
                           </span>
                         ) : blocked ? (
-                          <Lock size={15} />
+                          <Lock size={14} />
                         ) : (
-                          <Unlock size={15} className="text-gray-400" />
+                          <Unlock size={14} className="text-gray-400" />
                         )}
                       </div>
 
-                      <p className="mt-5 text-xs font-semibold">
+                      <p className="mt-4 text-xs font-medium">
                         {booked
                           ? "Guest booking"
                           : blocked
@@ -347,8 +352,8 @@ export default function HostCalendar() {
           )}
         </section>
 
-        <div className="mt-8 flex flex-wrap gap-6 text-sm">
-          <Legend color="bg-white border border-gray-300" text="Available" />
+        <div className="mt-6 flex flex-wrap gap-5 text-sm text-gray-600">
+          <Legend color="border border-gray-300 bg-white" text="Available" />
           <Legend color="bg-green-500" text="Booked" />
           <Legend color="bg-red-500" text="Blocked by host" />
         </div>
@@ -377,11 +382,24 @@ function getCalendarDays(viewDate) {
   });
 }
 
-function Stat({ title, value, color }) {
+function Stat({ title, value }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+    <article className="rounded-2xl border border-gray-200 bg-white p-4">
       <p className="text-sm text-gray-500">{title}</p>
-      <h2 className={`mt-2 text-4xl font-bold ${color}`}>{value}</h2>
+
+      <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+        {value}
+      </h2>
+    </article>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="grid grid-cols-7 gap-2 p-5">
+      {Array.from({ length: 35 }).map((_, index) => (
+        <div key={index} className="h-20 animate-pulse rounded-2xl bg-gray-100" />
+      ))}
     </div>
   );
 }
@@ -389,7 +407,7 @@ function Stat({ title, value, color }) {
 function Legend({ color, text }) {
   return (
     <div className="flex items-center gap-2">
-      <div className={`h-4 w-4 rounded-full ${color}`} />
+      <div className={`h-3 w-3 rounded-full ${color}`} />
       <span>{text}</span>
     </div>
   );
