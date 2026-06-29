@@ -20,13 +20,16 @@ const API_URL = "https://stay.dovail.com/api/properties";
 
 function toISO(date) {
   if (!date) return "";
+
   const d = new Date(date);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+
   return d.toISOString().slice(0, 10);
 }
 
 function formatDisplayDate(date) {
   if (!date) return "";
+
   return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
     month: "short",
@@ -42,6 +45,7 @@ export default function Home() {
   const searchRef = useRef(null);
 
   const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activePanel, setActivePanel] = useState(null);
 
   const [destination, setDestination] = useState("");
@@ -59,7 +63,7 @@ export default function Home() {
   const destinations = [
     {
       name: "Nearby",
-      icon: <Navigation size={20} />,
+      icon: <Navigation size={18} />,
       desc: "Find stays around your current location",
     },
     {
@@ -116,10 +120,15 @@ export default function Home() {
 
   const loadProperties = async () => {
     try {
+      setLoading(true);
+
       const res = await axios.get(API_URL);
-      setProperties(res.data || []);
+      setProperties(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.log("Properties load failed:", err);
+      setProperties([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -154,6 +163,13 @@ export default function Home() {
   const clearDates = () => {
     setCheckin(null);
     setCheckout(null);
+  };
+
+  const clearGuests = () => {
+    setAdults(1);
+    setChildren(0);
+    setInfants(0);
+    setPets(0);
   };
 
   const handleSearch = () => {
@@ -191,7 +207,7 @@ export default function Home() {
 
         <section className="hidden w-full justify-center bg-white px-4 pb-4 pt-3 md:flex">
           <div ref={searchRef} className="relative w-full max-w-[960px]">
-            <div className="flex h-[64px] items-center rounded-full border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
+            <div className="flex h-16 items-center rounded-full border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
               <SearchButton
                 title="Where"
                 value={destination || "Search destinations"}
@@ -245,7 +261,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#3b71e6] text-white transition hover:bg-[#2f63d8]"
+                  className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#3b71e6] text-white transition hover:bg-[#2f5fc2]"
                   aria-label="Search"
                 >
                   <Search size={18} />
@@ -254,44 +270,14 @@ export default function Home() {
             </div>
 
             {activePanel === "where" && (
-              <div className="absolute left-0 top-[78px] z-50 w-[430px] rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-gray-950">
-                    Suggested destinations
-                  </h3>
-
-                  <button
-                    onClick={() => setActivePanel(null)}
-                    className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="max-h-[420px] overflow-y-auto">
-                  {destinations.map((place) => (
-                    <button
-                      key={place.name}
-                      onClick={() => {
-                        setDestination(place.name);
-                        setActivePanel("dates");
-                      }}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50"
-                    >
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef4ff] text-xl text-[#3b71e6]">
-                        {place.icon}
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-medium text-gray-950">
-                          {place.name}
-                        </p>
-                        <p className="text-sm text-gray-500">{place.desc}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <DestinationDropdown
+                destinations={destinations}
+                onClose={() => setActivePanel(null)}
+                onSelect={(place) => {
+                  setDestination(place.name);
+                  setActivePanel("dates");
+                }}
+              />
             )}
 
             {activePanel === "dates" && (
@@ -307,74 +293,26 @@ export default function Home() {
             )}
 
             {activePanel === "guests" && (
-              <div className="absolute right-0 top-[78px] z-50 w-[410px] rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
-                <GuestRow
-                  title="Adults"
-                  subtitle="Ages 13 or above"
-                  value={adults}
-                  onMinus={() => setAdults(Math.max(1, adults - 1))}
-                  onPlus={() => setAdults(adults + 1)}
-                  minusDisabled={adults <= 1}
-                />
-
-                <GuestRow
-                  title="Children"
-                  subtitle="Ages 2–12"
-                  value={children}
-                  onMinus={() => setChildren(Math.max(0, children - 1))}
-                  onPlus={() => setChildren(children + 1)}
-                  minusDisabled={children <= 0}
-                />
-
-                <GuestRow
-                  title="Infants"
-                  subtitle="Under 2"
-                  value={infants}
-                  onMinus={() => setInfants(Math.max(0, infants - 1))}
-                  onPlus={() => setInfants(infants + 1)}
-                  minusDisabled={infants <= 0}
-                />
-
-                <GuestRow
-                  title="Pets"
-                  subtitle="Bringing a service animal?"
-                  value={pets}
-                  onMinus={() => setPets(Math.max(0, pets - 1))}
-                  onPlus={() => setPets(pets + 1)}
-                  minusDisabled={pets <= 0}
-                  underline
-                />
-
-                <div className="mt-4 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAdults(1);
-                      setChildren(0);
-                      setInfants(0);
-                      setPets(0);
-                    }}
-                    className="text-sm font-medium text-[#3b71e6] hover:underline"
-                  >
-                    Clear
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActivePanel(null)}
-                    className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f63d8]"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
+              <GuestDropdown
+                adults={adults}
+                setAdults={setAdults}
+                children={children}
+                setChildren={setChildren}
+                infants={infants}
+                setInfants={setInfants}
+                pets={pets}
+                setPets={setPets}
+                onClear={clearGuests}
+                onDone={() => setActivePanel(null)}
+              />
             )}
           </div>
         </section>
 
         <section className="px-4 pb-4 pt-3 md:hidden">
           <button
-            onClick={() => setActivePanel("mobile")}
+            type="button"
+            onClick={() => navigate("/search-results")}
             className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-left shadow-sm"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3b71e6] text-white">
@@ -396,17 +334,20 @@ export default function Home() {
       <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
         <div className="mb-8 flex items-end justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+            <p className="text-sm font-medium text-gray-500">Explore</p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
               Popular homes
             </h1>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500">
               Explore comfortable stays selected for location, quality and
               memorable trips.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={() => navigate("/search-results")}
             className="hidden rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-[#3b71e6] md:block"
           >
@@ -414,17 +355,12 @@ export default function Home() {
           </button>
         </div>
 
-        {properties.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-10 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-950">
-              No properties found
-            </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Add listings from the hosting section.
-            </p>
-          </div>
+        {loading ? (
+          <PropertyGridSkeleton />
+        ) : properties.length === 0 ? (
+          <EmptyState />
         ) : (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {properties.map((item) => (
               <PropertyCard key={item.id} property={item} />
             ))}
@@ -452,6 +388,46 @@ function SearchButton({ title, value, active, onClick, className }) {
   );
 }
 
+function DestinationDropdown({ destinations, onSelect, onClose }) {
+  return (
+    <div className="absolute left-0 top-[78px] z-50 w-[430px] rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-base font-semibold text-gray-950">
+          Suggested destinations
+        </h3>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="max-h-[420px] overflow-y-auto">
+        {destinations.map((place) => (
+          <button
+            key={place.name}
+            type="button"
+            onClick={() => onSelect(place)}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef4ff] text-xl text-[#3b71e6]">
+              {place.icon}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-950">{place.name}</p>
+              <p className="text-sm text-gray-500">{place.desc}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DateRangeDropdown({
   viewMonth,
   setViewMonth,
@@ -466,10 +442,16 @@ function DateRangeDropdown({
   return (
     <div className="absolute left-1/2 top-[78px] z-50 w-[760px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
       <div className="mx-auto mb-6 flex w-[240px] rounded-full bg-gray-100 p-1">
-        <button className="flex-1 rounded-full bg-white py-2 text-sm font-medium shadow-sm">
+        <button
+          type="button"
+          className="flex-1 rounded-full bg-white py-2 text-sm font-medium shadow-sm"
+        >
           Dates
         </button>
-        <button className="flex-1 rounded-full py-2 text-sm font-medium text-gray-500">
+        <button
+          type="button"
+          className="flex-1 rounded-full py-2 text-sm font-medium text-gray-500"
+        >
           Flexible
         </button>
       </div>
@@ -520,7 +502,7 @@ function DateRangeDropdown({
         <button
           type="button"
           onClick={onDone}
-          className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f63d8]"
+          className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
         >
           Done
         </button>
@@ -589,19 +571,76 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
   );
 }
 
-function getMonthDays(monthDate) {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const first = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+function GuestDropdown({
+  adults,
+  setAdults,
+  children,
+  setChildren,
+  infants,
+  setInfants,
+  pets,
+  setPets,
+  onClear,
+  onDone,
+}) {
+  return (
+    <div className="absolute right-0 top-[78px] z-50 w-[410px] rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
+      <GuestRow
+        title="Adults"
+        subtitle="Ages 13 or above"
+        value={adults}
+        onMinus={() => setAdults(Math.max(1, adults - 1))}
+        onPlus={() => setAdults(adults + 1)}
+        minusDisabled={adults <= 1}
+      />
 
-  const blanks = Array.from({ length: first.getDay() }, () => null);
-  const days = Array.from(
-    { length: daysInMonth },
-    (_, i) => new Date(year, month, i + 1)
+      <GuestRow
+        title="Children"
+        subtitle="Ages 2–12"
+        value={children}
+        onMinus={() => setChildren(Math.max(0, children - 1))}
+        onPlus={() => setChildren(children + 1)}
+        minusDisabled={children <= 0}
+      />
+
+      <GuestRow
+        title="Infants"
+        subtitle="Under 2"
+        value={infants}
+        onMinus={() => setInfants(Math.max(0, infants - 1))}
+        onPlus={() => setInfants(infants + 1)}
+        minusDisabled={infants <= 0}
+      />
+
+      <GuestRow
+        title="Pets"
+        subtitle="Bringing a service animal?"
+        value={pets}
+        onMinus={() => setPets(Math.max(0, pets - 1))}
+        onPlus={() => setPets(pets + 1)}
+        minusDisabled={pets <= 0}
+        underline
+      />
+
+      <div className="mt-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-sm font-medium text-[#3b71e6] hover:underline"
+        >
+          Clear
+        </button>
+
+        <button
+          type="button"
+          onClick={onDone}
+          className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+        >
+          Done
+        </button>
+      </div>
+    </div>
   );
-
-  return [...blanks, ...days];
 }
 
 function GuestRow({
@@ -642,6 +681,49 @@ function GuestRow({
           <Plus size={14} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function getMonthDays(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const first = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const blanks = Array.from({ length: first.getDay() }, () => null);
+  const days = Array.from(
+    { length: daysInMonth },
+    (_, i) => new Date(year, month, i + 1)
+  );
+
+  return [...blanks, ...days];
+}
+
+function PropertyGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      {Array.from({ length: 12 }).map((_, index) => (
+        <div key={index}>
+          <div className="aspect-square animate-pulse rounded-2xl bg-gray-100" />
+          <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-gray-100" />
+          <div className="mt-2 h-4 w-1/2 animate-pulse rounded-full bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-10 text-center">
+      <h2 className="text-2xl font-semibold tracking-tight text-gray-950">
+        No properties found
+      </h2>
+
+      <p className="mt-2 text-sm text-gray-500">
+        Add listings from the hosting section.
+      </p>
     </div>
   );
 }
