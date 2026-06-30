@@ -2803,453 +2803,193 @@ app.put("/api/admin/coupons/:id/status", verifyToken, async (req, res) => {
 });
 
 /* EXPERIENCES */
+/* HOST - UPDATE TRIP PACKAGE */
 
-app.get("/api/experiences", async (req, res) => {
+app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
   try {
-    const { search = "", category = "All" } = req.query;
+    const packageId = Number(req.params.id);
+    const hostId = Number(req.user.id);
 
-    let sql = `
-      SELECT
-        e.*,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image
-      FROM experiences e
-      WHERE e.status = 'active'
-    `;
-
-    const values = [];
-
-    if (category && category !== "All") {
-      sql += " AND e.category = ?";
-      values.push(category);
+    if (!packageId) {
+      return res.status(400).json({ message: "Invalid package id" });
     }
 
-    if (search) {
-      sql += `
-        AND (
-          e.title LIKE ?
-          OR e.location LIKE ?
-          OR e.city LIKE ?
-          OR e.category LIKE ?
-        )
-      `;
-
-      const q = `%${search}%`;
-      values.push(q, q, q, q);
-    }
-
-    sql += " ORDER BY e.created_at DESC";
-
-    const rows = await query(sql, values);
-
-    res.json(rows);
-  } catch (err) {
-    console.log("Experiences load error:", err.message);
-
-    res.status(500).json({
-      message: "Failed to load experiences",
-      error: err.message,
-    });
-  }
-});
-
-app.get("/api/experiences/:id", async (req, res) => {
-  try {
-    const experienceId = Number(req.params.id);
-
-    const rows = await query(
+    const existing = await query(
       `
-      SELECT *
+      SELECT id, host_id
       FROM experiences
       WHERE id = ?
-      AND status = 'active'
+      AND package_type IS NOT NULL
       LIMIT 1
       `,
-      [experienceId]
+      [packageId]
     );
 
-    if (!rows.length) {
-      return res.status(404).json({ message: "Experience not found" });
+    if (!existing.length) {
+      return res.status(404).json({ message: "Trip package not found" });
     }
 
-    const images = await query(
+    if (
+      Number(existing[0].host_id) !== hostId &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const {
+      title,
+      category,
+      location,
+      city,
+      price,
+      package_days,
+      package_nights,
+      max_people,
+      hotel_name,
+      transport,
+      meals,
+      pickup_location,
+      language,
+      host_name,
+      description,
+      includes,
+      itinerary,
+      cancellation_policy,
+      package_type,
+      status,
+    } = req.body;
+
+    if (!title || !location || !price) {
+      return res.status(400).json({
+        message: "Title, destination and price are required",
+      });
+    }
+
+    await query(
       `
-      SELECT *
-      FROM experience_images
-      WHERE experience_id = ?
-      ORDER BY is_cover DESC, sort_order ASC, id ASC
+      UPDATE experiences
+      SET
+        title = ?,
+        category = ?,
+        location = ?,
+        city = ?,
+        price = ?,
+        package_days = ?,
+        package_nights = ?,
+        max_people = ?,
+        hotel_name = ?,
+        transport = ?,
+        meals = ?,
+        pickup_location = ?,
+        language = ?,
+        host_name = ?,
+        description = ?,
+        includes = ?,
+        itinerary = ?,
+        cancellation_policy = ?,
+        package_type = ?,
+        status = ?
+      WHERE id = ?
       `,
-      [experienceId]
+      [
+        title,
+        category || "Family",
+        location,
+        city || location,
+        Number(price || 0),
+        Number(package_days || 1),
+        Number(package_nights || 0),
+        Number(max_people || 10),
+        hotel_name || null,
+        transport || null,
+        meals || null,
+        pickup_location || null,
+        language || "English",
+        host_name || "Dovail Travel",
+        description || "",
+        includes || "",
+        itinerary || "",
+        cancellation_policy || "",
+        package_type || "Trip Package",
+        status || "active",
+        packageId,
+      ]
     );
 
     res.json({
-      ...rows[0],
-      images,
+      success: true,
+      message: "Trip package updated successfully",
     });
   } catch (err) {
-    console.log("Experience detail error:", err.message);
+    console.log("UPDATE TRIP PACKAGE ERROR:", err.message);
 
     res.status(500).json({
-      message: "Failed to load experience",
+      message: "Trip package update failed",
       error: err.message,
     });
   }
 });
 
-app.get("/api/experience-reviews/:experienceId", async (req, res) => {
+/* HOST - DELETE TRIP PACKAGE */
+
+app.delete("/api/trip-packages/:id", verifyToken, async (req, res) => {
   try {
-    const rows = await query(
-      `
-      SELECT 
-        r.*,
-        COALESCE(u.fullname, 'Guest') AS guest_name
-      FROM experience_reviews r
-      LEFT JOIN servia_users u ON u.id = r.user_id
-      WHERE r.experience_id = ?
-      AND r.status = 'Approved'
-      ORDER BY r.id DESC
-      `,
-      [req.params.experienceId]
-    );
+    const packageId = Number(req.params.id);
+    const hostId = Number(req.user.id);
 
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({
-      message: "Experience reviews load failed",
-      error: err.message,
-    });
-  }
-});
-/* EXPERIENCE BOOKINGS */
-/* HOST - CREATE TRIP PACKAGE */
-
-app.post(
-  "/api/trip-packages",
-  verifyToken,
-  upload.array("images", 10),
-  async (req, res) => {
-    const connection = await db.promise().getConnection();
-
-    try {
-      const {
-        title,
-        category,
-        location,
-        city,
-        price,
-        package_days,
-        package_nights,
-        max_people,
-        hotel_name,
-        transport,
-        meals,
-        pickup_location,
-        language,
-        host_name,
-        description,
-        includes,
-        itinerary,
-        cancellation_policy,
-        package_type,
-      } = req.body;
-
-      if (!title || !location || !price) {
-        connection.release();
-        return res.status(400).json({
-          message: "Title, destination and price are required",
-        });
-      }
-
-      if (!req.files || req.files.length === 0) {
-        connection.release();
-        return res.status(400).json({
-          message: "Please upload at least one package image",
-        });
-      }
-
-      const hostId = req.user.id;
-      const coverImage = buildFileUrl(req.files[0].filename);
-
-      await connection.beginTransaction();
-
-      const [result] = await connection.query(
-        `
-        INSERT INTO experiences
-        (
-          host_id,
-          title,
-          location,
-          city,
-          category,
-          price,
-          package_days,
-          package_nights,
-          max_people,
-          hotel_name,
-          transport,
-          meals,
-          pickup_location,
-          language,
-          host_name,
-          description,
-          includes,
-          itinerary,
-          cancellation_policy,
-          package_type,
-          status,
-          rating,
-          reviews
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          hostId,
-          title,
-          location,
-          city || location,
-          category || "Family",
-          Number(price || 0),
-          Number(package_days || 1),
-          Number(package_nights || 0),
-          Number(max_people || 10),
-          hotel_name || null,
-          transport || null,
-          meals || null,
-          pickup_location || null,
-          language || "English",
-          host_name || "Dovail Travel",
-          description || "",
-          includes || "",
-          itinerary || "",
-          cancellation_policy || "",
-          package_type || "Trip Package",
-          "active",
-          0,
-          0,
-        ]
-      );
-
-      const packageId = result.insertId;
-
-      const imageValues = req.files.map((file, index) => [
-        packageId,
-        buildFileUrl(file.filename),
-        index === 0 ? 1 : 0,
-        index,
-      ]);
-
-      await connection.query(
-        `
-        INSERT INTO experience_images
-        (experience_id, image_url, is_cover, sort_order)
-        VALUES ?
-        `,
-        [imageValues]
-      );
-
-      await connection.commit();
-
-      res.json({
-        success: true,
-        message: "Trip package created successfully",
-        packageId,
-        image: coverImage,
-      });
-    } catch (err) {
-      await connection.rollback();
-
-      console.log("CREATE TRIP PACKAGE ERROR:", err.message);
-
-      res.status(500).json({
-        message: "Trip package create failed",
-        error: err.message,
-      });
-    } finally {
-      connection.release();
+    if (!packageId) {
+      return res.status(400).json({ message: "Invalid package id" });
     }
-  }
-);
 
-/* HOST - OWN TRIP PACKAGE DASHBOARD */
-
-app.get("/api/host/trip-packages", verifyToken, async (req, res) => {
-  try {
-    const hostId = req.user.id;
-
-    const rows = await query(
+    const existing = await query(
       `
-      SELECT 
-        e.*,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image,
-        COUNT(b.id) AS bookings_count,
-        COALESCE(SUM(b.total), 0) AS revenue
-      FROM experiences e
-      LEFT JOIN experience_bookings b 
-        ON b.experience_id = e.id 
-        AND b.status NOT IN ('Cancelled', 'Declined')
-      WHERE e.package_type IS NOT NULL
-      AND e.host_id = ?
-      GROUP BY e.id
-      ORDER BY e.id DESC
+      SELECT id, host_id
+      FROM experiences
+      WHERE id = ?
+      AND package_type IS NOT NULL
+      LIMIT 1
       `,
-      [hostId]
+      [packageId]
     );
 
-    res.json(rows);
-  } catch (err) {
-    console.log("HOST TRIP PACKAGES ERROR:", err.message);
+    if (!existing.length) {
+      return res.status(404).json({ message: "Trip package not found" });
+    }
 
-    res.status(500).json({
-      message: "Trip packages load failed",
-      error: err.message,
-    });
-  }
-});
-
-app.get("/api/host/trip-packages/:hostId", verifyToken, async (req, res) => {
-  try {
-    const hostId = Number(req.params.hostId);
-
-    if (Number(req.user.id) !== hostId && req.user.role !== "admin") {
+    if (
+      Number(existing[0].host_id) !== hostId &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const rows = await query(
-      `
-      SELECT 
-        e.*,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image,
-        COUNT(b.id) AS bookings_count,
-        COALESCE(SUM(b.total), 0) AS revenue
-      FROM experiences e
-      LEFT JOIN experience_bookings b 
-        ON b.experience_id = e.id 
-        AND b.status NOT IN ('Cancelled', 'Declined')
-      WHERE e.package_type IS NOT NULL
-      AND e.host_id = ?
-      GROUP BY e.id
-      ORDER BY e.id DESC
-      `,
-      [hostId]
-    );
+    await query("DELETE FROM package_departures WHERE experience_id = ?", [
+      packageId,
+    ]);
 
-    res.json(rows);
-  } catch (err) {
-    console.log("HOST TRIP PACKAGES BY HOST ERROR:", err.message);
+    await query("DELETE FROM experience_images WHERE experience_id = ?", [
+      packageId,
+    ]);
 
-    res.status(500).json({
-      message: "Trip packages load failed",
-      error: err.message,
+    await query("DELETE FROM experience_bookings WHERE experience_id = ?", [
+      packageId,
+    ]);
+
+    await query("DELETE FROM experience_reviews WHERE experience_id = ?", [
+      packageId,
+    ]);
+
+    await query("DELETE FROM experiences WHERE id = ?", [packageId]);
+
+    res.json({
+      success: true,
+      message: "Trip package deleted successfully",
     });
-  }
-});
-
-/* HOST - OWN PACKAGE BOOKINGS */
-
-app.get("/api/host/package-bookings", verifyToken, async (req, res) => {
-  try {
-    const hostId = req.user.id;
-
-    const rows = await query(
-      `
-      SELECT 
-        b.*,
-        e.title,
-        e.location,
-        e.city,
-        e.package_days,
-        e.package_nights,
-        e.price,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image,
-        u.fullname AS guest_name,
-        u.email AS guest_email,
-        u.phone AS guest_phone
-      FROM experience_bookings b
-      JOIN experiences e ON e.id = b.experience_id
-      LEFT JOIN servia_users u ON u.id = b.user_id
-      WHERE e.host_id = ?
-      ORDER BY b.id DESC
-      `,
-      [hostId]
-    );
-
-    res.json(rows);
   } catch (err) {
-    console.log("HOST PACKAGE BOOKINGS ERROR:", err.message);
+    console.log("DELETE TRIP PACKAGE ERROR:", err.message);
 
     res.status(500).json({
-      message: "Package bookings load failed",
-      error: err.message,
-    });
-  }
-});
-
-app.get("/api/host/package-bookings/:hostId", verifyToken, async (req, res) => {
-  try {
-    const hostId = Number(req.params.hostId);
-
-    if (Number(req.user.id) !== hostId && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    const rows = await query(
-      `
-      SELECT 
-        b.*,
-        e.title,
-        e.location,
-        e.city,
-        e.package_days,
-        e.package_nights,
-        e.price,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image,
-        u.fullname AS guest_name,
-        u.email AS guest_email,
-        u.phone AS guest_phone
-      FROM experience_bookings b
-      JOIN experiences e ON e.id = b.experience_id
-      LEFT JOIN servia_users u ON u.id = b.user_id
-      WHERE e.host_id = ?
-      ORDER BY b.id DESC
-      `,
-      [hostId]
-    );
-
-    res.json(rows);
-  } catch (err) {
-    console.log("HOST PACKAGE BOOKINGS BY HOST ERROR:", err.message);
-
-    res.status(500).json({
-      message: "Package bookings load failed",
+      message: "Trip package delete failed",
       error: err.message,
     });
   }
