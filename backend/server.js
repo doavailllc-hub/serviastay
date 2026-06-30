@@ -13,7 +13,7 @@ const nodemailer = require("nodemailer");
 const { Server } = require("socket.io");
 const PDFDocument = require("pdfkit");
 require("dotenv").config();
-
+const deleteS3File = require("./utils/deleteS3File");
 const app = express();
 const server = http.createServer(app);
 
@@ -242,29 +242,7 @@ function verifyAdmin(req, res, next) {
   next();
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-    files: 10,
-  },
-  fileFilter: (req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(file.mimetype)) {
-      return cb(new Error("Only JPG, PNG and WEBP images allowed"));
-    }
-    cb(null, true);
-  },
-});
-
+const { upload, uploadFileToS3 } = require("./middleware/s3Upload");
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -342,6 +320,53 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ message: "Login failed", error: err.message });
   }
 });
+
+app.post("/api/user/:id/profile-image", verifyToken, upload.single("image"), async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+
+    if (Number(req.user.id) !== userId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No image uploaded" });
+    }
+
+    const oldRows = await query(
+      "SELECT profile_image_key FROM servia_users WHERE id=? LIMIT 1",
+      [userId]
+    );
+
+    const uploaded = await uploadFileToS3(req.file, "profiles");
+
+    await query(
+      `
+      UPDATE servia_users
+      SET profile_image = ?, profile_image_key = ?
+      WHERE id = ?
+      `,
+      [uploaded.url, uploaded.key, userId]
+    );
+
+    if (oldRows.length && oldRows[0].profile_image_key) {
+      await deleteS3File(oldRows[0].profile_image_key);
+    }
+
+    res.json({
+      success: true,
+      message: "Profile image updated",
+      profile_image: uploaded.url,
+      profile_image_key: uploaded.key,
+    });
+  } catch (err) {
+    console.log("PROFILE IMAGE UPLOAD ERROR:", err.message);
+    res.status(500).json({
+      message: "Profile image upload failed",
+      error: err.message,
+    });
+  }
+});
 app.post("/api/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -409,31 +434,50 @@ app.get("/api/user/:id", verifyToken, async (req, res) => {
 
 /* SINGLE UPLOAD */
 
-app.post("/api/upload", verifyToken, upload.single("image"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No image uploaded" });
-  }
+app.post("/api/upload", verifyToken, upload.single("image"), async (req, res) => {
+  try {
+    const folder = req.body.folder || "temp";
 
-  res.json({
-    success: true,
-   imageUrl: `https://stay.dovail.com/uploads/${req.file.filename}`,
-  });
+    if (!req.file) {
+      return res.status(400).json({ message: "No image uploaded" });
+    }
+
+    const uploaded = await uploadFileToS3(req.file, folder);
+
+    res.json({
+      success: true,
+      imageUrl: uploaded.url,
+      imageKey: uploaded.key,
+    });
+  } catch (err) {
+    console.log("S3 SINGLE UPLOAD ERROR:", err.message);
+    res.status(500).json({ message: "Image upload failed", error: err.message });
+  }
 });
 
-/* MULTIPLE UPLOAD */
+app.post("/api/upload/multiple", verifyToken, upload.array("images", 10), async (req, res) => {
+  try {
+    const folder = req.body.folder || "properties";
 
-app.post("/api/upload/multiple", verifyToken, upload.array("images", 10), (req, res) => {
-  if (!req.files?.length) {
-    return res.status(400).json({ message: "No images uploaded" });
+    if (!req.files?.length) {
+      return res.status(400).json({ message: "No images uploaded" });
+    }
+
+    const uploadedImages = await Promise.all(
+      req.files.map((file) => uploadFileToS3(file, folder))
+    );
+
+    res.json({
+      success: true,
+      images: uploadedImages,
+      imageUrls: uploadedImages.map((img) => img.url),
+    });
+  } catch (err) {
+    console.log("S3 MULTIPLE UPLOAD ERROR:", err.message);
+    res.status(500).json({ message: "Images upload failed", error: err.message });
   }
-
-  res.json({
-    success: true,
-imageUrls: req.files.map(
-  (file) => `https://stay.dovail.com/uploads/${file.filename}`
-),
-  });
 });
+
 
 /* PROPERTIES */
 
@@ -618,7 +662,11 @@ app.post(
         Number(dedicatedBath || 0) +
         Number(sharedBath || 0);
 
-      const mainImage = buildFileUrl(req.files[0].filename);
+     const uploadedImages = await Promise.all(
+  req.files.map((file) => uploadFileToS3(file, "properties"))
+);
+
+const mainImage = uploadedImages[0].url;
 
       const propertyTitle =
         title || `Stay in ${String(location).split(",")[0] || "beautiful place"}`;
@@ -685,22 +733,22 @@ app.post(
 
       const propertyId = propertyResult.insertId;
 
-      const imageValues = req.files.map((file, index) => [
-        propertyId,
-        buildFileUrl(file.filename),
-        index === 0 ? 1 : 0,
-        index,
-      ]);
+const imageValues = uploadedImages.map((img, index) => [
+  propertyId,
+  img.url,
+  img.key,
+  index === 0 ? 1 : 0,
+  index,
+]);
 
-      await connection.query(
-        `
-        INSERT INTO servia_property_images
-        (property_id, image_url, is_cover, sort_order)
-        VALUES ?
-        `,
-        [imageValues]
-      );
-
+await connection.query(
+  `
+  INSERT INTO servia_property_images
+  (property_id, image_url, image_key, is_cover, sort_order)
+  VALUES ?
+  `,
+  [imageValues]
+);
       await connection.commit();
 
       return res.json({
@@ -1004,12 +1052,32 @@ app.put("/api/properties/:id", verifyToken, async (req, res) => {
 
 app.delete("/api/properties/:id", verifyToken, async (req, res) => {
   try {
-    await query("DELETE FROM servia_property_images WHERE property_id=?", [req.params.id]);
-    await query("DELETE FROM servia_properties WHERE id=?", [req.params.id]);
+    const propertyId = req.params.id;
 
-    res.json({ success: true, message: "Property deleted" });
+    const images = await query(
+      "SELECT image_key FROM servia_property_images WHERE property_id=?",
+      [propertyId]
+    );
+
+    for (const img of images) {
+      if (img.image_key) {
+        await deleteS3File(img.image_key);
+      }
+    }
+
+    await query("DELETE FROM servia_property_images WHERE property_id=?", [propertyId]);
+    await query("DELETE FROM servia_properties WHERE id=?", [propertyId]);
+
+    res.json({
+      success: true,
+      message: "Property deleted",
+    });
   } catch (err) {
-    res.status(500).json({ message: "Property delete failed", error: err.message });
+    console.log("PROPERTY DELETE ERROR:", err.message);
+    res.status(500).json({
+      message: "Property delete failed",
+      error: err.message,
+    });
   }
 });
 
@@ -1033,40 +1101,70 @@ app.post("/api/property-images", verifyToken, upload.single("image"), async (req
     const { property_id } = req.body;
 
     if (!property_id) {
-      return res.status(400).json({ message: "property_id is required" });
+      return res.status(400).json({ message: "property_id required" });
     }
 
     if (!req.file) {
       return res.status(400).json({ message: "No image uploaded" });
     }
 
-const imageUrl = `https://stay.dovail.com/uploads/${req.file.filename}`;
+    const uploaded = await uploadFileToS3(req.file, "properties");
 
     const result = await query(
-      "INSERT INTO servia_property_images (property_id, image_url, is_cover, sort_order) VALUES (?, ?, ?, ?)",
-      [property_id, imageUrl, 0, 0]
+      `
+      INSERT INTO servia_property_images
+      (property_id,image_url,image_key,is_cover,sort_order)
+      VALUES(?,?,?,?,?)
+      `,
+      [
+        property_id,
+        uploaded.url,
+        uploaded.key,
+        0,
+        0,
+      ]
     );
 
     res.json({
       success: true,
+      image_url: uploaded.url,
+      image_key: uploaded.key,
       id: result.insertId,
-      image_url: imageUrl,
     });
   } catch (err) {
-    res.status(500).json({ message: "Image save failed", error: err.message });
+    res.status(500).json({
+      message: "Upload failed",
+      error: err.message,
+    });
   }
 });
 
 app.delete("/api/property-images/:id", verifyToken, async (req, res) => {
   try {
+    const rows = await query(
+      "SELECT image_key FROM servia_property_images WHERE id=? LIMIT 1",
+      [req.params.id]
+    );
+
+    if (rows.length && rows[0].image_key) {
+      await deleteS3File(rows[0].image_key);
+    }
+
     await query("DELETE FROM servia_property_images WHERE id=?", [req.params.id]);
 
-    res.json({ success: true, message: "Image deleted" });
+    res.json({
+      success: true,
+      message: "Image deleted",
+    });
   } catch (err) {
-    res.status(500).json({ message: "Image delete failed", error: err.message });
+    console.log("PROPERTY IMAGE DELETE ERROR:", err.message);
+
+    res.status(500).json({
+      message: "Image delete failed",
+      error: err.message,
+    });
   }
 });
-
 /* SEARCH */
 
 app.get("/api/search-properties", async (req, res) => {
@@ -1435,6 +1533,17 @@ app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, re
   try {
     const propertyId = req.params.id;
 
+    const images = await query(
+      "SELECT image_key FROM servia_property_images WHERE property_id=?",
+      [propertyId]
+    );
+
+    for (const img of images) {
+      if (img.image_key) {
+        await deleteS3File(img.image_key);
+      }
+    }
+
     await query("DELETE FROM servia_property_images WHERE property_id=?", [propertyId]);
     await query("DELETE FROM servia_wishlist WHERE property_id=?", [propertyId]);
     await query("DELETE FROM servia_bookings WHERE property_id=?", [propertyId]);
@@ -1446,7 +1555,6 @@ app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, re
     });
   } catch (err) {
     console.log("ADMIN PROPERTY DELETE ERROR:", err.message);
-
     res.status(500).json({
       message: "Property delete failed",
       error: err.message,
@@ -2511,7 +2619,90 @@ app.get("/api/kyc/me", verifyToken, async (req, res) => {
     res.status(500).json({ message: "KYC load failed", error: err.message });
   }
 });
+app.post(
+  "/api/kyc/upload",
+  verifyToken,
+  upload.fields([
+    { name: "id_proof", maxCount: 1 },
+    { name: "address_proof", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const userId = Number(req.user.id);
 
+      const idFile = req.files?.id_proof?.[0];
+      const addressFile = req.files?.address_proof?.[0];
+
+      if (!idFile || !addressFile) {
+        return res.status(400).json({
+          message: "ID proof and address proof are required",
+        });
+      }
+
+      const oldRows = await query(
+        `
+        SELECT kyc_id_key, kyc_address_key
+        FROM servia_users
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+      const [idUpload, addressUpload] = await Promise.all([
+        uploadFileToS3(idFile, "kyc"),
+        uploadFileToS3(addressFile, "kyc"),
+      ]);
+
+      await query(
+        `
+        UPDATE servia_users
+        SET
+          kyc_status = ?,
+          kyc_id_proof = ?,
+          kyc_id_key = ?,
+          kyc_address_proof = ?,
+          kyc_address_key = ?,
+          kyc_note = NULL
+        WHERE id = ?
+        `,
+        [
+          "Pending",
+          idUpload.url,
+          idUpload.key,
+          addressUpload.url,
+          addressUpload.key,
+          userId,
+        ]
+      );
+
+      if (oldRows.length) {
+        if (oldRows[0].kyc_id_key) {
+          await deleteS3File(oldRows[0].kyc_id_key);
+        }
+
+        if (oldRows[0].kyc_address_key) {
+          await deleteS3File(oldRows[0].kyc_address_key);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: "KYC uploaded successfully",
+        kyc_status: "Pending",
+        id_proof: idUpload.url,
+        address_proof: addressUpload.url,
+      });
+    } catch (err) {
+      console.log("KYC UPLOAD ERROR:", err.message);
+
+      res.status(500).json({
+        message: "KYC upload failed",
+        error: err.message,
+      });
+    }
+  }
+);
 app.get("/api/admin/kyc", verifyToken, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -3832,6 +4023,7 @@ app.delete("/api/trip-packages/:id", verifyToken, async (req, res) => {
     });
   }
 });
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
