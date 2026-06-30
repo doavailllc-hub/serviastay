@@ -3386,8 +3386,11 @@ app.post(
         });
       }
 
-      const coverImage = buildFileUrl(req.files[0].filename);
+     const uploadedImages = await Promise.all(
+  req.files.map((file) => uploadFileToS3(file, "experiences"))
+);
 
+const coverImage = uploadedImages[0].url;
       await connection.beginTransaction();
 
       const [result] = await connection.query(
@@ -3446,19 +3449,19 @@ app.post(
       );
 
       const packageId = result.insertId;
-
-      const imageValues = req.files.map((file, index) => [
-        packageId,
-        buildFileUrl(file.filename),
-        index === 0 ? 1 : 0,
-        index,
-      ]);
+const imageValues = uploadedImages.map((img, index) => [
+  experienceId,
+  img.url,
+  img.key,
+  index === 0 ? 1 : 0,
+  index,
+]);
 
       await connection.query(
         `
-        INSERT INTO experience_images
-        (experience_id, image_url, is_cover, sort_order)
-        VALUES ?
+     INSERT INTO experience_images
+  (experience_id, image_url, image_key, is_cover, sort_order)
+  VALUES ?
         `,
         [imageValues]
       );
