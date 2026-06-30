@@ -12,7 +12,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#7E4FF5";
+const BRAND = "#3b71e6";
 
 const categoryOptions = [
   "Family",
@@ -92,7 +92,6 @@ export default function EditTripPackage() {
       }
 
       const res = await api.get(`/experiences/${id}`);
-
       const data = res.data || {};
 
       setForm({
@@ -128,10 +127,7 @@ export default function EditTripPackage() {
   };
 
   const updateField = (name, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const toggleInclude = (item) => {
@@ -147,13 +143,7 @@ export default function EditTripPackage() {
   };
 
   const addDay = () => {
-    setItinerary((prev) => [
-      ...prev,
-      {
-        title: "",
-        description: "",
-      },
-    ]);
+    setItinerary((prev) => [...prev, { title: "", description: "" }]);
   };
 
   const removeDay = (index) => {
@@ -216,8 +206,8 @@ export default function EditTripPackage() {
 
         <div className="flex min-h-[70vh] items-center justify-center">
           <div className="flex items-center gap-3 text-gray-500">
-            <Loader2 className="animate-spin" size={24} />
-            <span className="font-semibold">Loading trip package...</span>
+            <Loader2 className="animate-spin text-[#3b71e6]" size={22} />
+            <span className="text-sm font-medium">Loading trip package...</span>
           </div>
         </div>
       </div>
@@ -228,56 +218,46 @@ export default function EditTripPackage() {
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button>
-
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.22em] text-gray-400">
-              Host / Admin
-            </p>
+            <button
+              onClick={() => navigate(-1)}
+              className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
+            >
+              <ArrowLeft size={17} />
+              Back
+            </button>
 
-            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-5xl">
-              Edit Trip Package
+            <p className="text-sm font-medium text-gray-500">Host</p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+              Edit trip package
             </h1>
 
-            <p className="mt-3 max-w-2xl text-gray-500">
-              Update travel package details, pricing, duration, includes and
-              day-wise itinerary.
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+              Update package details, pricing, inclusions and itinerary.
             </p>
           </div>
 
           <button
             onClick={savePackage}
             disabled={saving}
-            className="rounded-full px-7 py-3 text-sm font-black text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70"
-            style={{ backgroundColor: BRAND }}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin" size={17} />
-                Saving...
-              </span>
-            ) : (
-              "Save changes"
-            )}
+            {saving && <Loader2 className="animate-spin" size={16} />}
+            {saving ? "Saving..." : "Save changes"}
           </button>
-        </div>
+        </header>
 
         {error && (
-          <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
           </div>
         )}
 
-        <section className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-8">
+        <section className="grid gap-8 lg:grid-cols-[1fr_340px]">
+          <div className="space-y-6">
             <Card title="Basic information">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
@@ -294,7 +274,7 @@ export default function EditTripPackage() {
                 />
 
                 <Input
-                  label="Destination / Location"
+                  label="Destination"
                   value={form.location}
                   onChange={(e) => updateField("location", e.target.value)}
                 />
@@ -345,9 +325,7 @@ export default function EditTripPackage() {
                   label="Days"
                   type="number"
                   value={form.package_days}
-                  onChange={(e) =>
-                    updateField("package_days", e.target.value)
-                  }
+                  onChange={(e) => updateField("package_days", e.target.value)}
                 />
 
                 <Input
@@ -370,21 +348,25 @@ export default function EditTripPackage() {
 
             <Card title="Package includes">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {includeOptions.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleInclude(item)}
-                    className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-bold transition ${
-                      selectedIncludes.includes(item)
-                        ? "border-[#7E4FF5] bg-[#F7F5FF] text-[#7E4FF5]"
-                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-900"
-                    }`}
-                  >
-                    <CheckCircle2 size={18} />
-                    {item}
-                  </button>
-                ))}
+                {includeOptions.map((item) => {
+                  const active = selectedIncludes.includes(item);
+
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => toggleInclude(item)}
+                      className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-medium transition active:scale-[0.99] ${
+                        active
+                          ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6]"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <CheckCircle2 size={18} />
+                      {item}
+                    </button>
+                  );
+                })}
               </div>
             </Card>
 
@@ -423,10 +405,10 @@ export default function EditTripPackage() {
                 {itinerary.map((day, index) => (
                   <div
                     key={index}
-                    className="rounded-3xl border border-gray-200 p-5"
+                    className="rounded-2xl border border-gray-200 p-5"
                   >
                     <div className="mb-4 flex items-center justify-between">
-                      <h3 className="font-black text-gray-900">
+                      <h3 className="text-sm font-semibold text-gray-950">
                         Day {index + 1}
                       </h3>
 
@@ -434,9 +416,9 @@ export default function EditTripPackage() {
                         <button
                           type="button"
                           onClick={() => removeDay(index)}
-                          className="flex items-center gap-1 text-sm font-bold text-red-600"
+                          className="inline-flex items-center gap-1 text-sm font-medium text-red-600"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                           Remove
                         </button>
                       )}
@@ -463,9 +445,9 @@ export default function EditTripPackage() {
                 <button
                   type="button"
                   onClick={addDay}
-                  className="flex items-center gap-2 rounded-full border border-gray-300 px-5 py-3 text-sm font-black transition hover:border-gray-900"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-gray-200 px-5 text-sm font-medium transition hover:bg-gray-50"
                 >
-                  <Plus size={17} />
+                  <Plus size={16} />
                   Add day
                 </button>
               </div>
@@ -502,8 +484,8 @@ export default function EditTripPackage() {
           </div>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(0,0,0,0.12)]">
-              <h2 className="text-xl font-black text-gray-900">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold tracking-tight text-gray-950">
                 Package preview
               </h2>
 
@@ -515,13 +497,13 @@ export default function EditTripPackage() {
                     className="aspect-[4/3] w-full object-cover"
                   />
                 ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center text-sm font-bold text-gray-400">
+                  <div className="flex aspect-[4/3] items-center justify-center text-sm text-gray-400">
                     Cover image preview
                   </div>
                 )}
               </div>
 
-              <h3 className="mt-5 text-lg font-black text-gray-900">
+              <h3 className="mt-5 line-clamp-2 text-base font-semibold text-gray-950">
                 {form.title || "Trip package title"}
               </h3>
 
@@ -529,17 +511,19 @@ export default function EditTripPackage() {
                 {form.location || "Destination"}
               </p>
 
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="mt-5 grid grid-cols-2 gap-3">
                 <PreviewItem
                   label="Price"
                   value={`₹${Number(form.price || 0).toLocaleString("en-IN")}`}
                 />
+
                 <PreviewItem
                   label="Duration"
                   value={`${form.package_days || 1}D / ${
                     form.package_nights || 0
                   }N`}
                 />
+
                 <PreviewItem label="Category" value={form.category} />
                 <PreviewItem label="Status" value={form.status} />
               </div>
@@ -547,15 +531,14 @@ export default function EditTripPackage() {
               <button
                 onClick={savePackage}
                 disabled={saving}
-                className="mt-6 w-full rounded-2xl py-4 font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
-                style={{ backgroundColor: BRAND }}
+                className="mt-6 h-11 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {saving ? "Saving..." : "Save changes"}
               </button>
 
               <button
                 onClick={() => navigate(`/experiences/${id}`)}
-                className="mt-3 w-full rounded-2xl border border-gray-300 py-4 font-black transition hover:border-gray-900"
+                className="mt-3 h-11 w-full rounded-xl border border-gray-200 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
               >
                 View package
               </button>
@@ -571,8 +554,10 @@ export default function EditTripPackage() {
 
 function Card({ title, children }) {
   return (
-    <section className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-2xl font-black text-gray-900">{title}</h2>
+    <section className="rounded-2xl border border-gray-200 bg-white p-5">
+      <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -581,13 +566,13 @@ function Card({ title, children }) {
 function Input({ label, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </span>
 
       <input
         {...props}
-        className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7E4FF5]"
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       />
     </label>
   );
@@ -596,13 +581,13 @@ function Input({ label, ...props }) {
 function Select({ label, options, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </span>
 
       <select
         {...props}
-        className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7E4FF5]"
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       >
         {options.map((item) => (
           <option key={item} value={item}>
@@ -617,14 +602,14 @@ function Select({ label, options, ...props }) {
 function Textarea({ label, ...props }) {
   return (
     <label className="mt-4 block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-500">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </span>
 
       <textarea
-        rows={5}
+        rows={4}
         {...props}
-        className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#7E4FF5]"
+        className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       />
     </label>
   );
@@ -632,11 +617,12 @@ function Textarea({ label, ...props }) {
 
 function PreviewItem({ label, value }) {
   return (
-    <div className="rounded-2xl bg-gray-50 p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-gray-400">
+    <div className="rounded-2xl border border-gray-200 p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </p>
-      <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
+
+      <p className="mt-1 text-sm font-medium text-gray-950">{value}</p>
     </div>
   );
 }
@@ -675,7 +661,10 @@ function parseItinerary(value) {
   }
 
   return chunks.map((chunk) => {
-    const lines = chunk.split("\n").map((line) => line.trim()).filter(Boolean);
+    const lines = chunk
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
 
     return {
       title: lines[0] || "Day plan",
