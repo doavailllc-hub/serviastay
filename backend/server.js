@@ -4,8 +4,6 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
 const http = require("http");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
@@ -77,11 +75,6 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-if (!fs.existsSync("uploads")) {
-  fs.mkdirSync("uploads", { recursive: true });
-}
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const db = mysql.createPool({
   host: process.env.DB_HOST,
@@ -106,8 +99,7 @@ db.getConnection((err, connection) => {
   console.log("Connected to serviadb ✅");
 });
 
-const buildFileUrl = (filename) =>
-  `https://stay.dovail.com/uploads/${filename}`;
+
 
 function query(sql, values = []) {
   return new Promise((resolve, reject) => {
