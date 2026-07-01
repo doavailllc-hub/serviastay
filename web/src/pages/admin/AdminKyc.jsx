@@ -19,7 +19,7 @@ import api from "../../api/api";
 
 export default function AdminKyc() {
   const [items, setItems] = useState([]);
-  const [filter, setFilter] = useState("Pending");
+const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
