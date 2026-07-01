@@ -244,6 +244,12 @@ const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
   text="Withdraw earnings and manage payouts"
   onClick={() => navigate("/host-wallet")}
 />
+<OptionRow
+  icon={<ShieldCheck size={20} />}
+  title="Identity Verification"
+  text="Verify your identity to unlock payouts"
+  onClick={() => navigate("/host-verification")}
+/>
               <OptionRow
                 icon={<Home size={20} />}
                 title="Stay listings"

@@ -68,6 +68,7 @@ import EditTripPackage from "./pages/EditTripPackage";
 import HostWallet from "./pages/HostWallet";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import HostType from "./pages/HostType";
+import HostVerification from "./pages/HostVerification";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -141,7 +142,14 @@ export default function App() {
           </ProtectedPage>
         }
       />
-
+<Route
+  path="/host-verification"
+  element={
+    <ProtectedPage>
+      <HostVerification />
+    </ProtectedPage>
+  }
+/>
       <Route
         path="/checkout"
         element={

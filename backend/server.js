@@ -4157,6 +4157,21 @@ app.post("/api/host/payout-request", verifyToken, async (req, res) => {
   try {
     const hostId = Number(req.user.id);
     const amount = Number(req.body.amount || 0);
+const kycRows = await query(
+  `
+  SELECT kyc_status
+  FROM servia_users
+  WHERE id = ?
+  LIMIT 1
+  `,
+  [hostId]
+);
+
+if (!kycRows.length || kycRows[0].kyc_status !== "Approved") {
+  return res.status(403).json({
+    message: "KYC verification is required before requesting payouts",
+  });
+}
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: "Invalid payout amount" });
