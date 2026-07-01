@@ -4654,6 +4654,194 @@ app.put(
     }
   }
 );
+app.get("/api/admin/host-kyc/:id/details", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const kycId = Number(req.params.id);
+
+    const kycRows = await query(
+      `
+      SELECT 
+        k.*,
+        u.id AS host_id,
+        u.fullname,
+        u.email,
+        u.phone,
+        u.profile_image,
+        u.kyc_status,
+        u.created_at AS host_created_at
+      FROM servia_host_kyc k
+      JOIN servia_users u ON u.id = k.host_id
+      WHERE k.id = ?
+      LIMIT 1
+      `,
+      [kycId]
+    );
+
+    if (!kycRows.length) {
+      return res.status(404).json({ message: "KYC request not found" });
+    }
+
+    const hostId = kycRows[0].host_id;
+
+    const bankRows = await query(
+      `SELECT * FROM servia_host_bank_details WHERE host_id=? LIMIT 1`,
+      [hostId]
+    ).catch(() => []);
+
+    const walletRows = await query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN type='earning' THEN amount ELSE 0 END),0) AS earnings,
+        COALESCE(SUM(CASE WHEN type='payout' THEN amount ELSE 0 END),0) AS payouts
+      FROM servia_host_wallet_transactions
+      WHERE host_id=?
+      `,
+      [hostId]
+    ).catch(() => [{ earnings: 0, payouts: 0 }]);
+
+    const listings = await query(
+      `
+      SELECT id, title, location, price, status, image
+      FROM servia_properties
+      WHERE user_id=?
+      ORDER BY id DESC
+      LIMIT 20
+      `,
+      [hostId]
+    ).catch(() => []);
+
+    const payouts = await query(
+      `
+      SELECT *
+      FROM servia_host_payouts
+      WHERE host_id=?
+      ORDER BY id DESC
+      LIMIT 10
+      `,
+      [hostId]
+    ).catch(() => []);
+
+    res.json({
+      success: true,
+      kyc: kycRows[0],
+      bank: bankRows[0] || null,
+      wallet: walletRows[0] || { earnings: 0, payouts: 0 },
+      listings,
+      payouts,
+    });
+  } catch (err) {
+    console.log("ADMIN KYC DETAILS ERROR:", err.message);
+    res.status(500).json({ message: "KYC details load failed", error: err.message });
+  }
+});
+
+app.put("/api/admin/host-kyc/:id/request-reupload", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const kycId = Number(req.params.id);
+    const reason = String(req.body.reason || "").trim();
+
+    if (!reason) {
+      return res.status(400).json({ message: "Reason is required" });
+    }
+
+    const rows = await query("SELECT * FROM servia_host_kyc WHERE id=? LIMIT 1", [kycId]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "KYC request not found" });
+    }
+
+    const kyc = rows[0];
+
+    await query(
+      `
+      UPDATE servia_host_kyc
+      SET status='Rejected', rejection_reason=?, verified_at=NULL
+      WHERE id=?
+      `,
+      [reason, kycId]
+    );
+
+    await query(
+      `UPDATE servia_users SET kyc_status='Rejected', kyc_note=? WHERE id=?`,
+      [reason, kyc.host_id]
+    );
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, 0)
+      `,
+      [kyc.host_id, "KYC document mismatch", reason, "kyc"]
+    );
+
+    res.json({ success: true, message: "Re-upload request sent" });
+  } catch (err) {
+    console.log("KYC REUPLOAD ERROR:", err.message);
+    res.status(500).json({ message: "Re-upload request failed", error: err.message });
+  }
+});
+
+app.put("/api/admin/host-kyc/:id/request-reupload", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const kycId = Number(req.params.id);
+    const reason = String(req.body.reason || "").trim();
+
+    if (!reason) {
+      return res.status(400).json({ message: "Reason is required" });
+    }
+
+    const rows = await query(
+      "SELECT * FROM servia_host_kyc WHERE id=? LIMIT 1",
+      [kycId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "KYC request not found" });
+    }
+
+    const kyc = rows[0];
+
+    await query(
+      `
+      UPDATE servia_host_kyc
+      SET status='Rejected', rejection_reason=?, verified_at=NULL
+      WHERE id=?
+      `,
+      [reason, kycId]
+    );
+
+    await query(
+      "UPDATE servia_users SET kyc_status='Rejected', kyc_note=? WHERE id=?",
+      [reason, kyc.host_id]
+    );
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, 0)
+      `,
+      [
+        kyc.host_id,
+        "KYC document mismatch",
+        reason,
+        "kyc",
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Re-upload request sent to host",
+    });
+  } catch (err) {
+    console.log("KYC REUPLOAD REQUEST ERROR:", err.message);
+    res.status(500).json({
+      message: "Re-upload request failed",
+      error: err.message,
+    });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
