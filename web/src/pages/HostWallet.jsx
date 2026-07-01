@@ -56,7 +56,13 @@ export default function HostWallet() {
         return;
       }
 
-      const { data } = await api.get(`/host/wallet/${user.id}`);
+   const token = localStorage.getItem("token");
+
+const { data } = await api.get(`/host/wallet/${user.id}`, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
 
       setWallet(data.wallet || null);
       setBank(data.bank_account || null);
@@ -87,8 +93,13 @@ export default function HostWallet() {
     try {
       setSavingBank(true);
 
-      await api.post("/host/bank-account", bankForm);
+const token = localStorage.getItem("token");
 
+await api.post("/host/bank-account", bankForm, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
       toast.success("Bank account saved");
       loadWallet();
     } catch (err) {
@@ -108,10 +119,19 @@ export default function HostWallet() {
       }
 
       setRequesting(true);
+const token = localStorage.getItem("token");
 
-      await api.post("/host/payout-request", {
-        amount: payoutAmount,
-      });
+await api.post(
+  "/host/payout-request",
+  {
+    amount: payoutAmount,
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
 
       toast.success("Payout request submitted");
       setAmount("");
