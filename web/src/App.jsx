@@ -68,7 +68,6 @@ import EditTripPackage from "./pages/EditTripPackage";
 import HostWallet from "./pages/HostWallet";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import HostType from "./pages/HostType";
-
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -341,11 +340,6 @@ export default function App() {
 
 <Route
   path="/admin"
-  element={
-    <AdminProtectedRoute>
-      <AdminLayout />
-    </AdminProtectedRoute>
-  }
 >
 <Route index element={<AdminDashboard />} />
 <Route path="dashboard" element={<AdminDashboard />} />
@@ -354,8 +348,8 @@ export default function App() {
 <Route path="users" element={<AdminUsers />} />
 <Route path="properties" element={<AdminProperties />} />
 <Route path="bookings" element={<AdminBookings />} />
-<Route path="reviews" element={<AdminReviews />} />
 <Route path="payouts" element={<AdminPayouts />} />
+<Route path="reviews" element={<AdminReviews />} />
 <Route path="coupons" element={<AdminCoupons />} />
 
 </Route>
