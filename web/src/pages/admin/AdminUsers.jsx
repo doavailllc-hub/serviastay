@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  RefreshCw,
-  Shield,
-  UserCheck,
-  UserX,
-  Trash2,
-  Users,
   Mail,
   Phone,
+  RefreshCw,
+  Search,
+  Trash2,
+  UserCheck,
+  Users,
+  UserX,
 } from "lucide-react";
+
 import api from "../../api/api";
 
 export default function AdminUsers() {
@@ -19,9 +19,14 @@ export default function AdminUsers() {
   const [status, setStatus] = useState("all");
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   const loadUsers = async () => {
     try {
       setLoading(true);
+
       const res = await api.get("/admin/users");
       setUsers(res.data || []);
     } catch (err) {
@@ -31,13 +36,11 @@ export default function AdminUsers() {
     }
   };
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      const text = `${user.fullname || ""} ${user.email || ""} ${user.phone || ""}`.toLowerCase();
+      const text = `${user.fullname || ""} ${user.email || ""} ${
+        user.phone || ""
+      }`.toLowerCase();
 
       return (
         text.includes(search.toLowerCase()) &&
@@ -66,7 +69,11 @@ export default function AdminUsers() {
   };
 
   const deleteUser = async (id) => {
-    if (!confirm("Are you sure you want to delete this user permanently?")) return;
+    const ok = window.confirm(
+      "Are you sure you want to delete this user permanently?"
+    );
+
+    if (!ok) return;
 
     try {
       await api.delete(`/admin/users/${id}`);
@@ -77,10 +84,18 @@ export default function AdminUsers() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-white text-gray-950">
       <PageHeader onRefresh={loadUsers} />
 
-      <Stats total={users.length} filtered={filteredUsers.length} />
+      <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total users" value={users.length} />
+        <StatCard label="Showing" value={filteredUsers.length} />
+        <StatCard
+          label="Filter"
+          value={filteredUsers.length === users.length ? "None" : "Applied"}
+        />
+        <StatCard label="Access control" value="Live" />
+      </section>
 
       <Filters
         search={search}
@@ -91,9 +106,12 @@ export default function AdminUsers() {
         setStatus={setStatus}
       />
 
-      <section className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-6 py-5">
-          <h2 className="text-lg font-black text-gray-900">All Users</h2>
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 px-5 py-4">
+          <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+            Users
+          </h2>
+
           <p className="mt-1 text-sm text-gray-500">
             Manage user roles, account status and access control.
           </p>
@@ -127,89 +145,77 @@ export default function AdminUsers() {
 
 function PageHeader({ onRefresh }) {
   return (
-    <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+    <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#EEE9FF] px-4 py-2 text-sm font-bold text-[#3b71e6]">
-          <Shield size={16} />
-          Admin Controls
-        </div>
+        <p className="text-sm font-medium text-gray-500">Admin</p>
 
-        <h1 className="text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">
-          Users Management
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
+          Users
         </h1>
 
-        <p className="mt-2 max-w-2xl text-sm text-gray-500 sm:text-base">
-          Search, filter, manage roles, activate or suspend user accounts.
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+          Search, filter, manage roles and control user account access.
         </p>
       </div>
 
       <button
         onClick={onRefresh}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#3b71e6] px-6 font-bold text-white shadow-lg shadow-[#3b71e6]/25 transition hover:bg-[#7152e8] active:scale-[0.98]"
+        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
       >
-        <RefreshCw size={18} />
+        <RefreshCw size={17} />
         Refresh
       </button>
-    </div>
-  );
-}
-
-function Stats({ total, filtered }) {
-  return (
-    <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard label="Total Users" value={total} />
-      <StatCard label="Showing Results" value={filtered} />
-      <StatCard label="Active Filter" value={filtered === total ? "None" : "Applied"} />
-      <StatCard label="Access Control" value="Live" />
-    </div>
+    </header>
   );
 }
 
 function StatCard({ label, value }) {
   return (
-    <div className="rounded-[24px] border border-gray-100 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-500">{label}</p>
-      <h3 className="mt-2 text-2xl font-black text-gray-950">{value}</h3>
-    </div>
+    <article className="rounded-2xl border border-gray-200 bg-white p-4">
+      <p className="text-sm text-gray-500">{label}</p>
+
+      <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+        {value}
+      </h3>
+    </article>
   );
 }
 
 function Filters({ search, setSearch, role, setRole, status, setStatus }) {
   return (
-    <div className="mb-6 grid gap-4 rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm lg:grid-cols-4">
-      <div className="lg:col-span-2">
-        <SearchBox
-          value={search}
-          setValue={setSearch}
-          placeholder="Search by name, email or phone..."
-        />
-      </div>
+    <section className="mb-6 grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 lg:grid-cols-[1fr_180px_180px]">
+      <SearchBox
+        value={search}
+        setValue={setSearch}
+        placeholder="Search by name, email or phone..."
+      />
 
       <SelectBox value={role} onChange={setRole}>
-        <option value="all">All Roles</option>
+        <option value="all">All roles</option>
         <option value="guest">Guest</option>
         <option value="host">Host</option>
         <option value="admin">Admin</option>
       </SelectBox>
 
       <SelectBox value={status} onChange={setStatus}>
-        <option value="all">All Status</option>
+        <option value="all">All status</option>
         <option value="active">Active</option>
         <option value="suspended">Suspended</option>
       </SelectBox>
-    </div>
+    </section>
   );
 }
 
 function SearchBox({ value, setValue, placeholder }) {
   return (
-    <div className="flex h-13 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#3b71e6] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#3b71e6]/10">
-      <Search size={18} className="text-gray-400" />
+    <div className="flex h-11 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 transition focus-within:border-[#3b71e6] focus-within:ring-2 focus-within:ring-[#3b71e6]/10">
+      <Search size={17} className="text-gray-400" />
+
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        className="h-full w-full bg-transparent text-sm font-medium text-gray-800 outline-none placeholder:text-gray-400"
+        className="h-full w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
       />
     </div>
   );
@@ -220,7 +226,7 @@ function SelectBox({ value, onChange, children }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-13 rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-700 outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-4 focus:ring-[#3b71e6]/10"
+      className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
     >
       {children}
     </select>
@@ -231,61 +237,65 @@ function DesktopTable({ users, updateRole, updateStatus, deleteUser }) {
   return (
     <div className="hidden overflow-x-auto lg:block">
       <table className="w-full min-w-[980px] text-left">
-        <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+        <thead className="border-b border-gray-200 text-sm text-gray-500">
           <tr>
-            <th className="px-6 py-4">User</th>
-            <th className="px-6 py-4">Contact</th>
-            <th className="px-6 py-4">Phone</th>
-            <th className="px-6 py-4">Role</th>
-            <th className="px-6 py-4">Status</th>
-            <th className="px-6 py-4 text-right">Actions</th>
+            <th className="px-5 py-4 font-medium">User</th>
+            <th className="px-5 py-4 font-medium">Email</th>
+            <th className="px-5 py-4 font-medium">Phone</th>
+            <th className="px-5 py-4 font-medium">Role</th>
+            <th className="px-5 py-4 font-medium">Status</th>
+            <th className="px-5 py-4 text-right font-medium">Actions</th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-gray-100">
           {users.map((user) => (
-            <tr key={user.id} className="transition hover:bg-gray-50/80">
-              <td className="px-6 py-5">
+            <tr key={user.id} className="transition hover:bg-gray-50">
+              <td className="px-5 py-4">
                 <div className="flex items-center gap-3">
                   <Avatar name={user.fullname || "User"} />
+
                   <div>
-                    <p className="font-black text-gray-950">{user.fullname || "User"}</p>
-                    <p className="text-xs font-semibold text-gray-400">ID: {user.id}</p>
+                    <p className="text-sm font-semibold text-gray-950">
+                      {user.fullname || "User"}
+                    </p>
+
+                    <p className="text-xs text-gray-400">ID: {user.id}</p>
                   </div>
                 </div>
               </td>
 
-              <td className="px-6 py-5">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+              <td className="px-5 py-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Mail size={15} />
                   {user.email || "-"}
                 </div>
               </td>
 
-              <td className="px-6 py-5">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+              <td className="px-5 py-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Phone size={15} />
                   {user.phone || "-"}
                 </div>
               </td>
 
-              <td className="px-6 py-5">
+              <td className="px-5 py-4">
                 <RoleSelect
                   value={user.role || "guest"}
                   onChange={(value) => updateRole(user.id, value)}
                 />
               </td>
 
-              <td className="px-6 py-5">
+              <td className="px-5 py-4">
                 <StatusBadge status={user.status || "active"} />
               </td>
 
-              <td className="px-6 py-5">
+              <td className="px-5 py-4">
                 <div className="flex justify-end gap-2">
                   <IconButton
                     title="Activate"
                     onClick={() => updateStatus(user.id, "active")}
-                    className="bg-green-100 text-green-700 hover:bg-green-200"
+                    className="border-green-200 text-green-700 hover:bg-green-50"
                   >
                     <UserCheck size={16} />
                   </IconButton>
@@ -293,7 +303,7 @@ function DesktopTable({ users, updateRole, updateStatus, deleteUser }) {
                   <IconButton
                     title="Suspend"
                     onClick={() => updateStatus(user.id, "suspended")}
-                    className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                    className="border-yellow-200 text-yellow-700 hover:bg-yellow-50"
                   >
                     <UserX size={16} />
                   </IconButton>
@@ -301,7 +311,7 @@ function DesktopTable({ users, updateRole, updateStatus, deleteUser }) {
                   <IconButton
                     title="Delete"
                     onClick={() => deleteUser(user.id)}
-                    className="bg-red-100 text-red-600 hover:bg-red-200"
+                    className="border-red-200 text-red-600 hover:bg-red-50"
                   >
                     <Trash2 size={16} />
                   </IconButton>
@@ -324,9 +334,17 @@ function MobileCards({ users, updateRole, updateStatus, deleteUser }) {
             <Avatar name={user.fullname || "User"} />
 
             <div className="min-w-0 flex-1">
-              <p className="font-black text-gray-950">{user.fullname || "User"}</p>
-              <p className="truncate text-sm text-gray-500">{user.email || "-"}</p>
-              <p className="mt-1 text-sm text-gray-500">{user.phone || "-"}</p>
+              <p className="text-sm font-semibold text-gray-950">
+                {user.fullname || "User"}
+              </p>
+
+              <p className="truncate text-sm text-gray-500">
+                {user.email || "-"}
+              </p>
+
+              <p className="mt-1 text-sm text-gray-500">
+                {user.phone || "-"}
+              </p>
             </div>
 
             <StatusBadge status={user.status || "active"} />
@@ -340,28 +358,28 @@ function MobileCards({ users, updateRole, updateStatus, deleteUser }) {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <ActionButton
               onClick={() => updateStatus(user.id, "active")}
-              className="bg-green-100 text-green-700 hover:bg-green-200"
+              className="border-green-200 text-green-700 hover:bg-green-50"
             >
-              <UserCheck size={16} />
+              <UserCheck size={15} />
               Active
             </ActionButton>
 
             <ActionButton
               onClick={() => updateStatus(user.id, "suspended")}
-              className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+              className="border-yellow-200 text-yellow-700 hover:bg-yellow-50"
             >
-              <UserX size={16} />
+              <UserX size={15} />
               Suspend
             </ActionButton>
 
             <ActionButton
               onClick={() => deleteUser(user.id)}
-              className="bg-red-100 text-red-600 hover:bg-red-200"
+              className="border-red-200 text-red-600 hover:bg-red-50"
             >
-              <Trash2 size={16} />
+              <Trash2 size={15} />
               Delete
             </ActionButton>
           </div>
@@ -375,7 +393,7 @@ function Avatar({ name }) {
   const letter = name?.trim()?.charAt(0)?.toUpperCase() || "U";
 
   return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EEE9FF] text-sm font-black text-[#3b71e6]">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eef4ff] text-sm font-semibold text-[#3b71e6]">
       {letter}
     </div>
   );
@@ -386,7 +404,7 @@ function RoleSelect({ value, onChange, fullWidth = false }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-bold capitalize text-gray-700 outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-4 focus:ring-[#3b71e6]/10 ${
+      className={`h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm capitalize outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10 ${
         fullWidth ? "w-full" : ""
       }`}
     >
@@ -403,7 +421,7 @@ function IconButton({ children, onClick, className, title }) {
       type="button"
       title={title}
       onClick={onClick}
-      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition active:scale-[0.95] ${className}`}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-sm transition ${className}`}
     >
       {children}
     </button>
@@ -415,7 +433,7 @@ function ActionButton({ children, onClick, className }) {
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-black transition active:scale-[0.97] ${className}`}
+      className={`inline-flex h-10 items-center justify-center gap-1 rounded-xl border text-xs font-medium transition ${className}`}
     >
       {children}
     </button>
@@ -423,18 +441,18 @@ function ActionButton({ children, onClick, className }) {
 }
 
 function StatusBadge({ status }) {
-  const styles = {
-    active: "bg-green-100 text-green-700 ring-green-200",
-    suspended: "bg-red-100 text-red-600 ring-red-200",
-  };
+  const value = status || "active";
+
+  const style =
+    value === "suspended"
+      ? "border-red-200 bg-red-50 text-red-600"
+      : "border-green-200 bg-green-50 text-green-700";
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-black capitalize ring-1 ${
-        styles[status] || styles.active
-      }`}
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${style}`}
     >
-      {status}
+      {value}
     </span>
   );
 }
@@ -443,10 +461,11 @@ function Empty({ text }) {
   return (
     <div className="flex min-h-[260px] items-center justify-center p-12 text-center">
       <div>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEE9FF] text-[#3b71e6]">
-          <Users size={24} />
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#eef4ff] text-[#3b71e6]">
+          <Users size={22} />
         </div>
-        <p className="font-bold text-gray-500">{text}</p>
+
+        <p className="text-sm text-gray-500">{text}</p>
       </div>
     </div>
   );

@@ -12,9 +12,9 @@ import {
   ShieldCheck,
   Tag,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
-import { useState } from "react";
 
 const menuItems = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
@@ -23,6 +23,7 @@ const menuItems = [
   { label: "Properties", path: "/admin/properties", icon: Building2 },
   { label: "Bookings", path: "/admin/bookings", icon: CalendarDays },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
+  { label: "Payouts", path: "/admin/payouts", icon: Wallet },
   { label: "Coupons", path: "/admin/coupons", icon: Tag },
   { label: "Reviews", path: "/admin/reviews", icon: MessageSquare },
   { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
