@@ -340,20 +340,23 @@ export default function App() {
 
 <Route
   path="/admin"
+  element={
+    <AdminProtectedRoute>
+      <AdminLayout />
+    </AdminProtectedRoute>
+  }
 >
-<Route index element={<AdminDashboard />} />
-<Route path="dashboard" element={<AdminDashboard />} />
-<Route path="analytics" element={<Analytics />} />
-<Route path="kyc" element={<AdminKyc />} />
-<Route path="users" element={<AdminUsers />} />
-<Route path="properties" element={<AdminProperties />} />
-<Route path="bookings" element={<AdminBookings />} />
-<Route path="payouts" element={<AdminPayouts />} />
-<Route path="reviews" element={<AdminReviews />} />
-<Route path="coupons" element={<AdminCoupons />} />
-
+  <Route index element={<AdminDashboard />} />
+  <Route path="dashboard" element={<AdminDashboard />} />
+  <Route path="analytics" element={<AdminAnalytics />} />
+  <Route path="users" element={<AdminUsers />} />
+  <Route path="properties" element={<AdminProperties />} />
+  <Route path="bookings" element={<AdminBookings />} />
+  <Route path="payouts" element={<AdminPayouts />} />
+  <Route path="reviews" element={<AdminReviews />} />
+  <Route path="kyc" element={<AdminKyc />} />
+  <Route path="coupons" element={<AdminCoupons />} />
 </Route>
-
 
       <Route path="*" element={<NotFound />} />
 
