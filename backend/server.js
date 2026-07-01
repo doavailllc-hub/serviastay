@@ -4376,6 +4376,284 @@ app.put("/api/admin/payouts/:id/status", verifyToken, verifyAdmin, async (req, r
     });
   }
 });
+
+/* HOST KYC - S3 */
+
+app.get("/api/host/kyc", verifyToken, async (req, res) => {
+  try {
+    const hostId = Number(req.user.id);
+
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_host_kyc
+      WHERE host_id = ?
+      LIMIT 1
+      `,
+      [hostId]
+    );
+
+    res.json({
+      success: true,
+      kyc: rows[0] || null,
+    });
+  } catch (err) {
+    console.log("HOST KYC LOAD ERROR:", err.message);
+    res.status(500).json({
+      message: "KYC load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.post(
+  "/api/host/kyc",
+  verifyToken,
+  upload.fields([
+    { name: "id_front", maxCount: 1 },
+    { name: "id_back", maxCount: 1 },
+    { name: "selfie", maxCount: 1 },
+    { name: "address_proof", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const hostId = Number(req.user.id);
+
+      const idFront = req.files?.id_front?.[0];
+      const idBack = req.files?.id_back?.[0];
+      const selfie = req.files?.selfie?.[0];
+      const addressProof = req.files?.address_proof?.[0];
+
+      if (!idFront || !selfie || !addressProof) {
+        return res.status(400).json({
+          message: "ID front, selfie and address proof are required",
+        });
+      }
+
+      const oldRows = await query(
+        `
+        SELECT id_front_key, id_back_key, selfie_key, address_proof_key
+        FROM servia_host_kyc
+        WHERE host_id = ?
+        LIMIT 1
+        `,
+        [hostId]
+      );
+
+      const [frontUpload, backUpload, selfieUpload, addressUpload] =
+        await Promise.all([
+          uploadFileToS3(idFront, "kyc"),
+          idBack ? uploadFileToS3(idBack, "kyc") : Promise.resolve(null),
+          uploadFileToS3(selfie, "kyc"),
+          uploadFileToS3(addressProof, "kyc"),
+        ]);
+
+      await query(
+        `
+        INSERT INTO servia_host_kyc
+        (
+          host_id,
+          id_front,
+          id_front_key,
+          id_back,
+          id_back_key,
+          selfie,
+          selfie_key,
+          address_proof,
+          address_proof_key,
+          status,
+          rejection_reason
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NULL)
+        ON DUPLICATE KEY UPDATE
+          id_front = VALUES(id_front),
+          id_front_key = VALUES(id_front_key),
+          id_back = VALUES(id_back),
+          id_back_key = VALUES(id_back_key),
+          selfie = VALUES(selfie),
+          selfie_key = VALUES(selfie_key),
+          address_proof = VALUES(address_proof),
+          address_proof_key = VALUES(address_proof_key),
+          status = 'Pending',
+          rejection_reason = NULL,
+          verified_at = NULL
+        `,
+        [
+          hostId,
+          frontUpload.url,
+          frontUpload.key,
+          backUpload?.url || null,
+          backUpload?.key || null,
+          selfieUpload.url,
+          selfieUpload.key,
+          addressUpload.url,
+          addressUpload.key,
+        ]
+      );
+
+      await query(
+        `
+        UPDATE servia_users
+        SET kyc_status = ?
+        WHERE id = ?
+        `,
+        ["Pending", hostId]
+      );
+
+      if (oldRows.length) {
+        const oldKeys = [
+          oldRows[0].id_front_key,
+          oldRows[0].id_back_key,
+          oldRows[0].selfie_key,
+          oldRows[0].address_proof_key,
+        ];
+
+        for (const key of oldKeys) {
+          if (key) {
+            try {
+              await deleteS3File(key);
+            } catch (deleteErr) {
+              console.log("OLD KYC DELETE ERROR:", deleteErr.message);
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        message: "KYC submitted successfully",
+        status: "Pending",
+      });
+    } catch (err) {
+      console.log("HOST KYC SUBMIT ERROR:", err.message);
+      res.status(500).json({
+        message: "KYC submit failed",
+        error: err.message,
+      });
+    }
+  }
+);
+
+app.get("/api/admin/host-kyc", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        k.*,
+        u.fullname AS host_name,
+        u.email AS host_email,
+        u.phone AS host_phone
+      FROM servia_host_kyc k
+      JOIN servia_users u ON u.id = k.host_id
+      ORDER BY k.id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN HOST KYC LOAD ERROR:", err.message);
+    res.status(500).json({
+      message: "Admin KYC load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.put(
+  "/api/admin/host-kyc/:id/status",
+  verifyToken,
+  verifyAdmin,
+  async (req, res) => {
+    try {
+      const kycId = Number(req.params.id);
+      const status = String(req.body.status || "").trim();
+      const rejectionReason = String(req.body.rejection_reason || "").trim();
+
+      if (!["Approved", "Rejected"].includes(status)) {
+        return res.status(400).json({
+          message: "Invalid KYC status",
+        });
+      }
+
+      if (status === "Rejected" && !rejectionReason) {
+        return res.status(400).json({
+          message: "Rejection reason is required",
+        });
+      }
+
+      const rows = await query(
+        `
+        SELECT *
+        FROM servia_host_kyc
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [kycId]
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          message: "KYC request not found",
+        });
+      }
+
+      const kyc = rows[0];
+
+      await query(
+        `
+        UPDATE servia_host_kyc
+        SET 
+          status = ?,
+          rejection_reason = ?,
+          verified_at = CASE WHEN ? = 'Approved' THEN NOW() ELSE NULL END
+        WHERE id = ?
+        `,
+        [
+          status,
+          status === "Rejected" ? rejectionReason : null,
+          status,
+          kycId,
+        ]
+      );
+
+      await query(
+        `
+        UPDATE servia_users
+        SET kyc_status = ?
+        WHERE id = ?
+        `,
+        [status, kyc.host_id]
+      );
+
+      await query(
+        `
+        INSERT INTO servia_notifications
+        (user_id, title, message, type, is_read)
+        VALUES (?, ?, ?, ?, 0)
+        `,
+        [
+          kyc.host_id,
+          "Host verification updated",
+          status === "Approved"
+            ? "Your host verification has been approved."
+            : `Your host verification was rejected. ${rejectionReason}`,
+          "kyc",
+        ]
+      );
+
+      res.json({
+        success: true,
+        message: `KYC marked as ${status}`,
+      });
+    } catch (err) {
+      console.log("ADMIN HOST KYC STATUS ERROR:", err.message);
+      res.status(500).json({
+        message: "KYC status update failed",
+        error: err.message,
+      });
+    }
+  }
+);
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
