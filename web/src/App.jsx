@@ -69,6 +69,9 @@ import HostWallet from "./pages/HostWallet";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import HostType from "./pages/HostType";
 import HostVerification from "./pages/HostVerification";
+import AdminUserDetails from "./pages/admin/AdminUserDetails";
+import AdminSupport from "./pages/admin/AdminSupport";
+
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -106,7 +109,7 @@ export default function App() {
       <Route path="/reserve/:id" element={<ResortDetails />} />
       <Route path="/service/:id" element={<ServiceDetails />} />
       <Route path="/experience-checkout/:id" element={<ExperienceCheckout />} />
-
+<Route path="/write-review/:bookingId" element={<WriteReview />} />
 <Route path="/host-type" element={<HostType />} />
       <Route path="/add-trip-package" element={<AddTripPackage />} />
       <Route
@@ -356,17 +359,22 @@ export default function App() {
 >
   <Route index element={<AdminDashboard />} />
   <Route path="dashboard" element={<AdminDashboard />} />
-  <Route path="analytics" element={<AdminAnalytics />} />
+
   <Route path="users" element={<AdminUsers />} />
+  <Route path="users/:id" element={<AdminUserDetails />} />
+
   <Route path="properties" element={<AdminProperties />} />
   <Route path="bookings" element={<AdminBookings />} />
-<Route path="payments" element={<PaymentHistory />} />
-<Route path="payouts" element={<AdminPayouts />} />
-  <Route path="reviews" element={<AdminReviews />} />
-  <Route path="kyc" element={<AdminKyc />} />
-  <Route path="coupons" element={<AdminCoupons />} />
-</Route>
+  <Route path="payments" element={<PaymentHistory />} />
+  <Route path="payouts" element={<AdminPayouts />} />
 
+  <Route path="kyc" element={<AdminKyc />} />
+
+  <Route path="reviews" element={<AdminReviews />} />
+  <Route path="coupons" element={<AdminCoupons />} />
+  <Route path="analytics" element={<AdminAnalytics />} />
+  <Route path="support" element={<AdminSupport />} />
+</Route>
       <Route path="*" element={<NotFound />} />
 
       </Routes>

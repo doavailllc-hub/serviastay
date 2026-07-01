@@ -19,15 +19,20 @@ import {
 
 const menuItems = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
+
   { label: "Users", path: "/admin/users", icon: Users },
-  { label: "KYC", path: "/admin/kyc", icon: ShieldCheck },
+
   { label: "Properties", path: "/admin/properties", icon: Building2 },
   { label: "Bookings", path: "/admin/bookings", icon: CalendarDays },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "Payouts", path: "/admin/payouts", icon: Wallet },
-  { label: "Coupons", path: "/admin/coupons", icon: Tag },
+
+  { label: "KYC Queue", path: "/admin/kyc", icon: ShieldCheck },
+
   { label: "Reviews", path: "/admin/reviews", icon: MessageSquare },
+  { label: "Coupons", path: "/admin/coupons", icon: Tag },
   { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
+  { label: "Support", path: "/admin/support", icon: MessageSquare },
 ];
 
 export default function AdminLayout() {

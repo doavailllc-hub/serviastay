@@ -2018,38 +2018,96 @@ app.get("/api/reviews/:propertyId", async (req, res) => {
     });
   }
 });
-
 app.post("/api/reviews", verifyToken, async (req, res) => {
   try {
+    const userId = Number(req.user.id);
     const propertyId = Number(req.body.property_id);
-    const bookingId = req.body.booking_id ? Number(req.body.booking_id) : null;
-    const userId = Number(req.body.user_id);
-    const rating = Number(req.body.rating);
+    const bookingId = Number(req.body.booking_id);
+
+    const rating = Number(req.body.rating || 5);
     const review = String(req.body.review || "").trim();
 
-    if (!propertyId || !userId || !rating) {
+    const cleanliness = Number(req.body.cleanliness_rating || rating);
+    const accuracy = Number(req.body.accuracy_rating || rating);
+    const communication = Number(req.body.communication_rating || rating);
+    const location = Number(req.body.location_rating || rating);
+    const checkin = Number(req.body.checkin_rating || rating);
+    const value = Number(req.body.value_rating || rating);
+
+    if (!propertyId || !bookingId || !review) {
       return res.status(400).json({
-        message: "Property, user and rating are required",
+        message: "Property, booking and review are required",
       });
     }
 
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({
-        message: "Rating must be between 1 and 5",
+    const bookingRows = await query(
+      `
+      SELECT id
+      FROM servia_bookings
+      WHERE id = ?
+      AND property_id = ?
+      AND user_id = ?
+      AND status IN ('Checked-out','Completed')
+      LIMIT 1
+      `,
+      [bookingId, propertyId, userId]
+    );
+
+    if (!bookingRows.length) {
+      return res.status(403).json({
+        message: "You can review only after completed stay",
       });
     }
 
-    if (Number(req.user.id) !== userId) {
-      return res.status(403).json({ message: "Invalid user" });
+    const existing = await query(
+      `
+      SELECT id
+      FROM servia_reviews
+      WHERE booking_id = ?
+      AND user_id = ?
+      LIMIT 1
+      `,
+      [bookingId, userId]
+    );
+
+    if (existing.length) {
+      return res.status(409).json({
+        message: "You already reviewed this booking",
+      });
     }
 
-    const result = await query(
+    await query(
       `
       INSERT INTO servia_reviews
-      (property_id, booking_id, user_id, rating, review, status)
-      VALUES (?, ?, ?, ?, ?, ?)
+      (
+        property_id,
+        booking_id,
+        user_id,
+        rating,
+        review,
+        cleanliness_rating,
+        accuracy_rating,
+        communication_rating,
+        location_rating,
+        checkin_rating,
+        value_rating,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')
       `,
-      [propertyId, bookingId, userId, rating, review, "Approved"]
+      [
+        propertyId,
+        bookingId,
+        userId,
+        rating,
+        review,
+        cleanliness,
+        accuracy,
+        communication,
+        location,
+        checkin,
+        value,
+      ]
     );
 
     const avgRows = await query(
@@ -2062,27 +2120,72 @@ app.post("/api/reviews", verifyToken, async (req, res) => {
       [propertyId]
     );
 
-    const avgRating = avgRows[0]?.avg_rating || 5;
-
     await query(
       `
       UPDATE servia_properties
       SET rating = ?
       WHERE id = ?
       `,
-      [avgRating, propertyId]
+      [avgRows[0]?.avg_rating || 5, propertyId]
     );
 
     res.json({
       success: true,
-      message: "Review added",
-      reviewId: result.insertId,
-      rating: avgRating,
+      message: "Review added successfully",
     });
   } catch (err) {
     console.log("REVIEW CREATE ERROR:", err.message);
     res.status(500).json({
       message: "Review submit failed",
+      error: err.message,
+    });
+  }
+});
+app.get("/api/reviews/:propertyId", async (req, res) => {
+  try {
+    const propertyId = Number(req.params.propertyId);
+
+    const rows = await query(
+      `
+      SELECT 
+        r.*,
+        COALESCE(u.fullname, u.email, 'Guest') AS guest_name,
+        u.profile_image AS guest_image
+      FROM servia_reviews r
+      LEFT JOIN servia_users u ON u.id = r.user_id
+      WHERE r.property_id = ?
+      AND COALESCE(r.status, 'Approved') = 'Approved'
+      ORDER BY r.id DESC
+      `,
+      [propertyId]
+    );
+
+    const summaryRows = await query(
+      `
+      SELECT
+        ROUND(AVG(rating), 1) AS average_rating,
+        COUNT(*) AS total_reviews,
+        ROUND(AVG(cleanliness_rating), 1) AS cleanliness,
+        ROUND(AVG(accuracy_rating), 1) AS accuracy,
+        ROUND(AVG(communication_rating), 1) AS communication,
+        ROUND(AVG(location_rating), 1) AS location,
+        ROUND(AVG(checkin_rating), 1) AS checkin,
+        ROUND(AVG(value_rating), 1) AS value
+      FROM servia_reviews
+      WHERE property_id = ?
+      AND COALESCE(status, 'Approved') = 'Approved'
+      `,
+      [propertyId]
+    );
+
+    res.json({
+      reviews: rows,
+      summary: summaryRows[0],
+    });
+  } catch (err) {
+    console.log("REVIEWS LOAD ERROR:", err.message);
+    res.status(500).json({
+      message: "Reviews load failed",
       error: err.message,
     });
   }
