@@ -9,6 +9,7 @@ import {
   Map,
   Star,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -245,7 +246,7 @@ const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
   onClick={() => navigate("/host-wallet")}
 />
 <OptionRow
-  icon={<ShieldCheck size={20} />}
+icon={<span className="text-lg">✓</span>}
   title="Identity Verification"
   text="Verify your identity to unlock payouts"
   onClick={() => navigate("/host-verification")}
