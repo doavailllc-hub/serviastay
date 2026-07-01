@@ -352,7 +352,8 @@ export default function App() {
   <Route path="users" element={<AdminUsers />} />
   <Route path="properties" element={<AdminProperties />} />
   <Route path="bookings" element={<AdminBookings />} />
-  <Route path="payouts" element={<AdminPayouts />} />
+<Route path="payments" element={<PaymentHistory />} />
+<Route path="payouts" element={<AdminPayouts />} />
   <Route path="reviews" element={<AdminReviews />} />
   <Route path="kyc" element={<AdminKyc />} />
   <Route path="coupons" element={<AdminCoupons />} />
