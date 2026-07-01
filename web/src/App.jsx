@@ -65,6 +65,8 @@ import AddTripPackage from "./pages/AddTripPackage";
 import HostTripPackages from "./pages/HostTripPackages";
 import HostPackageDepartures from "./pages/HostPackageDepartures";
 import EditTripPackage from "./pages/EditTripPackage";
+import HostWallet from "./pages/HostWallet";
+import AdminPayouts from "./pages/admin/AdminPayouts";
 import HostType from "./pages/HostType";
 
 import { Toaster } from "react-hot-toast";
@@ -235,7 +237,14 @@ export default function App() {
           </ProtectedPage>
         }
       />
-
+<Route
+  path="/host-wallet"
+  element={
+    <ProtectedPage>
+      <HostWallet />
+    </ProtectedPage>
+  }
+/>
       <Route
         path="/host-dashboard"
         element={
@@ -346,7 +355,7 @@ export default function App() {
 <Route path="properties" element={<AdminProperties />} />
 <Route path="bookings" element={<AdminBookings />} />
 <Route path="reviews" element={<AdminReviews />} />
-<Route path="payments" element={<PaymentHistory />} />
+<Route path="payouts" element={<AdminPayouts />} />
 <Route path="coupons" element={<AdminCoupons />} />
 
 </Route>

@@ -4018,7 +4018,349 @@ app.delete("/api/trip-packages/:id", verifyToken, async (req, res) => {
     });
   }
 });
+/* HOST WALLET + PAYOUTS */
 
+app.get("/api/host/wallet/:hostId", verifyToken, async (req, res) => {
+  try {
+    const hostId = Number(req.params.hostId);
+
+    if (Number(req.user.id) !== hostId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const earningsRows = await query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN b.status IN ('Confirmed','Checked-in','Checked-out') THEN b.total ELSE 0 END), 0) AS total_earnings,
+        COALESCE(SUM(CASE WHEN b.status IN ('Confirmed','Checked-in') THEN b.total ELSE 0 END), 0) AS pending_earnings,
+        COALESCE(SUM(CASE WHEN b.status = 'Checked-out' THEN b.total ELSE 0 END), 0) AS eligible_earnings
+      FROM servia_bookings b
+      JOIN servia_properties p ON p.id = b.property_id
+      WHERE p.user_id = ?
+      `,
+      [hostId]
+    );
+
+    const payoutRows = await query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN status IN ('Pending','Approved') THEN amount ELSE 0 END), 0) AS pending_payouts,
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN amount ELSE 0 END), 0) AS paid_payouts
+      FROM servia_host_payouts
+      WHERE host_id = ?
+      `,
+      [hostId]
+    );
+
+    const bankRows = await query(
+      `
+      SELECT id, account_holder, bank_name, account_number, ifsc_code, upi_id
+      FROM servia_host_bank_accounts
+      WHERE host_id = ?
+      LIMIT 1
+      `,
+      [hostId]
+    );
+
+    const totalEarnings = Number(earningsRows[0]?.total_earnings || 0);
+    const eligibleEarnings = Number(earningsRows[0]?.eligible_earnings || 0);
+    const pendingPayouts = Number(payoutRows[0]?.pending_payouts || 0);
+    const paidPayouts = Number(payoutRows[0]?.paid_payouts || 0);
+
+    const available_balance = Math.max(
+      0,
+      eligibleEarnings - pendingPayouts - paidPayouts
+    );
+
+    const recentPayouts = await query(
+      `
+      SELECT *
+      FROM servia_host_payouts
+      WHERE host_id = ?
+      ORDER BY id DESC
+      LIMIT 20
+      `,
+      [hostId]
+    );
+
+    res.json({
+      success: true,
+      wallet: {
+        total_earnings: totalEarnings,
+        pending_earnings: Number(earningsRows[0]?.pending_earnings || 0),
+        eligible_earnings: eligibleEarnings,
+        pending_payouts: pendingPayouts,
+        paid_payouts: paidPayouts,
+        available_balance,
+      },
+      bank_account: bankRows[0] || null,
+      payouts: recentPayouts,
+    });
+  } catch (err) {
+    console.log("HOST WALLET ERROR:", err.message);
+    res.status(500).json({
+      message: "Host wallet load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.post("/api/host/bank-account", verifyToken, async (req, res) => {
+  try {
+    const hostId = Number(req.user.id);
+
+    const accountHolder = String(req.body.account_holder || "").trim();
+    const bankName = String(req.body.bank_name || "").trim();
+    const accountNumber = String(req.body.account_number || "").trim();
+    const ifscCode = String(req.body.ifsc_code || "").trim().toUpperCase();
+    const upiId = String(req.body.upi_id || "").trim();
+
+    if (!accountHolder) {
+      return res.status(400).json({ message: "Account holder name is required" });
+    }
+
+    if (!upiId && (!bankName || !accountNumber || !ifscCode)) {
+      return res.status(400).json({
+        message: "Add either UPI ID or complete bank account details",
+      });
+    }
+
+    await query(
+      `
+      INSERT INTO servia_host_bank_accounts
+      (host_id, account_holder, bank_name, account_number, ifsc_code, upi_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        account_holder = VALUES(account_holder),
+        bank_name = VALUES(bank_name),
+        account_number = VALUES(account_number),
+        ifsc_code = VALUES(ifsc_code),
+        upi_id = VALUES(upi_id)
+      `,
+      [hostId, accountHolder, bankName, accountNumber, ifscCode, upiId]
+    );
+
+    res.json({
+      success: true,
+      message: "Bank account saved successfully",
+    });
+  } catch (err) {
+    console.log("BANK ACCOUNT SAVE ERROR:", err.message);
+    res.status(500).json({
+      message: "Bank account save failed",
+      error: err.message,
+    });
+  }
+});
+
+app.post("/api/host/payout-request", verifyToken, async (req, res) => {
+  try {
+    const hostId = Number(req.user.id);
+    const amount = Number(req.body.amount || 0);
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Invalid payout amount" });
+    }
+
+    const walletRes = await new Promise((resolve, reject) => {
+      query(
+        `
+        SELECT
+          COALESCE(SUM(CASE WHEN b.status = 'Checked-out' THEN b.total ELSE 0 END), 0) AS eligible_earnings
+        FROM servia_bookings b
+        JOIN servia_properties p ON p.id = b.property_id
+        WHERE p.user_id = ?
+        `,
+        [hostId]
+      )
+        .then(resolve)
+        .catch(reject);
+    });
+
+    const payoutRows = await query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN status IN ('Pending','Approved') THEN amount ELSE 0 END), 0) AS pending_payouts,
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN amount ELSE 0 END), 0) AS paid_payouts
+      FROM servia_host_payouts
+      WHERE host_id = ?
+      `,
+      [hostId]
+    );
+
+    const eligibleEarnings = Number(walletRes[0]?.eligible_earnings || 0);
+    const pendingPayouts = Number(payoutRows[0]?.pending_payouts || 0);
+    const paidPayouts = Number(payoutRows[0]?.paid_payouts || 0);
+    const availableBalance = Math.max(
+      0,
+      eligibleEarnings - pendingPayouts - paidPayouts
+    );
+
+    if (amount > availableBalance) {
+      return res.status(400).json({
+        message: "Requested amount exceeds available balance",
+        available_balance: availableBalance,
+      });
+    }
+
+    const bankRows = await query(
+      `
+      SELECT *
+      FROM servia_host_bank_accounts
+      WHERE host_id = ?
+      LIMIT 1
+      `,
+      [hostId]
+    );
+
+    if (!bankRows.length) {
+      return res.status(400).json({
+        message: "Please add bank account details before requesting payout",
+      });
+    }
+
+    const bank = bankRows[0];
+
+    const result = await query(
+      `
+      INSERT INTO servia_host_payouts
+      (
+        host_id,
+        amount,
+        status,
+        payout_method,
+        bank_name,
+        account_holder,
+        account_number,
+        ifsc_code,
+        upi_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        hostId,
+        amount,
+        "Pending",
+        bank.upi_id ? "upi" : "bank",
+        bank.bank_name || null,
+        bank.account_holder || null,
+        bank.account_number || null,
+        bank.ifsc_code || null,
+        bank.upi_id || null,
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Payout request submitted",
+      payoutId: result.insertId,
+    });
+  } catch (err) {
+    console.log("PAYOUT REQUEST ERROR:", err.message);
+    res.status(500).json({
+      message: "Payout request failed",
+      error: err.message,
+    });
+  }
+});
+
+app.get("/api/admin/payouts", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        p.*,
+        u.fullname AS host_name,
+        u.email AS host_email,
+        u.phone AS host_phone
+      FROM servia_host_payouts p
+      LEFT JOIN servia_users u ON u.id = p.host_id
+      ORDER BY p.id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN PAYOUTS ERROR:", err.message);
+    res.status(500).json({
+      message: "Admin payouts load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.put("/api/admin/payouts/:id/status", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const payoutId = Number(req.params.id);
+    const status = String(req.body.status || "").trim();
+    const adminNote = String(req.body.admin_note || "").trim();
+
+    const allowed = ["Pending", "Approved", "Rejected", "Paid"];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid payout status" });
+    }
+
+    const rows = await query(
+      `
+      SELECT *
+      FROM servia_host_payouts
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [payoutId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Payout request not found" });
+    }
+
+    const nowField =
+      status === "Approved"
+        ? ", approved_at = NOW()"
+        : status === "Paid"
+        ? ", paid_at = NOW()"
+        : "";
+
+    await query(
+      `
+      UPDATE servia_host_payouts
+      SET status = ?, admin_note = ?
+      ${nowField}
+      WHERE id = ?
+      `,
+      [status, adminNote || null, payoutId]
+    );
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        rows[0].host_id,
+        "Payout status updated",
+        `Your payout request of ₹${Number(rows[0].amount).toLocaleString(
+          "en-IN"
+        )} is now ${status}.`,
+        "payout",
+        0,
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: `Payout marked as ${status}`,
+    });
+  } catch (err) {
+    console.log("ADMIN PAYOUT STATUS ERROR:", err.message);
+    res.status(500).json({
+      message: "Payout status update failed",
+      error: err.message,
+    });
+  }
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });

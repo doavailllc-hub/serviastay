@@ -240,7 +240,12 @@ export default function HostDashboard() {
                 text="View your full earning details"
                 onClick={() => navigate("/earnings")}
               />
-
+<OptionRow
+  icon={<Wallet size={20} />}
+  title="Wallet & Payouts"
+  text="Withdraw earnings and manage payouts"
+  onClick={() => navigate("/host-wallet")}
+/>
               <OptionRow
                 icon={<Home size={20} />}
                 title="Stay listings"
