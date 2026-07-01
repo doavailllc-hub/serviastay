@@ -55,15 +55,13 @@ export default function HostDashboard() {
       }
 
       const headers = { Authorization: `Bearer ${token}` };
-
-      const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
-        await Promise.allSettled([
-          api.get(`/my-properties/${user.id}`, { headers }),
-          api.get(`/host/trip-packages/${user.id}`, { headers }),
-          api.get(`/host/reservations/${user.id}`, { headers }),
-          api.get(`/host/package-bookings/${user.id}`, { headers }),
-        ]);
-
+const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
+  await Promise.allSettled([
+    api.get(`/my-properties/${user.id}`, { headers }),
+    api.get(`/host/trip-packages`, { headers }),
+    api.get(`/host/reservations/${user.id}`, { headers }),
+    api.get(`/host/package-bookings`, { headers }),
+  ]);
       const allResponses = [
         staysRes,
         tripsRes,
