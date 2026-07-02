@@ -1608,39 +1608,6 @@ app.get("/api/admin/bookings", verifyToken, verifyAdmin, async (req, res) => {
 
 /* ERROR HANDLER */
 /* ADMIN PROPERTY DELETE */
-
-app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, res) => {
-  try {
-    const propertyId = req.params.id;
-
-    const images = await query(
-      "SELECT image_key FROM servia_property_images WHERE property_id=?",
-      [propertyId]
-    );
-
-    for (const img of images) {
-      if (img.image_key) {
-        await deleteS3File(img.image_key);
-      }
-    }
-
-    await query("DELETE FROM servia_property_images WHERE property_id=?", [propertyId]);
-    await query("DELETE FROM servia_wishlist WHERE property_id=?", [propertyId]);
-    await query("DELETE FROM servia_bookings WHERE property_id=?", [propertyId]);
-    await query("DELETE FROM servia_properties WHERE id=?", [propertyId]);
-
-    res.json({
-      success: true,
-      message: "Property deleted successfully",
-    });
-  } catch (err) {
-    console.log("ADMIN PROPERTY DELETE ERROR:", err.message);
-    res.status(500).json({
-      message: "Property delete failed",
-      error: err.message,
-    });
-  }
-});
 app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err.message);
 
@@ -1896,35 +1863,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
   }
 });
 
-app.get(
-  "/api/messages/:userId/:otherUserId",
-  verifyToken,
-  async (req, res) => {
-    try {
-      const { userId, otherUserId } = req.params;
 
-      const rows = await query(
-        `
-        SELECT *
-        FROM servia_messages
-        WHERE
-        (sender_id=? AND receiver_id=?)
-        OR
-        (sender_id=? AND receiver_id=?)
-        ORDER BY created_at ASC
-        `,
-        [userId, otherUserId, otherUserId, userId]
-      );
-
-      res.json(rows);
-    } catch (err) {
-      res.status(500).json({
-        message: "Messages fetch failed",
-        error: err.message,
-      });
-    }
-  }
-);
 app.put(
   "/api/messages/read/:userId/:otherUserId",
   verifyToken,
@@ -2067,38 +2006,7 @@ app.put("/api/notifications/:userId/mark-read", verifyToken, async (req, res) =>
   }
 });
 
-app.get("/api/reviews/:propertyId", async (req, res) => {
-  try {
-    const rows = await query(
-      `
-      SELECT 
-        r.id,
-        r.property_id,
-        r.booking_id,
-        r.user_id,
-        r.rating,
-        r.review,
-        r.host_reply,
-        r.created_at,
-        COALESCE(u.fullname, u.email, 'Guest') AS guest_name
-      FROM servia_reviews r
-      LEFT JOIN servia_users u ON u.id = r.user_id
-      WHERE r.property_id = ?
-      AND COALESCE(r.status, 'Approved') = 'Approved'
-      ORDER BY r.created_at DESC
-      `,
-      [req.params.propertyId]
-    );
 
-    res.json(rows);
-  } catch (err) {
-    console.log("REVIEWS LOAD ERROR:", err.message);
-    res.status(500).json({
-      message: "Reviews load failed",
-      error: err.message,
-    });
-  }
-});
 app.post("/api/reviews", verifyToken, async (req, res) => {
   try {
     const userId = Number(req.user.id);
