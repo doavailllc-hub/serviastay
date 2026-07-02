@@ -70,11 +70,18 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpay = null;
 
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+
+  console.log("Razorpay initialized ✅");
+} else {
+  console.warn("Razorpay keys missing. Payment APIs disabled.");
+}
 
 const db = mysql.createPool({
   host: process.env.DB_HOST,
@@ -1625,6 +1632,10 @@ app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, re
 });
 
 app.post("/api/payments/create-order", verifyToken, async (req, res) => {
+  
+  if (!razorpay) {
+  return res.status(503).json({ message: "Payment gateway not configured" });
+}
   try {
     const { amount, property_id, user_id } = req.body;
 
@@ -1654,6 +1665,10 @@ app.post("/api/payments/create-order", verifyToken, async (req, res) => {
 
 app.post("/api/payments/verify", verifyToken, async (req, res) => {
   try {
+    if (!razorpay) {
+      return res.status(503).json({ message: "Payment gateway not configured" });
+    }
+
     const {
       booking_id,
       razorpay_order_id,
@@ -1676,31 +1691,16 @@ app.post("/api/payments/verify", verifyToken, async (req, res) => {
       await query(
         `
         UPDATE servia_bookings
-        SET 
-          razorpay_order_id = ?,
-          payment_id = ?,
-          payment_status = ?,
-          status = ?
-        WHERE id = ?
+        SET razorpay_order_id=?, payment_id=?, payment_status=?, status=?
+        WHERE id=?
         `,
-        [
-          razorpay_order_id,
-          razorpay_payment_id,
-          "Paid",
-          "Confirmed",
-          booking_id,
-        ]
+        [razorpay_order_id, razorpay_payment_id, "Paid", "Confirmed", booking_id]
       );
     }
 
-    res.json({
-      success: true,
-      message: "Payment verified",
-      payment_id: razorpay_payment_id,
-      order_id: razorpay_order_id,
-    });
+    res.json({ success: true, message: "Payment verified" });
   } catch (err) {
-    console.log("RAZORPAY VERIFY ERROR:", err);
+    console.log("RAZORPAY VERIFY ERROR:", err.message);
     res.status(500).json({ message: "Payment verification failed" });
   }
 });
