@@ -74,6 +74,7 @@ import AdminSupport from "./pages/admin/AdminSupport";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
+import AdminAdmins from "./pages/admin/AdminAdmins";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -375,6 +376,7 @@ export default function App() {
   <Route path="support" element={<AdminSupport />} />
   <Route path="settings" element={<AdminSettings />} />
   <Route path="audit-logs" element={<AdminAuditLogs />} />
+  <Route path="admins" element={<AdminAdmins />} />
 </Route>
       <Route path="*" element={<NotFound />} />
 

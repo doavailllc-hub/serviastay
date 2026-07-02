@@ -17,6 +17,7 @@ import {
   Tag,
   Users,
   Wallet,
+  RotateCcw,
   X,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ const menuSections = [
       { label: "Finance Center", path: "/admin/finance", icon: Landmark },
       { label: "Payments", path: "/admin/payments", icon: CreditCard },
       { label: "Payouts", path: "/admin/payouts", icon: Wallet },
+      { label: "Refunds", path: "/admin/refunds", icon: RotateCcw },
     ],
   },
   {
@@ -63,6 +65,7 @@ const menuSections = [
     items: [
       { label: "Audit Logs", path: "/admin/audit-logs", icon: ClipboardList },
       { label: "Settings", path: "/admin/settings", icon: Settings },
+      { label: "Admins", path: "/admin/admins", icon: ShieldCheck },
     ],
   },
 ];

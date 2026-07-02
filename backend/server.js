@@ -14,7 +14,7 @@ require("dotenv").config();
 const deleteS3File = require("./utils/deleteS3File");
 const app = express();
 const server = http.createServer(app);
-
+const rateLimit = require("express-rate-limit");
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
 const API_BASE_URL = process.env.API_BASE_URL || "https://stay.dovail.com";
@@ -49,7 +49,17 @@ app.use(
 );
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: "Too many attempts. Please try again later." },
+});
 
+const paymentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  message: { message: "Too many payment requests. Try again later." },
+});
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -269,6 +279,49 @@ function verifyAdmin(req, res, next) {
   next();
 }
 
+function requireAdminRole(...allowedRoles) {
+  return async (req, res, next) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access only" });
+      }
+
+      const rows = await query(
+        `
+        SELECT admin_role, is_active
+        FROM servia_users
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [req.user.id]
+      );
+
+      if (!rows.length || Number(rows[0].is_active) !== 1) {
+        return res.status(403).json({ message: "Admin account disabled" });
+      }
+
+      const adminRole = rows[0].admin_role || "Super Admin";
+
+      if (adminRole === "Super Admin") {
+        req.adminRole = adminRole;
+        return next();
+      }
+
+      if (!allowedRoles.includes(adminRole)) {
+        return res.status(403).json({
+          message: "You do not have permission for this action",
+        });
+      }
+
+      req.adminRole = adminRole;
+      next();
+    } catch (err) {
+      console.log("ADMIN PERMISSION ERROR:", err.message);
+      res.status(500).json({ message: "Permission check failed" });
+    }
+  };
+}
+
 const { upload, uploadFileToS3 } = require("./middleware/s3Upload");
 app.get("/", (req, res) => {
   res.json({
@@ -309,7 +362,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -394,7 +447,7 @@ app.post("/api/user/:id/profile-image", verifyToken, upload.single("image"), asy
     });
   }
 });
-app.post("/api/admin/login", async (req, res) => {
+app.post("/api/admin/login", authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -1631,7 +1684,7 @@ app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, re
   }
 });
 
-app.post("/api/payments/create-order", verifyToken, async (req, res) => {
+app.post("/api/payments/create-order", paymentLimiter, verifyToken, async (req, res) => {
   
   if (!razorpay) {
   return res.status(503).json({ message: "Payment gateway not configured" });
@@ -2781,7 +2834,8 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) =>
   }
 });
 
-app.get("/api/admin/reviews", verifyToken, async (req, res) => {
+app.get("/api/admin/reviews", verifyToken,
+requireAdminRole("Moderator"), async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ message: "Admin access required" });
@@ -4545,7 +4599,8 @@ if (!kycRows.length || kycRows[0].kyc_status !== "Approved") {
   }
 });
 
-app.get("/api/admin/payouts", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/payouts", verifyToken,
+requireAdminRole("Finance Admin"),async (req, res) => {
   try {
     const rows = await query(
       `
@@ -4806,7 +4861,7 @@ app.post(
   }
 );
 
-app.get("/api/admin/host-kyc", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/host-kyc", verifyToken,requireAdminRole("KYC Admin", "Moderator"), async (req, res) => {
   try {
     const rows = await query(
       `
@@ -5129,7 +5184,8 @@ app.put("/api/admin/host-kyc/:id/request-reupload", verifyToken, verifyAdmin, as
 });
 /* ADMIN SUPPORT CENTER */
 
-app.get("/api/admin/support/tickets", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/support/tickets", verifyToken,
+requireAdminRole("Support Admin"), async (req, res) => {
   try {
     const rows = await query(`
       SELECT 
@@ -5263,7 +5319,7 @@ app.post("/api/admin/support/tickets/:id/messages", verifyToken, verifyAdmin, as
     res.status(500).json({ message: "Reply failed" });
   }
 });
-app.get("/api/admin/properties/:id/details", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/properties/:id/details", verifyToken,requireAdminRole("Moderator"), async (req, res) => {
   try {
     const propertyId = Number(req.params.id);
 
@@ -5342,7 +5398,7 @@ app.get("/api/admin/properties/:id/details", verifyToken, verifyAdmin, async (re
   }
 });
 
-app.put("/api/admin/properties/:id/moderation", verifyToken, verifyAdmin, async (req, res) => {
+app.put("/api/admin/properties/:id/moderation", verifyToken,requireAdminRole("Moderator"), async (req, res) => {
   try {
     const propertyId = Number(req.params.id);
     const status = String(req.body.status || "").trim();
@@ -5428,7 +5484,8 @@ await addAuditLog({
   }
 });
 
-app.get("/api/admin/finance", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/finance", verifyToken,
+requireAdminRole("Finance Admin"), async (req, res) => {
   try {
     const payments = await query(
       `
@@ -5483,7 +5540,7 @@ app.get("/api/admin/finance", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/audit-logs", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/audit-logs", verifyToken,requireAdminRole("Super Admin"), async (req, res) => {
   try {
     const rows = await query(
       `
@@ -5505,7 +5562,7 @@ app.get("/api/admin/audit-logs", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/settings", verifyToken, verifyAdmin, async (req, res) => {
+app.get("/api/admin/settings", verifyToken,requireAdminRole("Super Admin"), async (req, res) => {
   try {
     const rows = await query(
       "SELECT * FROM servia_platform_settings WHERE id=1 LIMIT 1"
@@ -5582,7 +5639,321 @@ app.put("/api/admin/settings", verifyToken, verifyAdmin, async (req, res) => {
     res.status(500).json({ message: "Settings update failed" });
   }
 });
+app.get("/api/admin/admins", verifyToken, requireAdminRole("Super Admin"), async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT id, fullname, email, phone, role, admin_role, is_active, created_at
+      FROM servia_users
+      WHERE role='admin'
+      ORDER BY id DESC
+      `
+    );
 
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN LIST ERROR:", err.message);
+    res.status(500).json({ message: "Admin list failed" });
+  }
+});
+
+app.put("/api/admin/admins/:id", verifyToken, requireAdminRole("Super Admin"), async (req, res) => {
+  try {
+    const adminId = Number(req.params.id);
+    const adminRole = String(req.body.admin_role || "").trim();
+    const isActive = req.body.is_active ? 1 : 0;
+
+    const allowedRoles = [
+      "Super Admin",
+      "Finance Admin",
+      "Support Admin",
+      "KYC Admin",
+      "Moderator",
+      "Read Only",
+    ];
+
+    if (!allowedRoles.includes(adminRole)) {
+      return res.status(400).json({ message: "Invalid admin role" });
+    }
+
+    await query(
+      `
+      UPDATE servia_users
+      SET role='admin', admin_role=?, is_active=?
+      WHERE id=?
+      `,
+      [adminRole, isActive, adminId]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "ADMIN_ROLE_UPDATED",
+      entityType: "admin",
+      entityId: adminId,
+      message: `Admin #${adminId} updated to ${adminRole}`,
+      metadata: { adminRole, isActive },
+    });
+
+    res.json({ success: true, message: "Admin updated" });
+  } catch (err) {
+    console.log("ADMIN UPDATE ERROR:", err.message);
+    res.status(500).json({ message: "Admin update failed" });
+  }
+});
+
+app.post("/api/admin/admins/promote", verifyToken, requireAdminRole("Super Admin"), async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const adminRole = String(req.body.admin_role || "Read Only").trim();
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const users = await query(
+      "SELECT id FROM servia_users WHERE LOWER(email)=LOWER(?) LIMIT 1",
+      [email]
+    );
+
+    if (!users.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const userId = users[0].id;
+
+    await query(
+      `
+      UPDATE servia_users
+      SET role='admin', admin_role=?, is_active=1
+      WHERE id=?
+      `,
+      [adminRole, userId]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "USER_PROMOTED_TO_ADMIN",
+      entityType: "admin",
+      entityId: userId,
+      message: `${email} promoted to ${adminRole}`,
+    });
+
+    res.json({ success: true, message: "User promoted to admin" });
+  } catch (err) {
+    console.log("ADMIN PROMOTE ERROR:", err.message);
+    res.status(500).json({ message: "Promote failed" });
+  }
+});
+
+app.put("/api/admin/admins/:id/revoke", verifyToken, requireAdminRole("Super Admin"), async (req, res) => {
+  try {
+    const adminId = Number(req.params.id);
+
+    if (Number(req.user.id) === adminId) {
+      return res.status(400).json({ message: "You cannot revoke yourself" });
+    }
+
+    await query(
+      `
+      UPDATE servia_users
+      SET role='guest', admin_role=NULL, is_active=1
+      WHERE id=?
+      `,
+      [adminId]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "ADMIN_ACCESS_REVOKED",
+      entityType: "admin",
+      entityId: adminId,
+      message: `Admin access revoked for user #${adminId}`,
+    });
+
+    res.json({ success: true, message: "Admin access revoked" });
+  } catch (err) {
+    console.log("ADMIN REVOKE ERROR:", err.message);
+    res.status(500).json({ message: "Revoke failed" });
+  }
+});
+
+/* REFUNDS */
+
+app.post("/api/refunds/request", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    const bookingId = Number(req.body.booking_id);
+    const reason = String(req.body.reason || "").trim();
+
+    if (!bookingId || !reason) {
+      return res.status(400).json({ message: "Booking and reason are required" });
+    }
+
+    const bookings = await query(
+      `
+      SELECT *
+      FROM servia_bookings
+      WHERE id = ? AND user_id = ?
+      LIMIT 1
+      `,
+      [bookingId, userId]
+    );
+
+    if (!bookings.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const booking = bookings[0];
+
+    if (booking.status === "Cancelled") {
+      return res.status(400).json({ message: "Booking already cancelled" });
+    }
+
+    const exists = await query(
+      "SELECT id FROM servia_refund_requests WHERE booking_id=? LIMIT 1",
+      [bookingId]
+    );
+
+    if (exists.length) {
+      return res.status(409).json({ message: "Refund already requested" });
+    }
+
+    await query(
+      `
+      INSERT INTO servia_refund_requests
+      (booking_id, user_id, amount, reason, status)
+      VALUES (?, ?, ?, ?, 'Pending')
+      `,
+      [bookingId, userId, Number(booking.total || 0), reason]
+    );
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, 0)
+      `,
+      [
+        userId,
+        "Refund request submitted",
+        "Your refund request has been submitted and is under review.",
+        "refund",
+      ]
+    );
+
+    res.json({ success: true, message: "Refund request submitted" });
+  } catch (err) {
+    console.log("REFUND REQUEST ERROR:", err.message);
+    res.status(500).json({ message: "Refund request failed", error: err.message });
+  }
+});
+
+app.get("/api/admin/refunds", verifyToken, requireAdminRole("Finance Admin"), async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT
+        r.*,
+        u.fullname AS guest_name,
+        u.email AS guest_email,
+        b.checkin,
+        b.checkout,
+        b.status AS booking_status,
+        p.title AS property_title
+      FROM servia_refund_requests r
+      JOIN servia_users u ON u.id = r.user_id
+      JOIN servia_bookings b ON b.id = r.booking_id
+      LEFT JOIN servia_properties p ON p.id = b.property_id
+      ORDER BY r.id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN REFUNDS ERROR:", err.message);
+    res.status(500).json({ message: "Refunds load failed" });
+  }
+});
+
+app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance Admin"), async (req, res) => {
+  try {
+    const refundId = Number(req.params.id);
+    const status = String(req.body.status || "").trim();
+    const adminNote = String(req.body.admin_note || "").trim();
+
+    if (!["Approved", "Rejected", "Paid"].includes(status)) {
+      return res.status(400).json({ message: "Invalid refund status" });
+    }
+
+    if (status === "Rejected" && !adminNote) {
+      return res.status(400).json({ message: "Admin note is required for rejection" });
+    }
+
+    const rows = await query(
+      "SELECT * FROM servia_refund_requests WHERE id=? LIMIT 1",
+      [refundId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Refund request not found" });
+    }
+
+    const refund = rows[0];
+
+    await query(
+      `
+      UPDATE servia_refund_requests
+      SET status=?, admin_note=?
+      WHERE id=?
+      `,
+      [status, adminNote || null, refundId]
+    );
+
+    if (status === "Approved") {
+      await query(
+        "UPDATE servia_bookings SET status='Cancelled', payment_status='Refund Approved' WHERE id=?",
+        [refund.booking_id]
+      );
+    }
+
+    if (status === "Paid") {
+      await query(
+        "UPDATE servia_bookings SET status='Cancelled', payment_status='Refunded' WHERE id=?",
+        [refund.booking_id]
+      );
+    }
+
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, 0)
+      `,
+      [
+        refund.user_id,
+        "Refund request updated",
+        status === "Rejected"
+          ? `Your refund request was rejected. ${adminNote}`
+          : `Your refund request is now ${status}.`,
+        "refund",
+      ]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "REFUND_STATUS_UPDATED",
+      entityType: "refund",
+      entityId: refundId,
+      message: `Refund #${refundId} marked as ${status}`,
+      metadata: { status, adminNote },
+    });
+
+    res.json({ success: true, message: `Refund marked as ${status}` });
+  } catch (err) {
+    console.log("ADMIN REFUND STATUS ERROR:", err.message);
+    res.status(500).json({ message: "Refund update failed", error: err.message });
+  }
+});
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
