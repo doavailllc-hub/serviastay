@@ -71,7 +71,8 @@ import HostType from "./pages/HostType";
 import HostVerification from "./pages/HostVerification";
 import AdminUserDetails from "./pages/admin/AdminUserDetails";
 import AdminSupport from "./pages/admin/AdminSupport";
-
+import AdminFinance from "./pages/admin/AdminFinance";
+import AdminSettings from "./pages/admin/AdminSettings";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -365,6 +366,7 @@ export default function App() {
 
   <Route path="properties" element={<AdminProperties />} />
   <Route path="bookings" element={<AdminBookings />} />
+  <Route path="finance" element={<AdminFinance />} />
   <Route path="payments" element={<PaymentHistory />} />
   <Route path="payouts" element={<AdminPayouts />} />
 
@@ -374,6 +376,7 @@ export default function App() {
   <Route path="coupons" element={<AdminCoupons />} />
   <Route path="analytics" element={<AdminAnalytics />} />
   <Route path="support" element={<AdminSupport />} />
+  <Route path="settings" element={<AdminSettings />} />
 </Route>
       <Route path="*" element={<NotFound />} />
 

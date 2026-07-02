@@ -4,12 +4,15 @@ import {
   BarChart3,
   Building2,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   Home,
   LayoutDashboard,
+  Landmark,
   LogOut,
   Menu,
   MessageSquare,
+  Settings,
   ShieldCheck,
   Tag,
   Users,
@@ -17,22 +20,51 @@ import {
   X,
 } from "lucide-react";
 
-const menuItems = [
-  { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-
-  { label: "Users", path: "/admin/users", icon: Users },
-
-  { label: "Properties", path: "/admin/properties", icon: Building2 },
-  { label: "Bookings", path: "/admin/bookings", icon: CalendarDays },
-  { label: "Payments", path: "/admin/payments", icon: CreditCard },
-  { label: "Payouts", path: "/admin/payouts", icon: Wallet },
-
-  { label: "KYC Queue", path: "/admin/kyc", icon: ShieldCheck },
-
-  { label: "Reviews", path: "/admin/reviews", icon: MessageSquare },
-  { label: "Coupons", path: "/admin/coupons", icon: Tag },
-  { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
-  { label: "Support", path: "/admin/support", icon: MessageSquare },
+const menuSections = [
+  {
+    title: "Overview",
+    items: [
+      { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
+      { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { label: "Users", path: "/admin/users", icon: Users },
+      { label: "Properties", path: "/admin/properties", icon: Building2 },
+      { label: "Bookings", path: "/admin/bookings", icon: CalendarDays },
+      { label: "Reviews", path: "/admin/reviews", icon: MessageSquare },
+    ],
+  },
+  {
+    title: "Verification",
+    items: [
+      { label: "KYC Queue", path: "/admin/kyc", icon: ShieldCheck },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      { label: "Finance Center", path: "/admin/finance", icon: Landmark },
+      { label: "Payments", path: "/admin/payments", icon: CreditCard },
+      { label: "Payouts", path: "/admin/payouts", icon: Wallet },
+    ],
+  },
+  {
+    title: "Support & Growth",
+    items: [
+      { label: "Support", path: "/admin/support", icon: MessageSquare },
+      { label: "Coupons", path: "/admin/coupons", icon: Tag },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { label: "Audit Logs", path: "/admin/audit-logs", icon: ClipboardList },
+      { label: "Settings", path: "/admin/settings", icon: Settings },
+    ],
+  },
 ];
 
 export default function AdminLayout() {
@@ -88,29 +120,39 @@ export default function AdminLayout() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
+     <nav className="flex-1 overflow-y-auto px-3 py-4">
+  {menuSections.map((section) => (
+    <div key={section.title} className="mb-5">
+      <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400">
+        {section.title}
+      </p>
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-[#eef4ff] text-[#3b71e6]"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-950"
-                  }`
-                }
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
+      <div className="space-y-1">
+        {section.items.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                  isActive
+                    ? "bg-[#eef4ff] text-[#3b71e6]"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-950"
+                }`
+              }
+            >
+              <Icon size={18} />
+              <span>{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </div>
+    </div>
+  ))}
+</nav>
 
         <div className="border-t border-gray-200 p-3">
           <button

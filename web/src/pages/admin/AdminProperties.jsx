@@ -1,337 +1,440 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  Trash2,
+  BadgeCheck,
+  Building2,
   Eye,
-  Home,
+  Image as ImageIcon,
+  Loader2,
   MapPin,
-  User,
-  Mail,
-  IndianRupee,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Star,
+  X,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../../api/api";
+
+const filters = ["All", "Published", "Pending", "Rejected", "Needs Changes", "Suspended", "Archived"];
 
 export default function AdminProperties() {
   const [properties, setProperties] = useState([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [filter, setFilter] = useState("All");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const loadProperties = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/admin/properties");
-      setProperties(res.data || []);
-    } catch (err) {
-      alert(err.response?.data?.message || "Properties load failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     loadProperties();
   }, []);
 
+  const loadProperties = async () => {
+    try {
+      setLoading(true);
+      const { data } = await api.get("/admin/properties");
+      setProperties(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Properties load failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openDetails = async (property) => {
+    try {
+      setDetailsLoading(true);
+      setSelected({
+        property,
+        images: [],
+        stats: {},
+      });
+      setReason(property.rejection_reason || property.admin_note || "");
+
+      const { data } = await api.get(`/admin/properties/${property.id}/details`);
+      setSelected(data);
+      setReason(data.property?.rejection_reason || data.property?.admin_note || "");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Property details failed");
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const updateStatus = async (status) => {
+    if (!selected?.property?.id) return;
+
+    if (["Rejected", "Needs Changes", "Suspended"].includes(status) && !reason.trim()) {
+      toast.error("Reason is required");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      await api.put(`/admin/properties/${selected.property.id}/moderation`, {
+        status,
+        reason,
+      });
+
+      toast.success(`Property marked as ${status}`);
+      await loadProperties();
+      await openDetails({ ...selected.property, status });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Moderation failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const filtered = useMemo(() => {
-    return properties.filter((p) => {
-      const text = `${p.title || ""} ${p.location || ""} ${p.host_name || ""}`.toLowerCase();
+    return properties.filter((item) => {
+      const statusOk = filter === "All" || (item.status || "Published") === filter;
+      const q = query.trim().toLowerCase();
 
-      return (
-        text.includes(search.toLowerCase()) &&
-        (category === "all" || p.category === category) &&
-        (status === "all" || String(p.status || "pending") === status)
-      );
+      const searchOk =
+        !q ||
+        `${item.title || ""} ${item.location || ""} ${item.host_name || ""} ${item.host_email || ""}`
+          .toLowerCase()
+          .includes(q);
+
+      return statusOk && searchOk;
     });
-  }, [properties, search, category, status]);
+  }, [properties, filter, query]);
 
-  const updateStatus = async (id, newStatus) => {
-    try {
-      await api.put(`/admin/properties/${id}/status`, { status: newStatus });
-      loadProperties();
-    } catch (err) {
-      alert(err.response?.data?.message || "Status update failed");
-    }
-  };
-
-  const deleteProperty = async (id) => {
-    if (!confirm("Are you sure you want to delete this property?")) return;
-
-    try {
-      await api.delete(`/admin/properties/${id}`);
-      loadProperties();
-    } catch (err) {
-      alert(err.response?.data?.message || "Property delete failed");
-    }
-  };
+  const stats = useMemo(
+    () => ({
+      all: properties.length,
+      published: properties.filter((p) => (p.status || "Published") === "Published").length,
+      pending: properties.filter((p) => p.status === "Pending").length,
+      rejected: properties.filter((p) => p.status === "Rejected").length,
+    }),
+    [properties]
+  );
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] p-4 sm:p-6 lg:p-8">
-      <Header onRefresh={loadProperties} />
+    <main className="space-y-6">
+      <section className="rounded-[28px] border border-gray-200 bg-white p-6">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-semibold text-[#3b71e6]">Property Moderation</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Listings Review Center</h1>
+            <p className="mt-2 text-sm text-gray-500">
+              Review listings, verify host details, inspect images, and approve or request changes.
+            </p>
+          </div>
 
-      <Stats total={properties.length} filtered={filtered.length} />
+          <button
+            onClick={loadProperties}
+            className="flex h-11 items-center gap-2 rounded-full border border-gray-200 px-5 text-sm font-semibold text-[#3b71e6] hover:bg-blue-50"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+        </div>
+      </section>
 
-      <Filters
-        search={search}
-        setSearch={setSearch}
-        category={category}
-        setCategory={setCategory}
-        status={status}
-        setStatus={setStatus}
-      />
+      <section className="grid gap-4 md:grid-cols-4">
+        <Stat title="Total" value={stats.all} icon={<Building2 />} />
+        <Stat title="Published" value={stats.published} icon={<BadgeCheck />} />
+        <Stat title="Pending" value={stats.pending} icon={<ShieldCheck />} />
+        <Stat title="Rejected" value={stats.rejected} icon={<X />} />
+      </section>
 
-      <section className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-6 py-5">
-          <h2 className="text-lg font-black text-gray-900">All Listings</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Review property details, approve, reject or delete listings.
-          </p>
+      <section className="rounded-[28px] border border-gray-200 bg-white p-4">
+        <div className="mb-5 grid gap-3 md:grid-cols-[1fr_240px]">
+          <div className="relative">
+            <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, location, host..."
+              className="h-11 w-full rounded-xl border border-gray-200 pl-11 pr-4 text-sm outline-none focus:border-[#3b71e6]"
+            />
+          </div>
+
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="h-11 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-[#3b71e6]"
+          >
+            {filters.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
         </div>
 
         {loading ? (
-          <Empty text="Loading properties..." />
+          <div className="flex h-60 items-center justify-center">
+            <Loader2 className="animate-spin text-[#3b71e6]" size={34} />
+          </div>
         ) : filtered.length === 0 ? (
-          <Empty text="No properties found." />
+          <div className="rounded-2xl bg-gray-50 p-12 text-center text-sm text-gray-500">
+            No properties found.
+          </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {filtered.map((p) => (
-              <PropertyRow
-                key={p.id}
-                property={p}
-                onApprove={() => updateStatus(p.id, "approved")}
-                onReject={() => updateStatus(p.id, "rejected")}
-                onDelete={() => deleteProperty(p.id)}
-              />
+          <div className="grid gap-4">
+            {filtered.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => openDetails(item)}
+                className="rounded-[24px] border border-gray-200 bg-white p-4 text-left transition hover:border-[#3b71e6] hover:bg-blue-50/30"
+              >
+                <div className="flex gap-4">
+                  <img
+                    src={item.image}
+                    alt=""
+                    className="h-24 w-28 shrink-0 rounded-2xl object-cover"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                      <div>
+                        <h3 className="truncate text-lg font-semibold">{item.title}</h3>
+                        <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
+                          <MapPin size={14} />
+                          <span className="truncate">{item.location}</span>
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Host: {item.host_name || "Unknown"}
+                        </p>
+                      </div>
+
+                      <StatusBadge status={item.status || "Published"} />
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
+                      <span>₹{Number(item.price || 0).toLocaleString("en-IN")}/night</span>
+                      <span>★ {item.rating || "5.0"}</span>
+                      <span>{item.guests || 1} guests</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
         )}
       </section>
-    </div>
+
+      {selected && (
+        <Drawer
+          data={selected}
+          loading={detailsLoading}
+          reason={reason}
+          setReason={setReason}
+          actionLoading={actionLoading}
+          onClose={() => setSelected(null)}
+          onStatus={updateStatus}
+        />
+      )}
+    </main>
   );
 }
 
-function Header({ onRefresh }) {
+function Drawer({ data, loading, reason, setReason, actionLoading, onClose, onStatus }) {
+  const property = data.property || {};
+  const images = data.images || [];
+  const stats = data.stats || {};
+
   return (
-    <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-      <div>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#EEE9FF] px-4 py-2 text-sm font-bold text-[#3b71e6]">
-          <Home size={16} />
-          Admin Panel
-        </div>
-
-        <h1 className="text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">
-          Properties Management
-        </h1>
-
-        <p className="mt-2 max-w-2xl text-sm text-gray-500 sm:text-base">
-          Approve, reject, search, filter and manage all property listings from one place.
-        </p>
-      </div>
-
-      <button
-        onClick={onRefresh}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#3b71e6] px-6 font-bold text-white shadow-lg shadow-[#3b71e6]/25 transition hover:bg-[#7152e8] active:scale-[0.98]"
-      >
-        <RefreshCw size={18} />
-        Refresh
-      </button>
-    </div>
-  );
-}
-
-function Stats({ total, filtered }) {
-  return (
-    <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard label="Total Listings" value={total} />
-      <StatCard label="Showing Results" value={filtered} />
-      <StatCard label="Active Filter" value={filtered === total ? "None" : "Applied"} />
-      <StatCard label="Management" value="Live" />
-    </div>
-  );
-}
-
-function StatCard({ label, value }) {
-  return (
-    <div className="rounded-[24px] border border-gray-100 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-500">{label}</p>
-      <h3 className="mt-2 text-2xl font-black text-gray-950">{value}</h3>
-    </div>
-  );
-}
-
-function Filters({ search, setSearch, category, setCategory, status, setStatus }) {
-  return (
-    <div className="mb-6 grid gap-4 rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm lg:grid-cols-4">
-      <div className="lg:col-span-2">
-        <SearchBox value={search} setValue={setSearch} placeholder="Search by property, location or host..." />
-      </div>
-
-      <SelectBox value={category} onChange={setCategory}>
-        <option value="all">All Categories</option>
-        <option value="Apartment">Apartment</option>
-        <option value="House">House</option>
-        <option value="Villa">Villa</option>
-        <option value="Hotel">Hotel</option>
-      </SelectBox>
-
-      <SelectBox value={status} onChange={setStatus}>
-        <option value="all">All Status</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="rejected">Rejected</option>
-      </SelectBox>
-    </div>
-  );
-}
-
-function SearchBox({ value, setValue, placeholder }) {
-  return (
-    <div className="flex h-13 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 transition focus-within:border-[#3b71e6] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#3b71e6]/10">
-      <Search size={18} className="text-gray-400" />
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        className="h-full w-full bg-transparent text-sm font-medium text-gray-800 outline-none placeholder:text-gray-400"
-      />
-    </div>
-  );
-}
-
-function SelectBox({ value, onChange, children }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-13 rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-700 outline-none transition focus:border-[#3b71e6] focus:bg-white focus:ring-4 focus:ring-[#3b71e6]/10"
-    >
-      {children}
-    </select>
-  );
-}
-
-function PropertyRow({ property: p, onApprove, onReject, onDelete }) {
-  return (
-    <div className="p-5 transition hover:bg-gray-50/70">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-col gap-4 sm:flex-row">
-          <img
-            src={p.image || "/placeholder.jpg"}
-            alt={p.title || "Property"}
-            className="h-32 w-full rounded-3xl object-cover sm:h-28 sm:w-32"
-          />
-
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-black text-gray-950">{p.title || "Untitled Property"}</h3>
-              <StatusBadge status={p.status || "pending"} />
-            </div>
-
-            <div className="space-y-1 text-sm text-gray-500">
-              <p className="flex items-center gap-2">
-                <MapPin size={15} />
-                {p.location || "No location"}
-              </p>
-
-              <p className="flex items-center gap-2">
-                <User size={15} />
-                Host: {p.host_name || "Unknown"}
-              </p>
-
-              <p className="flex items-center gap-2">
-                <Mail size={15} />
-                {p.host_email || "-"}
-              </p>
-            </div>
-
-            <p className="mt-3 flex items-center gap-1 text-lg font-black text-[#3b71e6]">
-              <IndianRupee size={18} />
-              {Number(p.price || 0).toLocaleString("en-IN")}
-              <span className="text-sm font-semibold text-gray-400">/ night</span>
-            </p>
+    <div className="fixed inset-0 z-[100] bg-black/40">
+      <aside className="ml-auto h-full w-full max-w-6xl overflow-y-auto bg-white shadow-2xl">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+          <div>
+            <p className="text-sm font-semibold text-[#3b71e6]">Property Review</p>
+            <h2 className="text-2xl font-semibold">{property.title || "Listing"}</h2>
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            onClick={() => window.open(`/reserve/${p.id}`, "_blank")}
-            className="bg-gray-100 text-gray-700 hover:bg-gray-200"
-          >
-            <Eye size={16} />
-            View
-          </ActionButton>
+          <button onClick={onClose} className="rounded-full border border-gray-200 p-2 hover:bg-gray-50">
+            <X size={22} />
+          </button>
+        </header>
 
-          <ActionButton
-            onClick={onApprove}
-            className="bg-green-100 text-green-700 hover:bg-green-200"
-          >
-            <CheckCircle size={16} />
-            Approve
-          </ActionButton>
+        {loading ? (
+          <div className="flex h-96 items-center justify-center">
+            <Loader2 className="animate-spin text-[#3b71e6]" size={34} />
+          </div>
+        ) : (
+          <div className="grid gap-6 p-6 lg:grid-cols-[360px_1fr]">
+            <section className="space-y-5">
+              <Card>
+                <img
+                  src={property.image}
+                  alt=""
+                  className="mb-4 h-52 w-full rounded-2xl object-cover"
+                />
 
-          <ActionButton
-            onClick={onReject}
-            className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-          >
-            <XCircle size={16} />
-            Reject
-          </ActionButton>
+                <StatusBadge status={property.status || "Published"} />
 
-          <ActionButton
-            onClick={onDelete}
-            className="bg-red-100 text-red-600 hover:bg-red-200"
-          >
-            <Trash2 size={16} />
-            Delete
-          </ActionButton>
-        </div>
-      </div>
+                <div className="mt-5 space-y-3 text-sm">
+                  <Info label="Property ID" value={property.id} />
+                  <Info label="Price" value={formatINR(property.price)} />
+                  <Info label="Guests" value={property.guests} />
+                  <Info label="Bedrooms" value={property.bedrooms} />
+                  <Info label="Bathrooms" value={property.bathrooms} />
+                  <Info label="Rating" value={`★ ${stats.rating || property.rating || 0}`} />
+                </div>
+              </Card>
+
+              <Card title="Host">
+                <Info label="Name" value={property.host_name} />
+                <Info label="Email" value={property.host_email} />
+                <Info label="Phone" value={property.host_phone || "-"} />
+                <Info label="KYC" value={<StatusBadge status={property.host_kyc_status || "Not Submitted"} />} />
+              </Card>
+
+              <Card title="Performance">
+                <Info label="Bookings" value={stats.bookings || 0} />
+                <Info label="Revenue" value={formatINR(stats.revenue || 0)} />
+                <Info label="Reviews" value={stats.reviews || 0} />
+              </Card>
+            </section>
+
+            <section className="space-y-5">
+              <Card title="Description">
+                <p className="text-sm leading-6 text-gray-600">
+                  {property.description || "No description provided."}
+                </p>
+              </Card>
+
+              <Card title="Location">
+                <p className="mb-3 text-sm text-gray-600">{property.location}</p>
+                <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-500">
+                  Latitude: {property.latitude || "-"} · Longitude: {property.longitude || "-"}
+                </div>
+              </Card>
+
+              <Card title="Images">
+                {images.length === 0 ? (
+                  <p className="text-sm text-gray-500">No gallery images.</p>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {images.map((img) => (
+                      <a key={img.id} href={img.image_url} target="_blank" rel="noreferrer">
+                        <img
+                          src={img.image_url}
+                          alt=""
+                          className="h-36 w-full rounded-2xl object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card title="Quality Checks">
+                <Check ok={Boolean(property.image)} text="Cover image exists" />
+                <Check ok={images.length >= 5} text="Minimum 5 photos uploaded" />
+                <Check ok={Boolean(property.description)} text="Description completed" />
+                <Check ok={Boolean(property.price)} text="Price added" />
+                <Check ok={property.host_kyc_status === "Approved"} text="Host KYC approved" />
+                <Check ok={Boolean(property.latitude && property.longitude)} text="Location coordinates added" />
+              </Card>
+
+              <Card title="Admin Decision">
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={4}
+                  placeholder="Reason for rejection, suspension, or changes..."
+                  className="w-full resize-none rounded-2xl border border-gray-200 p-4 text-sm outline-none focus:border-[#3b71e6]"
+                />
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Action disabled={actionLoading} onClick={() => onStatus("Published")} className="bg-green-600 text-white">
+                    Approve / Publish
+                  </Action>
+                  <Action disabled={actionLoading} onClick={() => onStatus("Needs Changes")} className="bg-yellow-500 text-white">
+                    Request Changes
+                  </Action>
+                  <Action disabled={actionLoading} onClick={() => onStatus("Rejected")} className="bg-red-600 text-white">
+                    Reject
+                  </Action>
+                  <Action disabled={actionLoading} onClick={() => onStatus("Suspended")} className="bg-gray-900 text-white">
+                    Suspend
+                  </Action>
+                </div>
+              </Card>
+            </section>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }
 
-function ActionButton({ children, onClick, className }) {
+function Card({ title, children }) {
+  return (
+    <section className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+      {title && <h3 className="mb-4 text-lg font-semibold">{title}</h3>}
+      {children}
+    </section>
+  );
+}
+
+function Stat({ title, value, icon }) {
+  return (
+    <article className="rounded-[22px] border border-gray-200 bg-white p-5">
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#3b71e6]">
+        {icon}
+      </div>
+      <p className="text-sm text-gray-500">{title}</p>
+      <h3 className="mt-2 text-2xl font-semibold">{value}</h3>
+    </article>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-gray-100 pb-2 last:border-0">
+      <span className="text-gray-500">{label}</span>
+      <span className="text-right font-semibold text-gray-900">{value || "-"}</span>
+    </div>
+  );
+}
+
+function Check({ ok, text }) {
+  return (
+    <div className="mb-3 flex items-center gap-3 text-sm">
+      <span className={ok ? "text-green-600" : "text-yellow-600"}>
+        {ok ? "✓" : "⚠"}
+      </span>
+      <span className={ok ? "text-gray-700" : "text-yellow-700"}>{text}</span>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    Published: "border-green-200 bg-green-50 text-green-700",
+    Approved: "border-green-200 bg-green-50 text-green-700",
+    Pending: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    Rejected: "border-red-200 bg-red-50 text-red-700",
+    "Needs Changes": "border-orange-200 bg-orange-50 text-orange-700",
+    Suspended: "border-gray-300 bg-gray-100 text-gray-700",
+    Archived: "border-gray-300 bg-gray-50 text-gray-500",
+  };
+
+  return (
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${styles[status] || styles.Published}`}>
+      {status || "Published"}
+    </span>
+  );
+}
+
+function Action({ children, className, ...props }) {
   return (
     <button
-      onClick={onClick}
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition active:scale-[0.97] ${className}`}
+      {...props}
+      className={`rounded-xl px-5 py-3 text-sm font-semibold disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
   );
 }
 
-function StatusBadge({ status }) {
-  const styles = {
-    approved: "bg-green-100 text-green-700 ring-green-200",
-    rejected: "bg-red-100 text-red-600 ring-red-200",
-    pending: "bg-yellow-100 text-yellow-700 ring-yellow-200",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-black capitalize ring-1 ${
-        styles[status] || styles.pending
-      }`}
-    >
-      {status}
-    </span>
-  );
-}
-
-function Empty({ text }) {
-  return (
-    <div className="flex min-h-[260px] items-center justify-center p-12 text-center">
-      <div>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEE9FF] text-[#3b71e6]">
-          <Home size={24} />
-        </div>
-        <p className="font-bold text-gray-500">{text}</p>
-      </div>
-    </div>
-  );
+function formatINR(amount) {
+  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 }

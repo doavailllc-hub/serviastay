@@ -109,6 +109,34 @@ function query(sql, values = []) {
     });
   });
 }
+async function addAuditLog({
+  adminId = null,
+  action,
+  entityType = null,
+  entityId = null,
+  message = null,
+  metadata = null,
+}) {
+  try {
+    await query(
+      `
+      INSERT INTO servia_admin_audit_logs
+      (admin_id, action, entity_type, entity_id, message, metadata)
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [
+        adminId,
+        action,
+        entityType,
+        entityId,
+        message,
+        metadata ? JSON.stringify(metadata) : null,
+      ]
+    );
+  } catch (err) {
+    console.log("AUDIT LOG ERROR:", err.message);
+  }
+}
 
 io.on("connection", (socket) => {
   socket.on("join", (userId) => {
@@ -2193,7 +2221,31 @@ app.get("/api/reviews/:propertyId", async (req, res) => {
 
 app.put("/api/reviews/:id/reply", verifyToken, async (req, res) => {
   try {
-    const reply = String(req.body.host_reply || "").trim();
+    const reviewId = Number(req.params.id);
+    const hostReply = String(req.body.host_reply || "").trim();
+
+    if (!hostReply) {
+      return res.status(400).json({ message: "Reply is required" });
+    }
+
+    const rows = await query(
+      `
+      SELECT r.id, p.user_id AS host_id
+      FROM servia_reviews r
+      JOIN servia_properties p ON p.id = r.property_id
+      WHERE r.id = ?
+      LIMIT 1
+      `,
+      [reviewId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Review not found" });
+    }
+
+    if (Number(rows[0].host_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     await query(
       `
@@ -2201,16 +2253,127 @@ app.put("/api/reviews/:id/reply", verifyToken, async (req, res) => {
       SET host_reply = ?
       WHERE id = ?
       `,
-      [reply, req.params.id]
+      [hostReply, reviewId]
     );
 
     res.json({
       success: true,
-      message: "Host reply added",
+      message: "Reply added",
     });
   } catch (err) {
+    console.log("HOST REVIEW REPLY ERROR:", err.message);
     res.status(500).json({
-      message: "Host reply failed",
+      message: "Reply failed",
+      error: err.message,
+    });
+  }
+});
+app.get("/api/admin/users/:id/details", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+
+    const users = await query(
+      `
+      SELECT id, fullname, email, phone, role, profile_image, kyc_status, created_at
+      FROM servia_users
+      WHERE id=?
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (!users.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const bookings = await query(
+      `
+      SELECT b.*, p.title, p.location, p.image
+      FROM servia_bookings b
+      LEFT JOIN servia_properties p ON p.id=b.property_id
+      WHERE b.user_id=?
+      ORDER BY b.id DESC
+      LIMIT 20
+      `,
+      [userId]
+    );
+
+    const listings = await query(
+      `
+      SELECT id, title, location, price, status, image, rating
+      FROM servia_properties
+      WHERE user_id=?
+      ORDER BY id DESC
+      LIMIT 20
+      `,
+      [userId]
+    );
+
+    const bank = await query(
+      `SELECT * FROM servia_host_bank_accounts WHERE host_id=? LIMIT 1`,
+      [userId]
+    ).catch(() => []);
+
+    const kyc = await query(
+      `SELECT * FROM servia_host_kyc WHERE host_id=? LIMIT 1`,
+      [userId]
+    ).catch(() => []);
+
+    const wallet = await query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN type='earning' THEN amount ELSE 0 END),0) AS earnings,
+        COALESCE(SUM(CASE WHEN type='payout' THEN amount ELSE 0 END),0) AS payouts
+      FROM servia_host_wallet_transactions
+      WHERE host_id=?
+      `,
+      [userId]
+    ).catch(() => [{ earnings: 0, payouts: 0 }]);
+
+    const payouts = await query(
+      `
+      SELECT *
+      FROM servia_host_payouts
+      WHERE host_id=?
+      ORDER BY id DESC
+      LIMIT 20
+      `,
+      [userId]
+    ).catch(() => []);
+
+    const reviews = await query(
+      `
+      SELECT r.*, p.title AS property_title
+      FROM servia_reviews r
+      LEFT JOIN servia_properties p ON p.id=r.property_id
+      WHERE r.user_id=?
+      ORDER BY r.id DESC
+      LIMIT 20
+      `,
+      [userId]
+    ).catch(() => []);
+
+    res.json({
+      success: true,
+      user: users[0],
+      bookings,
+      listings,
+      bank: bank[0] || null,
+      kyc: kyc[0] || null,
+      wallet: wallet[0] || { earnings: 0, payouts: 0 },
+      payouts,
+      reviews,
+      activity: [],
+      security: {
+        email_verified: true,
+        phone_verified: Boolean(users[0].phone),
+        last_login: null,
+      },
+    });
+  } catch (err) {
+    console.log("ADMIN USER DETAILS ERROR:", err.message);
+    res.status(500).json({
+      message: "User details load failed",
       error: err.message,
     });
   }
@@ -4449,7 +4612,13 @@ app.put("/api/admin/payouts/:id/status", verifyToken, verifyAdmin, async (req, r
       `,
       [status, adminNote || null, payoutId]
     );
-
+await addAuditLog({
+  adminId: req.user.id,
+  action: "HOST_PAYOUT_APPROVED",
+  entityType: "payout",
+  entityId: payoutId,
+  message: `Approved payout #${payoutId}`,
+});
     await query(
       `
       INSERT INTO servia_notifications
@@ -4727,7 +4896,20 @@ app.put(
         `,
         [status, kyc.host_id]
       );
-
+await addAuditLog({
+  adminId: req.user.id,
+  action:
+    status === "Approved"
+      ? "HOST_KYC_APPROVED"
+      : "HOST_KYC_REJECTED",
+  entityType: "host_kyc",
+  entityId: kycId,
+  message: `Host #${kyc.host_id} KYC ${status}`,
+  metadata: {
+    status,
+    rejectionReason,
+  },
+});
       await query(
         `
         INSERT INTO servia_notifications
@@ -4945,6 +5127,463 @@ app.put("/api/admin/host-kyc/:id/request-reupload", verifyToken, verifyAdmin, as
     });
   }
 });
+/* ADMIN SUPPORT CENTER */
+
+app.get("/api/admin/support/tickets", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(`
+      SELECT 
+        t.*,
+        u.fullname AS user_name,
+        u.email AS user_email,
+        a.fullname AS assigned_admin_name
+      FROM servia_support_tickets t
+      LEFT JOIN servia_users u ON u.id = t.user_id
+      LEFT JOIN servia_users a ON a.id = t.assigned_admin_id
+      ORDER BY 
+        CASE t.priority
+          WHEN 'Urgent' THEN 1
+          WHEN 'High' THEN 2
+          WHEN 'Medium' THEN 3
+          ELSE 4
+        END,
+        t.updated_at DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN SUPPORT TICKETS ERROR:", err.message);
+    res.status(500).json({ message: "Support tickets load failed" });
+  }
+});
+
+app.get("/api/admin/support/tickets/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const ticketId = Number(req.params.id);
+
+    const tickets = await query(
+      `
+      SELECT 
+        t.*,
+        u.fullname AS user_name,
+        u.email AS user_email,
+        u.phone AS user_phone
+      FROM servia_support_tickets t
+      LEFT JOIN servia_users u ON u.id = t.user_id
+      WHERE t.id=?
+      LIMIT 1
+      `,
+      [ticketId]
+    );
+
+    if (!tickets.length) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    const messages = await query(
+      `
+      SELECT 
+        m.*,
+        u.fullname AS sender_name,
+        u.email AS sender_email
+      FROM servia_support_messages m
+      LEFT JOIN servia_users u ON u.id = m.sender_id
+      WHERE m.ticket_id=?
+      ORDER BY m.id ASC
+      `,
+      [ticketId]
+    );
+
+    res.json({
+      ticket: tickets[0],
+      messages,
+    });
+  } catch (err) {
+    console.log("ADMIN SUPPORT DETAILS ERROR:", err.message);
+    res.status(500).json({ message: "Ticket details load failed" });
+  }
+});
+
+app.put("/api/admin/support/tickets/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const ticketId = Number(req.params.id);
+    const { status, priority, assigned_admin_id } = req.body;
+
+    await query(
+      `
+      UPDATE servia_support_tickets
+      SET status = COALESCE(?, status),
+          priority = COALESCE(?, priority),
+          assigned_admin_id = COALESCE(?, assigned_admin_id)
+      WHERE id=?
+      `,
+      [status || null, priority || null, assigned_admin_id || null, ticketId]
+    );
+await addAuditLog({
+  adminId: req.user.id,
+  action: "SUPPORT_UPDATED",
+  entityType: "ticket",
+  entityId: ticketId,
+  message: "Support ticket updated",
+});
+    res.json({ success: true, message: "Ticket updated" });
+  } catch (err) {
+    console.log("ADMIN SUPPORT UPDATE ERROR:", err.message);
+    res.status(500).json({ message: "Ticket update failed" });
+  }
+});
+
+app.post("/api/admin/support/tickets/:id/messages", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const ticketId = Number(req.params.id);
+    const message = String(req.body.message || "").trim();
+    const internalNote = req.body.internal_note ? 1 : 0;
+
+    if (!message) {
+      return res.status(400).json({ message: "Message is required" });
+    }
+
+    await query(
+      `
+      INSERT INTO servia_support_messages
+      (ticket_id, sender_id, sender_role, message, internal_note)
+      VALUES (?, ?, 'admin', ?, ?)
+      `,
+      [ticketId, req.user.id, message, internalNote]
+    );
+
+    await query(
+      "UPDATE servia_support_tickets SET updated_at=NOW() WHERE id=?",
+      [ticketId]
+    );
+
+    res.json({ success: true, message: "Reply added" });
+  } catch (err) {
+    console.log("ADMIN SUPPORT MESSAGE ERROR:", err.message);
+    res.status(500).json({ message: "Reply failed" });
+  }
+});
+app.get("/api/admin/properties/:id/details", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const propertyId = Number(req.params.id);
+
+    const rows = await query(
+      `
+      SELECT 
+        p.*,
+        u.id AS host_id,
+        u.fullname AS host_name,
+        u.email AS host_email,
+        u.phone AS host_phone,
+        u.profile_image AS host_image,
+        u.kyc_status AS host_kyc_status,
+        u.created_at AS host_since
+      FROM servia_properties p
+      LEFT JOIN servia_users u ON u.id = p.user_id
+      WHERE p.id = ?
+      LIMIT 1
+      `,
+      [propertyId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    const images = await query(
+      `
+      SELECT *
+      FROM servia_property_images
+      WHERE property_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `,
+      [propertyId]
+    ).catch(() => []);
+
+    const bookings = await query(
+      `
+      SELECT COUNT(*) AS total_bookings,
+             COALESCE(SUM(total),0) AS revenue
+      FROM servia_bookings
+      WHERE property_id = ?
+      AND status != 'Cancelled'
+      `,
+      [propertyId]
+    ).catch(() => [{ total_bookings: 0, revenue: 0 }]);
+
+    const reviews = await query(
+      `
+      SELECT COUNT(*) AS total_reviews,
+             ROUND(AVG(rating),1) AS avg_rating
+      FROM servia_reviews
+      WHERE property_id = ?
+      AND COALESCE(status,'Approved')='Approved'
+      `,
+      [propertyId]
+    ).catch(() => [{ total_reviews: 0, avg_rating: 0 }]);
+
+    res.json({
+      success: true,
+      property: rows[0],
+      images,
+      stats: {
+        bookings: bookings[0]?.total_bookings || 0,
+        revenue: bookings[0]?.revenue || 0,
+        reviews: reviews[0]?.total_reviews || 0,
+        rating: reviews[0]?.avg_rating || rows[0].rating || 0,
+      },
+    });
+  } catch (err) {
+    console.log("ADMIN PROPERTY DETAILS ERROR:", err.message);
+    res.status(500).json({
+      message: "Property details load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.put("/api/admin/properties/:id/moderation", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const propertyId = Number(req.params.id);
+    const status = String(req.body.status || "").trim();
+    const reason = String(req.body.reason || "").trim();
+
+    const allowed = ["Published", "Pending", "Rejected", "Needs Changes", "Suspended", "Archived"];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid property status" });
+    }
+
+    if (["Rejected", "Needs Changes", "Suspended"].includes(status) && !reason) {
+      return res.status(400).json({
+        message: "Reason is required",
+      });
+    }
+
+    const rows = await query(
+      "SELECT id, user_id, title FROM servia_properties WHERE id=? LIMIT 1",
+      [propertyId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    const property = rows[0];
+
+    await query(
+      `
+      UPDATE servia_properties
+      SET status=?,
+          rejection_reason=?,
+          admin_note=?,
+          approved_at = CASE WHEN ?='Published' THEN NOW() ELSE approved_at END,
+          suspended_at = CASE WHEN ?='Suspended' THEN NOW() ELSE suspended_at END
+      WHERE id=?
+      `,
+      [
+        status,
+        ["Rejected", "Needs Changes", "Suspended"].includes(status) ? reason : null,
+        reason || null,
+        status,
+        status,
+        propertyId,
+      ]
+    );
+await addAuditLog({
+  adminId: req.user.id,
+  action: "PROPERTY_STATUS_CHANGED",
+  entityType: "property",
+  entityId: propertyId,
+  message: `Property "${property.title}" changed to ${status}`,
+  metadata: {
+    status,
+    reason,
+  },
+});
+    await query(
+      `
+      INSERT INTO servia_notifications
+      (user_id, title, message, type, is_read)
+      VALUES (?, ?, ?, ?, 0)
+      `,
+      [
+        property.user_id,
+        "Listing status updated",
+        `Your listing "${property.title}" is now ${status}.${reason ? ` Reason: ${reason}` : ""}`,
+        "property",
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: `Property marked as ${status}`,
+    });
+  } catch (err) {
+    console.log("ADMIN PROPERTY MODERATION ERROR:", err.message);
+    res.status(500).json({
+      message: "Property moderation failed",
+      error: err.message,
+    });
+  }
+});
+
+app.get("/api/admin/finance", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const payments = await query(
+      `
+      SELECT 
+        b.*,
+        p.title AS property_title,
+        guest.fullname AS guest_name,
+        host.fullname AS host_name
+      FROM servia_bookings b
+      LEFT JOIN servia_properties p ON p.id = b.property_id
+      LEFT JOIN servia_users guest ON guest.id = b.user_id
+      LEFT JOIN servia_users host ON host.id = p.user_id
+      ORDER BY b.id DESC
+      LIMIT 300
+      `
+    );
+
+    const payouts = await query(
+      `
+      SELECT 
+        po.*,
+        u.fullname AS host_name,
+        u.email AS host_email
+      FROM servia_host_payouts po
+      LEFT JOIN servia_users u ON u.id = po.host_id
+      ORDER BY po.id DESC
+      LIMIT 300
+      `
+    ).catch(() => []);
+
+    const ledger = await query(
+      `
+      SELECT *
+      FROM servia_host_wallet_transactions
+      ORDER BY id DESC
+      LIMIT 300
+      `
+    ).catch(() => []);
+
+    res.json({
+      success: true,
+      payments,
+      payouts,
+      ledger,
+    });
+  } catch (err) {
+    console.log("ADMIN FINANCE ERROR:", err.message);
+    res.status(500).json({
+      message: "Finance load failed",
+      error: err.message,
+    });
+  }
+});
+
+app.get("/api/admin/audit-logs", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      `
+      SELECT 
+        l.*,
+        u.fullname AS admin_name,
+        u.email AS admin_email
+      FROM servia_admin_audit_logs l
+      LEFT JOIN servia_users u ON u.id = l.admin_id
+      ORDER BY l.id DESC
+      LIMIT 500
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.log("AUDIT LOG LOAD ERROR:", err.message);
+    res.status(500).json({ message: "Audit logs load failed" });
+  }
+});
+
+app.get("/api/admin/settings", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(
+      "SELECT * FROM servia_platform_settings WHERE id=1 LIMIT 1"
+    );
+
+    res.json(rows[0] || {});
+  } catch (err) {
+    console.log("ADMIN SETTINGS LOAD ERROR:", err.message);
+    res.status(500).json({ message: "Settings load failed" });
+  }
+});
+
+app.put("/api/admin/settings", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const {
+      platform_name,
+      support_email,
+      support_phone,
+      commission_percent,
+      service_fee_percent,
+      tax_percent,
+      minimum_payout,
+      maintenance_mode,
+      allow_new_hosts,
+      allow_new_bookings,
+      cancellation_hours,
+      refund_days,
+    } = req.body;
+
+    await query(
+      `
+      UPDATE servia_platform_settings
+      SET platform_name=?,
+          support_email=?,
+          support_phone=?,
+          commission_percent=?,
+          service_fee_percent=?,
+          tax_percent=?,
+          minimum_payout=?,
+          maintenance_mode=?,
+          allow_new_hosts=?,
+          allow_new_bookings=?,
+          cancellation_hours=?,
+          refund_days=?
+      WHERE id=1
+      `,
+      [
+        platform_name,
+        support_email,
+        support_phone,
+        Number(commission_percent || 10),
+        Number(service_fee_percent || 5),
+        Number(tax_percent || 12),
+        Number(minimum_payout || 1000),
+        maintenance_mode ? 1 : 0,
+        allow_new_hosts ? 1 : 0,
+        allow_new_bookings ? 1 : 0,
+        Number(cancellation_hours || 24),
+        Number(refund_days || 7),
+      ]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "PLATFORM_SETTINGS_UPDATED",
+      entityType: "settings",
+      entityId: 1,
+      message: "Platform settings updated",
+    });
+
+    res.json({ success: true, message: "Settings updated" });
+  } catch (err) {
+    console.log("ADMIN SETTINGS UPDATE ERROR:", err.message);
+    res.status(500).json({ message: "Settings update failed" });
+  }
+});
+
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
