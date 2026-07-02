@@ -7,6 +7,7 @@ import {
   MapPin,
   ReceiptText,
   RefreshCw,
+  RotateCcw,
   Users,
 } from "lucide-react";
 
@@ -439,23 +440,35 @@ function TripCard({ trip, navigate, formatINR, downloadInvoice }) {
             </p>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              onClick={() => navigate(`/trip/${trip.id}`)}
-              className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
-            >
-              <Eye size={18} />
-              View Details
-            </button>
+        <div className="mt-8 flex flex-wrap gap-3">
+  <button
+    onClick={() => navigate(`/trip/${trip.id}`)}
+    className="flex items-center gap-2 rounded-xl bg-[#3b71e6] px-6 py-3 font-semibold text-white transition hover:bg-[#7152E8]"
+  >
+    <Eye size={18} />
+    View Details
+  </button>
 
-            <button
-          onClick={() => downloadInvoice(trip)}
-              className="flex items-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition hover:bg-gray-50"
-            >
-              <Download size={18} />
-              Download Invoice
-            </button>
-          </div>
+  <button
+    onClick={() => downloadInvoice(trip)}
+    className="flex items-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold transition hover:bg-gray-50"
+  >
+    <Download size={18} />
+    Download Invoice
+  </button>
+
+  {trip.status !== "Cancelled" &&
+    trip.status !== "Completed" &&
+    trip.payment_status === "Paid" && (
+      <button
+        onClick={() => navigate(`/refund-request/${trip.id}`)}
+        className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 font-semibold text-red-600 transition hover:bg-red-100"
+      >
+        <RotateCcw size={18} />
+        Request Refund
+      </button>
+    )}
+</div>
         </div>
       </div>
     </div>

@@ -26,7 +26,7 @@ export default function Notifications() {
 
   const markAllRead = async () => {
     const user = JSON.parse(localStorage.getItem("user"));
-    await api.put(`/notifications/${user.id}/read-all`);
+   await api.put(`/notifications/${user.id}/mark-read`);
     loadNotifications();
   };
 
