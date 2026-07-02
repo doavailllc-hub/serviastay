@@ -73,6 +73,7 @@ import AdminUserDetails from "./pages/admin/AdminUserDetails";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -360,23 +361,20 @@ export default function App() {
 >
   <Route index element={<AdminDashboard />} />
   <Route path="dashboard" element={<AdminDashboard />} />
-
   <Route path="users" element={<AdminUsers />} />
   <Route path="users/:id" element={<AdminUserDetails />} />
-
   <Route path="properties" element={<AdminProperties />} />
   <Route path="bookings" element={<AdminBookings />} />
   <Route path="finance" element={<AdminFinance />} />
   <Route path="payments" element={<PaymentHistory />} />
   <Route path="payouts" element={<AdminPayouts />} />
-
   <Route path="kyc" element={<AdminKyc />} />
-
   <Route path="reviews" element={<AdminReviews />} />
   <Route path="coupons" element={<AdminCoupons />} />
   <Route path="analytics" element={<AdminAnalytics />} />
   <Route path="support" element={<AdminSupport />} />
   <Route path="settings" element={<AdminSettings />} />
+  <Route path="audit-logs" element={<AdminAuditLogs />} />
 </Route>
       <Route path="*" element={<NotFound />} />
 
