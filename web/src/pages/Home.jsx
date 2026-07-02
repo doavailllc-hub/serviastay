@@ -8,6 +8,9 @@ import {
   X,
   Minus,
   Plus,
+  CalendarDays,
+  Users,
+  MapPin,
 } from "lucide-react";
 import axios from "axios";
 
@@ -20,16 +23,13 @@ const API_URL = "https://stay.dovail.com/api/properties";
 
 function toISO(date) {
   if (!date) return "";
-
   const d = new Date(date);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-
   return d.toISOString().slice(0, 10);
 }
 
 function formatDisplayDate(date) {
   if (!date) return "";
-
   return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
     month: "short",
@@ -43,10 +43,12 @@ function addMonths(date, count) {
 export default function Home() {
   const navigate = useNavigate();
   const searchRef = useRef(null);
+  const destinationInputRef = useRef(null);
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePanel, setActivePanel] = useState(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const [destination, setDestination] = useState("");
   const [checkin, setCheckin] = useState(null);
@@ -61,47 +63,24 @@ export default function Home() {
   const totalGuests = adults + children;
 
   const destinations = [
-    {
-      name: "Nearby",
-      icon: <Navigation size={18} />,
-      desc: "Find stays around your current location",
-    },
-    {
-      name: "Wayanad, India",
-      icon: "🏞️",
-      desc: "Nature stays, resorts and villas",
-    },
-    {
-      name: "Kozhikode, India",
-      icon: "🌴",
-      desc: "Beach stays and city homes",
-    },
-    {
-      name: "Riyadh, Saudi Arabia",
-      icon: "🏙️",
-      desc: "Modern apartments and premium stays",
-    },
-    {
-      name: "Kochi, India",
-      icon: "🌊",
-      desc: "Backwaters, city stays and villas",
-    },
-    {
-      name: "Bengaluru, India",
-      icon: "🌆",
-      desc: "Apartments near dining and work hubs",
-    },
-    {
-      name: "Sulthan Bathery, India",
-      icon: "⛰️",
-      desc: "Hill stays and peaceful escapes",
-    },
-    {
-      name: "Munnar, India",
-      icon: "🍃",
-      desc: "Tea gardens and mountain homes",
-    },
+    { name: "Nearby", icon: <Navigation size={18} />, desc: "Find stays around your current location" },
+    { name: "Wayanad, India", icon: "🏞️", desc: "Nature stays, resorts and villas" },
+    { name: "Kozhikode, India", icon: "🌴", desc: "Beach stays and city homes" },
+    { name: "Riyadh, Saudi Arabia", icon: "🏙️", desc: "Modern apartments and premium stays" },
+    { name: "Kochi, India", icon: "🌊", desc: "Backwaters, city stays and villas" },
+    { name: "Bengaluru, India", icon: "🌆", desc: "Apartments near dining and work hubs" },
+    { name: "Sulthan Bathery, India", icon: "⛰️", desc: "Hill stays and peaceful escapes" },
+    { name: "Munnar, India", icon: "🍃", desc: "Tea gardens and mountain homes" },
   ];
+
+  const filteredDestinations = useMemo(() => {
+    const q = destination.trim().toLowerCase();
+    if (!q) return destinations;
+
+    return destinations.filter((item) =>
+      `${item.name} ${item.desc}`.toLowerCase().includes(q)
+    );
+  }, [destination]);
 
   useEffect(() => {
     loadProperties();
@@ -118,10 +97,15 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (activePanel === "where") {
+      setTimeout(() => destinationInputRef.current?.focus(), 80);
+    }
+  }, [activePanel]);
+
   const loadProperties = async () => {
     try {
       setLoading(true);
-
       const res = await axios.get(API_URL);
       setProperties(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -145,7 +129,7 @@ export default function Home() {
       : "Add guests";
 
   const handleDateClick = (date) => {
-    if (!checkin || (checkin && checkout)) {
+    if (!checkin || checkout) {
       setCheckin(date);
       setCheckout(null);
       return;
@@ -174,10 +158,11 @@ export default function Home() {
 
   const handleSearch = () => {
     setActivePanel(null);
+    setMobileSearchOpen(false);
 
     const params = new URLSearchParams();
 
-    if (destination) params.set("location", destination);
+    if (destination.trim()) params.set("location", destination.trim());
     if (checkin) params.set("checkin", toISO(checkin));
     if (checkout) params.set("checkout", toISO(checkout));
     if (totalGuests > 0) params.set("guests", String(totalGuests));
@@ -188,7 +173,7 @@ export default function Home() {
 
     navigate(`/search-results?${params.toString()}`, {
       state: {
-        destination,
+        destination: destination.trim(),
         checkin: toISO(checkin),
         checkout: toISO(checkout),
         guests: totalGuests,
@@ -206,17 +191,49 @@ export default function Home() {
         <Navbar />
 
         <section className="hidden w-full justify-center bg-white px-4 pb-4 pt-3 md:flex">
-          <div ref={searchRef} className="relative w-full max-w-[960px]">
+          <div ref={searchRef} className="relative w-full max-w-[980px]">
             <div className="flex h-16 items-center rounded-full border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-              <SearchButton
-                title="Where"
-                value={destination || "Search destinations"}
-                active={activePanel === "where"}
-                className="flex-[1.35]"
-                onClick={() =>
-                  setActivePanel(activePanel === "where" ? null : "where")
-                }
-              />
+              <div
+                className={`flex h-full flex-[1.35] items-center gap-3 rounded-full px-6 transition ${
+                  activePanel === "where" ? "bg-gray-50" : "hover:bg-gray-50"
+                }`}
+                onClick={() => setActivePanel("where")}
+              >
+                <Search size={17} className="shrink-0 text-gray-400" />
+
+                <label className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium text-gray-950">
+                    Where
+                  </span>
+
+                  <input
+                    ref={destinationInputRef}
+                    value={destination}
+                    onChange={(e) => {
+                      setDestination(e.target.value);
+                      setActivePanel("where");
+                    }}
+                    onFocus={() => setActivePanel("where")}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    placeholder="Search destinations"
+                    className="mt-0.5 w-full bg-transparent text-sm text-gray-600 outline-none placeholder:text-gray-400"
+                  />
+                </label>
+
+                {destination && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDestination("");
+                      destinationInputRef.current?.focus();
+                    }}
+                    className="rounded-full p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
 
               <Divider />
 
@@ -225,9 +242,7 @@ export default function Home() {
                 value={checkin ? formatDisplayDate(checkin) : "Add dates"}
                 active={activePanel === "dates"}
                 className="flex-1"
-                onClick={() =>
-                  setActivePanel(activePanel === "dates" ? null : "dates")
-                }
+                onClick={() => setActivePanel("dates")}
               />
 
               <Divider />
@@ -245,9 +260,7 @@ export default function Home() {
               <div className="relative flex h-full flex-[1.15] items-center">
                 <button
                   type="button"
-                  onClick={() =>
-                    setActivePanel(activePanel === "guests" ? null : "guests")
-                  }
+                  onClick={() => setActivePanel("guests")}
                   className={`flex h-full flex-1 flex-col justify-center rounded-full px-5 text-left transition ${
                     activePanel === "guests" ? "bg-gray-50" : "hover:bg-gray-50"
                   }`}
@@ -261,7 +274,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#3b71e6] text-white transition hover:bg-[#2f5fc2]"
+                  className="mr-2 flex h-11 w-11 items-center justify-center rounded-full bg-[#3b71e6] text-white transition hover:bg-[#2f5fc2] active:scale-[0.96]"
                   aria-label="Search"
                 >
                   <Search size={18} />
@@ -271,7 +284,7 @@ export default function Home() {
 
             {activePanel === "where" && (
               <DestinationDropdown
-                destinations={destinations}
+                destinations={filteredDestinations}
                 onClose={() => setActivePanel(null)}
                 onSelect={(place) => {
                   setDestination(place.name);
@@ -312,7 +325,7 @@ export default function Home() {
         <section className="px-4 pb-4 pt-3 md:hidden">
           <button
             type="button"
-            onClick={() => navigate("/search-results")}
+            onClick={() => setMobileSearchOpen(true)}
             className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-left shadow-sm"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3b71e6] text-white">
@@ -330,6 +343,36 @@ export default function Home() {
           </button>
         </section>
       </header>
+
+      {mobileSearchOpen && (
+        <MobileSearchPanel
+          destination={destination}
+          setDestination={setDestination}
+          destinations={filteredDestinations}
+          setActivePanel={setActivePanel}
+          activePanel={activePanel}
+          checkin={checkin}
+          checkout={checkout}
+          viewMonth={viewMonth}
+          setViewMonth={setViewMonth}
+          handleDateClick={handleDateClick}
+          clearDates={clearDates}
+          adults={adults}
+          setAdults={setAdults}
+          children={children}
+          setChildren={setChildren}
+          infants={infants}
+          setInfants={setInfants}
+          pets={pets}
+          setPets={setPets}
+          clearGuests={clearGuests}
+          handleSearch={handleSearch}
+          onClose={() => {
+            setMobileSearchOpen(false);
+            setActivePanel(null);
+          }}
+        />
+      )}
 
       <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
         <div className="mb-8 flex items-end justify-between gap-6">
@@ -406,23 +449,31 @@ function DestinationDropdown({ destinations, onSelect, onClose }) {
       </div>
 
       <div className="max-h-[420px] overflow-y-auto">
-        {destinations.map((place) => (
-          <button
-            key={place.name}
-            type="button"
-            onClick={() => onSelect(place)}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef4ff] text-xl text-[#3b71e6]">
-              {place.icon}
-            </div>
+        {destinations.length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-gray-500">
+            No destinations found.
+          </p>
+        ) : (
+          destinations.map((place) => (
+            <button
+              key={place.name}
+              type="button"
+              onClick={() => onSelect(place)}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50 active:scale-[0.99]"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef4ff] text-xl text-[#3b71e6]">
+                {place.icon}
+              </div>
 
-            <div>
-              <p className="text-sm font-medium text-gray-950">{place.name}</p>
-              <p className="text-sm text-gray-500">{place.desc}</p>
-            </div>
-          </button>
-        ))}
+              <div>
+                <p className="text-sm font-medium text-gray-950">
+                  {place.name}
+                </p>
+                <p className="text-sm text-gray-500">{place.desc}</p>
+              </div>
+            </button>
+          ))
+        )}
       </div>
     </div>
   );
@@ -441,34 +492,23 @@ function DateRangeDropdown({
 
   return (
     <div className="absolute left-1/2 top-[78px] z-50 w-[760px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
-      <div className="mx-auto mb-6 flex w-[240px] rounded-full bg-gray-100 p-1">
-        <button
-          type="button"
-          className="flex-1 rounded-full bg-white py-2 text-sm font-medium shadow-sm"
-        >
-          Dates
-        </button>
-        <button
-          type="button"
-          className="flex-1 rounded-full py-2 text-sm font-medium text-gray-500"
-        >
-          Flexible
-        </button>
-      </div>
-
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <button
           type="button"
           onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-          className="rounded-full p-2 transition hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
         >
           <ChevronLeft size={18} />
         </button>
 
+        <p className="text-sm font-medium text-gray-500">
+          Select check-in and check-out dates
+        </p>
+
         <button
           type="button"
           onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-          className="rounded-full p-2 transition hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
         >
           <ChevronRight size={18} />
         </button>
@@ -552,7 +592,7 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
               type="button"
               disabled={past}
               onClick={() => onDateClick(day)}
-              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition ${
+              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition active:scale-[0.95] ${
                 selected
                   ? "bg-[#3b71e6] text-white"
                   : inRange
@@ -585,47 +625,66 @@ function GuestDropdown({
 }) {
   return (
     <div className="absolute right-0 top-[78px] z-50 w-[410px] rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
+      <GuestContent
+        adults={adults}
+        setAdults={setAdults}
+        children={children}
+        setChildren={setChildren}
+        infants={infants}
+        setInfants={setInfants}
+        pets={pets}
+        setPets={setPets}
+        onClear={onClear}
+        onDone={onDone}
+      />
+    </div>
+  );
+}
+
+function GuestContent(props) {
+  return (
+    <>
       <GuestRow
         title="Adults"
         subtitle="Ages 13 or above"
-        value={adults}
-        onMinus={() => setAdults(Math.max(1, adults - 1))}
-        onPlus={() => setAdults(adults + 1)}
-        minusDisabled={adults <= 1}
+        value={props.adults}
+        onMinus={() => props.setAdults(Math.max(1, props.adults - 1))}
+        onPlus={() => props.setAdults(props.adults + 1)}
+        minusDisabled={props.adults <= 1}
       />
 
       <GuestRow
         title="Children"
         subtitle="Ages 2–12"
-        value={children}
-        onMinus={() => setChildren(Math.max(0, children - 1))}
-        onPlus={() => setChildren(children + 1)}
-        minusDisabled={children <= 0}
+        value={props.children}
+        onMinus={() => props.setChildren(Math.max(0, props.children - 1))}
+        onPlus={() => props.setChildren(props.children + 1)}
+        minusDisabled={props.children <= 0}
       />
 
       <GuestRow
         title="Infants"
         subtitle="Under 2"
-        value={infants}
-        onMinus={() => setInfants(Math.max(0, infants - 1))}
-        onPlus={() => setInfants(infants + 1)}
-        minusDisabled={infants <= 0}
+        value={props.infants}
+        onMinus={() => props.setInfants(Math.max(0, props.infants - 1))}
+        onPlus={() => props.setInfants(props.infants + 1)}
+        minusDisabled={props.infants <= 0}
       />
 
       <GuestRow
         title="Pets"
         subtitle="Bringing a service animal?"
-        value={pets}
-        onMinus={() => setPets(Math.max(0, pets - 1))}
-        onPlus={() => setPets(pets + 1)}
-        minusDisabled={pets <= 0}
+        value={props.pets}
+        onMinus={() => props.setPets(Math.max(0, props.pets - 1))}
+        onPlus={() => props.setPets(props.pets + 1)}
+        minusDisabled={props.pets <= 0}
         underline
       />
 
       <div className="mt-4 flex items-center justify-between">
         <button
           type="button"
-          onClick={onClear}
+          onClick={props.onClear}
           className="text-sm font-medium text-[#3b71e6] hover:underline"
         >
           Clear
@@ -633,13 +692,13 @@ function GuestDropdown({
 
         <button
           type="button"
-          onClick={onDone}
+          onClick={props.onDone}
           className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
         >
           Done
         </button>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -681,6 +740,156 @@ function GuestRow({
           <Plus size={14} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function MobileSearchPanel({
+  destination,
+  setDestination,
+  destinations,
+  activePanel,
+  setActivePanel,
+  checkin,
+  checkout,
+  viewMonth,
+  setViewMonth,
+  handleDateClick,
+  clearDates,
+  adults,
+  setAdults,
+  children,
+  setChildren,
+  infants,
+  setInfants,
+  pets,
+  setPets,
+  clearGuests,
+  handleSearch,
+  onClose,
+}) {
+  return (
+    <div className="fixed inset-0 z-[80] bg-white md:hidden">
+      <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
+        <h2 className="text-base font-semibold text-gray-950">Search stays</h2>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-2 hover:bg-gray-100"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="h-[calc(100vh-128px)] overflow-y-auto px-4 py-5">
+        <div className="mb-4 flex h-12 items-center gap-3 rounded-xl border border-gray-200 px-4 focus-within:border-[#3b71e6] focus-within:ring-2 focus-within:ring-[#3b71e6]/10">
+          <Search size={17} className="text-gray-400" />
+
+          <input
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder="Search destinations"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+          />
+        </div>
+
+        <SectionTitle icon={<MapPin size={17} />} title="Destinations" />
+
+        <div className="mb-6 space-y-1">
+          {destinations.map((place) => (
+            <button
+              key={place.name}
+              type="button"
+              onClick={() => {
+                setDestination(place.name);
+                setActivePanel("dates");
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-gray-50"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef4ff] text-[#3b71e6]">
+                {place.icon}
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-950">
+                  {place.name}
+                </p>
+                <p className="text-xs text-gray-500">{place.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <SectionTitle icon={<CalendarDays size={17} />} title="Dates" />
+
+        <div className="rounded-2xl border border-gray-200 p-4">
+          <MobileDatePicker
+            viewMonth={viewMonth}
+            setViewMonth={setViewMonth}
+            checkin={checkin}
+            checkout={checkout}
+            onDateClick={handleDateClick}
+          />
+
+          <button
+            type="button"
+            onClick={clearDates}
+            className="mt-4 text-sm font-medium text-[#3b71e6]"
+          >
+            Clear dates
+          </button>
+        </div>
+
+        <div className="mt-6">
+          <SectionTitle icon={<Users size={17} />} title="Guests" />
+
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <GuestContent
+              adults={adults}
+              setAdults={setAdults}
+              children={children}
+              setChildren={setChildren}
+              infants={infants}
+              setInfants={setInfants}
+              pets={pets}
+              setPets={setPets}
+              onClear={clearGuests}
+              onDone={() => {}}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4">
+        <button
+          type="button"
+          onClick={handleSearch}
+          className="h-12 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white"
+        >
+          Search
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MobileDatePicker(props) {
+  return (
+    <MonthCalendar
+      monthDate={props.viewMonth}
+      checkin={props.checkin}
+      checkout={props.checkout}
+      onDateClick={props.onDateClick}
+    />
+  );
+}
+
+function SectionTitle({ icon, title }) {
+  return (
+    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-950">
+      <span className="text-[#3b71e6]">{icon}</span>
+      {title}
     </div>
   );
 }
