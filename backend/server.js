@@ -5866,18 +5866,19 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
   }
 });
 
+// Temporary test route
+app.get("/api/sentry-test", (req, res) => {
+  throw new Error("Sentry test error");
+});
 
-
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    tracesSampleRate: 0.1,
-    environment: process.env.NODE_ENV || "production",
-  });
-}
+// Sentry error handler
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
 }
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT} 🚀`);
+});
   
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
