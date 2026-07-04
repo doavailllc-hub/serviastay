@@ -12,11 +12,6 @@ const { Server } = require("socket.io");
 const PDFDocument = require("pdfkit");
 require("dotenv").config();
 const Sentry = require("@sentry/node");
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  tracesSampleRate: 1.0,
-});
 const deleteS3File = require("./utils/deleteS3File");
 const app = express();
 
@@ -36,7 +31,7 @@ const allowedOrigins = [
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
-app.use(Sentry.Handlers.requestHandler());
+Sentry.setupExpressErrorHandler(app);
 app.use(
   cors({
     origin(origin, callback) {
@@ -5870,10 +5865,20 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
     res.status(500).json({ message: "Refund update failed", error: err.message });
   }
 });
-app.use(Sentry.Handlers.errorHandler());
-app.get("/api/sentry-test", (req, res) => {
-  throw new Error("Sentry test error");
-});
+
+
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    environment: process.env.NODE_ENV || "production",
+  });
+}
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+  
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
