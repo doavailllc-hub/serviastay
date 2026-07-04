@@ -1397,9 +1397,10 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
       checkout,
       guests,
       total,
-     payment_method,
-coupon_code,
-discount,
+      payment_method,
+      coupon_code,
+      discount,
+      razorpay_order_id,
     } = req.body;
 
     const existing = await query(
@@ -1422,23 +1423,23 @@ discount,
     const result = await query(
       `
       INSERT INTO servia_bookings
- (property_id, user_id, checkin, checkout, guests, total, status, payment_method, payment_status, razorpay_order_id, coupon_code, discount)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (property_id, user_id, checkin, checkout, guests, total, status, payment_method, payment_status, razorpay_order_id, coupon_code, discount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-[
-  property_id,
-  user_id,
-  checkin,
-  checkout,
-  guests,
-  total,
-  payment_method === "razorpay" ? "Pending" : "Confirmed",
-  payment_method || "cash",
-  payment_method === "razorpay" ? "Pending" : "Paid",
-  req.body.razorpay_order_id || null,
-  coupon_code || null,
-  Number(discount || 0),
-]
+      [
+        property_id,
+        user_id,
+        checkin,
+        checkout,
+        guests,
+        total,
+        payment_method === "razorpay" ? "Pending" : "Confirmed",
+        payment_method || "cash",
+        payment_method === "razorpay" ? "Pending" : "Paid",
+        razorpay_order_id || null,
+        coupon_code || null,
+        Number(discount || 0),
+      ]
     );
 
     try {
@@ -1448,20 +1449,51 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       );
 
       const properties = await query(
-        "SELECT title FROM servia_properties WHERE id = ? LIMIT 1",
+        `
+        SELECT p.title, u.email AS host_email, u.fullname AS host_name
+        FROM servia_properties p
+        LEFT JOIN servia_users u ON p.host_id = u.id
+        WHERE p.id = ?
+        LIMIT 1
+        `,
         [property_id]
       );
 
-      if (users.length && users[0].email) {
+      const guest = users[0];
+      const property = properties[0];
+
+      if (guest?.email) {
         await sendBookingConfirmation({
-          email: users[0].email,
-          guestName: users[0].fullname || "Guest",
-          propertyTitle: properties[0]?.title || "Dovail Stay",
+          email: guest.email,
+          guestName: guest.fullname || "Guest",
+          propertyTitle: property?.title || "Servia Stay",
           checkin,
           checkout,
           guests,
           total,
           bookingId: result.insertId,
+        });
+      }
+
+      if (property?.host_email) {
+        await sendEmail({
+          to: property.host_email,
+          subject: "New Booking Received - Servia Stay",
+          html: `
+            <h2>New Booking Received 🏡</h2>
+            <p>Hi ${property.host_name || "Host"},</p>
+            <p>Your property has received a new booking.</p>
+
+            <p><b>Guest:</b> ${guest?.fullname || "Guest"}</p>
+            <p><b>Property:</b> ${property?.title || "Servia Stay"}</p>
+            <p><b>Check-in:</b> ${checkin}</p>
+            <p><b>Check-out:</b> ${checkout}</p>
+            <p><b>Guests:</b> ${guests}</p>
+            <p><b>Total:</b> ₹${Number(total || 0).toLocaleString("en-IN")}</p>
+
+            <br/>
+            <p>Please check your host dashboard for details.</p>
+          `,
         });
       }
     } catch (emailErr) {
@@ -1474,7 +1506,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       bookingId: result.insertId,
     });
   } catch (err) {
-    res.status(500).json({ message: "Booking failed", error: err.message });
+    console.log("BOOKING ERROR:", err);
+    res.status(500).json({
+      message: "Booking failed",
+      error: err.message,
+    });
   }
 });
 /* WISHLIST */
