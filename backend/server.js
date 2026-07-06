@@ -566,63 +566,45 @@ app.post("/api/upload/multiple", verifyToken, upload.array("images", 10), async 
 
 app.get("/api/properties", async (req, res) => {
   try {
-    const rows = await query(`
-      SELECT 
-        p.*,
-        u.fullname AS host_name,
-        u.email AS host_email
-      FROM servia_properties p
-      LEFT JOIN servia_users u ON p.user_id = u.id
-      ORDER BY p.id DESC
+    const properties = await query(`
+      SELECT *
+      FROM servia_properties
+      WHERE status = 'approved'
+      AND is_verified = 1
+      ORDER BY id DESC
     `);
 
-    res.json(rows);
+    res.json(properties);
   } catch (err) {
-    res.status(500).json({ message: "Cannot fetch properties", error: err.message });
+    console.error("Properties load error:", err);
+    res.status(500).json({ message: "Failed to load properties" });
   }
 });
 
+
 app.get("/api/properties/:id", async (req, res) => {
   try {
+    const { id } = req.params;
+
     const rows = await query(
       `
-      SELECT 
-        p.*,
-        u.fullname AS host_name,
-        u.email AS host_email,
-        u.phone AS host_phone,
-        u.kyc_status AS host_kyc_status
-      FROM servia_properties p
-      LEFT JOIN servia_users u ON u.id = p.user_id
-      WHERE p.id = ?
-      LIMIT 1
+      SELECT *
+      FROM servia_properties
+      WHERE id = ?
+      AND status = 'approved'
+      AND is_verified = 1
       `,
-      [req.params.id]
+      [id]
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Property not found" });
+      return res.status(404).json({ message: "Property not available" });
     }
 
-    const images = await query(
-      `
-      SELECT *
-      FROM servia_property_images
-      WHERE property_id = ?
-      ORDER BY sort_order ASC, id ASC
-      `,
-      [req.params.id]
-    );
-
-    res.json({
-      ...rows[0],
-      images,
-    });
+    res.json(rows[0]);
   } catch (err) {
-    res.status(500).json({
-      message: "Cannot fetch property",
-      error: err.message,
-    });
+    console.error("Property detail error:", err);
+    res.status(500).json({ message: "Failed to load property" });
   }
 });
 app.post("/api/properties", verifyToken, async (req, res) => {
