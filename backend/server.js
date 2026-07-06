@@ -566,22 +566,19 @@ app.post("/api/upload/multiple", verifyToken, upload.array("images", 10), async 
 
 app.get("/api/properties", async (req, res) => {
   try {
-    const properties = await query(`
+    const rows = await query(`
       SELECT *
       FROM servia_properties
-      WHERE status = 'approved'
-      AND is_verified = 1
+      WHERE status = 'Published'
       ORDER BY id DESC
     `);
 
-    res.json(properties);
+    res.json(rows);
   } catch (err) {
     console.error("Properties load error:", err);
     res.status(500).json({ message: "Failed to load properties" });
   }
 });
-
-
 app.get("/api/properties/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -591,8 +588,7 @@ app.get("/api/properties/:id", async (req, res) => {
       SELECT *
       FROM servia_properties
       WHERE id = ?
-      AND status = 'approved'
-      AND is_verified = 1
+      AND status = 'Published'
       `,
       [id]
     );
@@ -667,7 +663,7 @@ app.post(
   upload.array("images", 10),
   async (req, res) => {
     const connection = await db.promise().getConnection();
-
+const status = "Pending";
     try {
       const {
         user_id,
