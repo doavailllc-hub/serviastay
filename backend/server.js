@@ -597,7 +597,20 @@ app.get("/api/properties/:id", async (req, res) => {
       return res.status(404).json({ message: "Property not available" });
     }
 
-    res.json(rows[0]);
+    const images = await query(
+      `
+      SELECT id, image_url, is_cover, sort_order
+      FROM servia_property_images
+      WHERE property_id = ?
+      ORDER BY is_cover DESC, sort_order ASC, id ASC
+      `,
+      [id]
+    );
+
+    res.json({
+      ...rows[0],
+      images,
+    });
   } catch (err) {
     console.error("Property detail error:", err);
     res.status(500).json({ message: "Failed to load property" });
