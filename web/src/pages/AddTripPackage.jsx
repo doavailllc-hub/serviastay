@@ -7,13 +7,9 @@ import {
   Loader2,
   Plus,
   Trash2,
-  X,
 } from "lucide-react";
 
 import api from "../api/api";
-
-const BRAND = "#3b71e6";
-const BRAND_HOVER = "#2f5fc2";
 
 const steps = [
   "basic",
@@ -48,6 +44,21 @@ const includeOptions = [
   "Activities",
   "Travel support",
 ];
+
+function getAuthSession() {
+  try {
+    const token =
+      localStorage.getItem("token") || sessionStorage.getItem("token");
+
+    const user =
+      JSON.parse(localStorage.getItem("user") || "null") ||
+      JSON.parse(sessionStorage.getItem("user") || "null");
+
+    return { token, user };
+  } catch {
+    return { token: null, user: null };
+  }
+}
 
 export default function AddTripPackage() {
   const navigate = useNavigate();
@@ -106,15 +117,20 @@ export default function AddTripPackage() {
 
   const canSubmit = useMemo(() => {
     return (
-      form.title.trim() &&
+      form.title.trim().length >= 5 &&
       form.location.trim() &&
+      form.city.trim() &&
       Number(form.price) > 0 &&
+      Number(form.package_days) > 0 &&
+      Number(form.max_people) > 0 &&
+      selectedIncludes.length > 0 &&
       images.length > 0
     );
-  }, [form, images]);
+  }, [form, selectedIncludes, images]);
 
   const updateField = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (error) setError("");
   };
 
   const toggleInclude = (item) => {
@@ -141,13 +157,32 @@ export default function AddTripPackage() {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const nextFiles = [...images, ...files].slice(0, 10);
-    setImages(nextFiles);
-    setPreviews(nextFiles.map((file) => URL.createObjectURL(file)));
+    const validFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    if (!validFiles.length) {
+      setError("Please upload valid image files only.");
+      return;
+    }
+
+    if (images.length + validFiles.length > 10) {
+      setError("Maximum 10 images allowed.");
+      return;
+    }
+
+    const nextImages = [...images, ...validFiles];
+
+    previews.forEach((url) => URL.revokeObjectURL(url));
+
+    setImages(nextImages);
+    setPreviews(nextImages.map((file) => URL.createObjectURL(file)));
+    e.target.value = "";
   };
 
   const removeImage = (index) => {
     const nextImages = images.filter((_, i) => i !== index);
+
+    previews.forEach((url) => URL.revokeObjectURL(url));
+
     setImages(nextImages);
     setPreviews(nextImages.map((file) => URL.createObjectURL(file)));
   };
@@ -156,7 +191,11 @@ export default function AddTripPackage() {
     const current = steps[step];
 
     if (current === "basic") {
-      return form.title.trim() && form.location.trim() && form.city.trim();
+      return (
+        form.title.trim().length >= 5 &&
+        form.location.trim() &&
+        form.city.trim()
+      );
     }
 
     if (current === "pricing") {
@@ -167,9 +206,7 @@ export default function AddTripPackage() {
       );
     }
 
-    if (current === "includes") {
-      return selectedIncludes.length > 0;
-    }
+    if (current === "includes") return selectedIncludes.length > 0;
 
     if (current === "itinerary") {
       return itinerary.some(
@@ -177,9 +214,7 @@ export default function AddTripPackage() {
       );
     }
 
-    if (current === "photos") {
-      return images.length > 0;
-    }
+    if (current === "photos") return images.length > 0;
 
     return true;
   };
@@ -187,25 +222,32 @@ export default function AddTripPackage() {
   const next = () => {
     if (!canNext()) return;
     setStep((prev) => Math.min(prev + 1, steps.length - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const back = () => {
     setStep((prev) => Math.max(prev - 1, 0));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const submitPackage = async () => {
+    if (submitting) return;
+
     try {
       setError("");
 
-      const token = localStorage.getItem("token");
+      const { token, user } = getAuthSession();
 
-      if (!token) {
+      if (!token || !user?.id) {
+        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
+        setError("Session expired. Please login again.");
         navigate("/login");
         return;
       }
 
       if (!canSubmit) {
-        setError("Please add title, destination, price and at least one image.");
+        setError("Please complete all required details before submitting.");
         return;
       }
 
@@ -217,29 +259,47 @@ export default function AddTripPackage() {
         body.append(key, value ?? "");
       });
 
+      body.append("user_id", user.id);
+      body.append("host_id", user.id);
+      body.append("status", "Pending");
+      body.append("is_verified", "0");
       body.append("includes", selectedIncludes.join(","));
       body.append(
         "itinerary",
         itinerary
+          .filter((day) => day.title.trim() || day.description.trim())
           .map(
             (day, index) =>
-              `Day ${index + 1}: ${day.title}\n${day.description}`
+              `Day ${index + 1}: ${day.title.trim()}\n${day.description.trim()}`
           )
           .join("\n\n")
       );
 
       images.forEach((file) => body.append("images", file));
 
-      const res = await api.post("/trip-packages", body, {
+      await api.post("/trip-packages", body, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
 
-      navigate(`/experiences/${res.data.packageId}`);
+      alert(
+        "Trip package submitted for verification. It will go live after admin approval."
+      );
+
+      navigate("/host-dashboard");
     } catch (err) {
       console.error("Trip package create failed:", err);
+
+      if (err.response?.status === 401) {
+        setError("Invalid session. Please login again.");
+        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
+        navigate("/login");
+        return;
+      }
+
       setError(
         err.response?.data?.message ||
           "Unable to create trip package. Please try again."
@@ -327,7 +387,7 @@ export default function AddTripPackage() {
               <PageTitle
                 eyebrow="Step 2"
                 title="Set pricing and duration"
-                description="Add the package price, trip duration and maximum travelers."
+                description="Add package price, duration and maximum travelers."
               />
 
               <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -340,6 +400,7 @@ export default function AddTripPackage() {
                 <Input
                   label="Max travelers"
                   type="number"
+                  min="1"
                   value={form.max_people}
                   onChange={(e) => updateField("max_people", e.target.value)}
                 />
@@ -347,6 +408,7 @@ export default function AddTripPackage() {
                 <Input
                   label="Days"
                   type="number"
+                  min="1"
                   value={form.package_days}
                   onChange={(e) => updateField("package_days", e.target.value)}
                 />
@@ -354,6 +416,7 @@ export default function AddTripPackage() {
                 <Input
                   label="Nights"
                   type="number"
+                  min="0"
                   value={form.package_nights}
                   onChange={(e) =>
                     updateField("package_nights", e.target.value)
@@ -380,10 +443,10 @@ export default function AddTripPackage() {
                       key={item}
                       type="button"
                       onClick={() => toggleInclude(item)}
-                      className={`rounded-2xl border p-4 text-left transition hover:bg-gray-50 ${
+                      className={`rounded-2xl border p-4 text-left transition ${
                         active
                           ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6]"
-                          : "border-gray-200 bg-white text-gray-700"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       <CheckCircle2 size={18} />
@@ -508,7 +571,7 @@ export default function AddTripPackage() {
               <PageTitle
                 eyebrow="Step 6"
                 title="Add cancellation policy"
-                description="Explain cancellation rules in a simple and clear way."
+                description="Explain cancellation rules clearly."
               />
 
               <Textarea
@@ -527,7 +590,7 @@ export default function AddTripPackage() {
               <PageTitle
                 eyebrow="Step 7"
                 title="Add package images"
-                description="Upload images for this package. The first image will be used as the cover."
+                description="Upload images for this package. First image is the cover."
               />
 
               <label className="mt-8 flex min-h-[360px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-[#3b71e6] hover:bg-[#f8fbff]">
@@ -589,8 +652,8 @@ export default function AddTripPackage() {
             <section>
               <PageTitle
                 eyebrow="Step 8"
-                title="Review and publish"
-                description="Check the package details before publishing."
+                title="Review and submit"
+                description="Your trip package will be reviewed by admin before going live."
               />
 
               <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
@@ -637,6 +700,8 @@ export default function AddTripPackage() {
                     label="Travelers"
                     value={`Max ${form.max_people || 10}`}
                   />
+
+                  <PreviewRow label="Status" value="Pending verification" />
                 </div>
               </div>
             </section>
@@ -654,6 +719,7 @@ export default function AddTripPackage() {
 
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 md:px-8">
           <button
+            type="button"
             onClick={back}
             disabled={step === 0}
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 transition hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
@@ -664,6 +730,7 @@ export default function AddTripPackage() {
 
           {step === steps.length - 1 ? (
             <button
+              type="button"
               onClick={submitPackage}
               disabled={submitting || !canSubmit}
               className="rounded-xl bg-[#3b71e6] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
@@ -671,14 +738,15 @@ export default function AddTripPackage() {
               {submitting ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="animate-spin" size={16} />
-                  Publishing
+                  Submitting
                 </span>
               ) : (
-                "Publish"
+                "Submit for verification"
               )}
             </button>
           ) : (
             <button
+              type="button"
               onClick={next}
               disabled={!canNext()}
               className="rounded-xl bg-[#3b71e6] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
@@ -696,6 +764,7 @@ function HostHeader({ navigate }) {
   return (
     <header className="flex h-20 items-center justify-between border-b border-gray-200 px-4 md:px-8">
       <button
+        type="button"
         onClick={() => navigate("/")}
         className="text-lg font-semibold tracking-tight text-gray-950"
       >
@@ -703,12 +772,16 @@ function HostHeader({ navigate }) {
       </button>
 
       <div className="flex items-center gap-2">
-        <button className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+        <button
+          type="button"
+          className="hidden rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:block"
+        >
           Questions?
         </button>
 
         <button
-          onClick={() => navigate("/")}
+          type="button"
+          onClick={() => navigate("/host-dashboard")}
           className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
         >
           Save & exit
