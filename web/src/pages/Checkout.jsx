@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Check,
   CheckCircle,
-  ChevronRight,
   CreditCard,
   Home,
   ShieldCheck,
@@ -16,7 +15,6 @@ import {
 import api from "../api/api";
 
 const BRAND = "#3b71e6";
-const BRAND_HOVER = "#2f5fc2";
 const APP_NAME = import.meta.env.VITE_APP_NAME || "Dovail Stay";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -34,7 +32,7 @@ export default function Checkout() {
   const checkout = location.state?.checkout || "";
 
   const [loading, setLoading] = useState(false);
-  const [acceptedRules, setAcceptedRules] = useState(true);
+  const [acceptedRules, setAcceptedRules] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -184,10 +182,14 @@ export default function Checkout() {
 
   const payWithRazorpay = async () => {
     const user = getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     if (!property?.id) {
       alert("Property not found");
+      setLoading(false);
       return;
     }
 
@@ -195,6 +197,7 @@ export default function Checkout() {
 
     if (!scriptLoaded) {
       alert("Razorpay failed to load. Please check your internet connection.");
+      setLoading(false);
       return;
     }
 
@@ -244,17 +247,26 @@ export default function Checkout() {
       },
 
       handler: async (response) => {
-        await api.post("/payments/verify", {
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
-        });
+        try {
+          await api.post("/payments/verify", {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
 
-        await createBooking({
-          method: "razorpay",
-          paymentId: response.razorpay_payment_id,
-          orderId: response.razorpay_order_id,
-        });
+          await createBooking({
+            method: "razorpay",
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id,
+          });
+        } catch (err) {
+          console.log("Payment verification failed:", err);
+          alert(
+            err.response?.data?.message ||
+              "Payment verification failed. Please contact support."
+          );
+          setLoading(false);
+        }
       },
     };
 
@@ -270,30 +282,30 @@ export default function Checkout() {
   };
 
   const handlePayment = async () => {
+    if (loading) return;
+
     try {
       if (!acceptedRules) {
         alert("Please accept the house rules before continuing.");
         return;
       }
 
-      setLoading(true);
-
       if (!property?.id) {
         alert("Property not found");
         return;
       }
 
+      setLoading(true);
       await payWithRazorpay();
     } catch (err) {
       console.log("Checkout failed:", err);
 
       if (err.response?.status === 409) {
         alert("This property is already booked for these dates.");
-        return;
+      } else {
+        alert(err.response?.data?.message || "Payment failed. Please try again.");
       }
 
-      alert(err.response?.data?.message || "Payment failed. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -303,13 +315,17 @@ export default function Checkout() {
       <div className="flex min-h-screen items-center justify-center bg-white px-4">
         <div className="max-w-md rounded-[28px] border border-gray-200 p-8 text-center shadow-sm">
           <Home className="mx-auto text-gray-400" size={34} />
+
           <h1 className="mt-5 text-2xl font-semibold text-gray-950">
             No property selected
           </h1>
+
           <p className="mt-3 text-sm leading-6 text-gray-500">
             Please select a stay before continuing to checkout.
           </p>
+
           <button
+            type="button"
             onClick={() => navigate("/")}
             className="mt-6 rounded-xl bg-[#3b71e6] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2f5fc2]"
           >
@@ -325,6 +341,7 @@ export default function Checkout() {
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-7 md:px-8 lg:pt-10">
         <header className="mb-8 flex items-center gap-4 border-b border-gray-100 pb-6">
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-gray-100"
             aria-label="Go back"
@@ -342,24 +359,28 @@ export default function Checkout() {
             <TopNotice />
 
             <Section title="Your trip">
-              <TripRow title="Dates" value={`${checkin} – ${checkout}`} />
+              <TripRow
+                title="Dates"
+                value={`${checkin} – ${checkout}`}
+                onEdit={() => navigate(-1)}
+              />
+
               <TripRow
                 title="Guests"
                 value={`${guests} ${guests === 1 ? "guest" : "guests"}`}
+                onEdit={() => navigate(-1)}
               />
             </Section>
 
             <Divider />
 
-            <Section title="Choose how to pay">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between rounded-2xl border-2 border-gray-950 p-5 text-left"
-              >
+            <Section title="Payment method">
+              <div className="flex w-full items-center justify-between rounded-2xl border-2 border-gray-950 p-5 text-left">
                 <div className="flex items-center gap-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100">
                     <CreditCard size={21} />
                   </div>
+
                   <div>
                     <p className="text-sm font-semibold text-gray-950">
                       Pay securely with Razorpay
@@ -369,12 +390,13 @@ export default function Checkout() {
                     </p>
                   </div>
                 </div>
+
                 <CheckCircle size={22} className="text-gray-950" />
-              </button>
+              </div>
 
               <p className="mt-4 text-sm leading-6 text-gray-500">
-                Your card or UPI details are handled securely by Razorpay. We
-                confirm your booking only after successful payment verification.
+                Your payment details are handled securely by Razorpay. Your
+                booking is confirmed only after successful payment verification.
               </p>
             </Section>
 
@@ -455,30 +477,13 @@ export default function Checkout() {
                   onChange={(e) => setAcceptedRules(e.target.checked)}
                   className="mt-1 h-4 w-4 accent-black"
                 />
+
                 <span className="text-sm leading-6 text-gray-600">
                   I agree to the booking terms, cancellation policy, and house
                   rules.
                 </span>
               </label>
             </Section>
-
-            <Divider />
-
-            <div>
-              <p className="text-xs leading-6 text-gray-500">
-                By selecting the button below, I agree to the host’s house
-                rules, cancellation policy, and booking terms. Razorpay will
-                securely process the payment.
-              </p>
-
-              <button
-                onClick={handlePayment}
-                disabled={loading || !acceptedRules}
-                className="mt-5 h-14 w-full rounded-xl bg-[#3b71e6] text-base font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto sm:px-10"
-              >
-                {loading ? "Processing..." : "Confirm and pay"}
-              </button>
-            </div>
           </section>
 
           <aside className="lg:sticky lg:top-8 lg:self-start">
@@ -488,13 +493,18 @@ export default function Checkout() {
                   src={image}
                   alt={property?.title || "Selected stay"}
                   className="h-28 w-28 rounded-2xl object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = FALLBACK_IMAGE;
+                  }}
                 />
 
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-gray-500">Entire stay</p>
+
                   <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-gray-950">
                     {property?.title || "Selected stay"}
                   </h3>
+
                   <p className="mt-2 text-xs font-medium text-gray-600">
                     ★ {property?.rating || "5.0"} · Guest favorite
                   </p>
@@ -514,6 +524,7 @@ export default function Checkout() {
                   }`}
                   value={formatINR(subtotal)}
                 />
+
                 <PriceRow label="Service fee" value={formatINR(serviceFee)} />
                 <PriceRow label="Taxes" value={formatINR(taxes)} />
 
@@ -534,12 +545,19 @@ export default function Checkout() {
               </div>
 
               <button
+                type="button"
                 onClick={handlePayment}
                 disabled={loading || !acceptedRules}
-                className="mt-6 h-13 w-full rounded-xl bg-[#3b71e6] py-3.5 text-sm font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
+                className="mt-6 w-full rounded-xl bg-[#3b71e6] py-3.5 text-sm font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {loading ? "Processing..." : "Confirm and pay"}
               </button>
+
+              {!acceptedRules && (
+                <p className="mt-3 text-center text-xs font-medium text-gray-500">
+                  Please accept the ground rules to continue.
+                </p>
+              )}
 
               <p className="mt-3 text-center text-xs text-gray-500">
                 You will be taken to secure Razorpay checkout.
@@ -547,6 +565,7 @@ export default function Checkout() {
 
               <div className="mt-5 flex items-start gap-3 rounded-2xl bg-gray-50 p-4">
                 <ShieldCheck size={20} className="mt-0.5 text-gray-800" />
+
                 <p className="text-sm leading-6 text-gray-600">
                   Your booking is confirmed only after payment verification.
                 </p>
@@ -555,6 +574,7 @@ export default function Checkout() {
 
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
               <Tag size={18} className="text-green-700" />
+
               <p className="text-sm font-semibold text-green-800">
                 Secure payment powered by Razorpay
               </p>
@@ -573,10 +593,12 @@ function TopNotice() {
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100">
           <Sparkles size={20} />
         </div>
+
         <div>
           <h2 className="text-base font-semibold text-gray-950">
             This is a rare find.
           </h2>
+
           <p className="mt-1 text-sm leading-6 text-gray-500">
             This stay is usually booked quickly. Complete your payment to secure
             your reservation.
@@ -593,24 +615,29 @@ function Section({ title, children }) {
       <h2 className="mb-5 text-[22px] font-semibold tracking-tight text-gray-950">
         {title}
       </h2>
+
       {children}
     </section>
   );
 }
 
-function TripRow({ title, value }) {
+function TripRow({ title, value, onEdit }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <div>
         <h3 className="text-base font-semibold text-gray-950">{title}</h3>
         <p className="mt-1 text-sm text-gray-500">{value || "Not selected"}</p>
       </div>
-      <button
-        type="button"
-        className="text-sm font-semibold underline underline-offset-2"
-      >
-        Edit
-      </button>
+
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-sm font-semibold underline underline-offset-2"
+        >
+          Edit
+        </button>
+      )}
     </div>
   );
 }
@@ -632,7 +659,9 @@ function PriceRow({ label, value, success }) {
       }`}
     >
       <span>{label}</span>
-      <span className="font-medium text-gray-950">{value}</span>
+      <span className={success ? "font-semibold text-green-700" : "font-medium text-gray-950"}>
+        {value}
+      </span>
     </div>
   );
 }
