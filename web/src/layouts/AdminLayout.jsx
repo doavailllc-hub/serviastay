@@ -19,8 +19,8 @@ import {
   Wallet,
   RotateCcw,
   X,
+  Map,
 } from "lucide-react";
-
 const menuSections = [
   {
     title: "Overview",
@@ -29,15 +29,16 @@ const menuSections = [
       { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
     ],
   },
-  {
-    title: "Operations",
-    items: [
-      { label: "Users", path: "/admin/users", icon: Users },
-      { label: "Properties", path: "/admin/properties", icon: Building2 },
-      { label: "Bookings", path: "/admin/bookings", icon: CalendarDays },
-      { label: "Reviews", path: "/admin/reviews", icon: MessageSquare },
-    ],
-  },
+{
+  title: "Operations",
+  items: [
+    { label: "Users", path: "/admin/users", icon: Users },
+    { label: "Properties", path: "/admin/properties", icon: Building2 },
+    { label: "Trip Packages", path: "/admin/trips", icon: Map },
+    { label: "Bookings", path: "/admin/bookings", icon: CalendarDays },
+    { label: "Reviews", path: "/admin/reviews", icon: MessageSquare },
+  ],
+},
   {
     title: "Verification",
     items: [

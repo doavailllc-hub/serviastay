@@ -5904,6 +5904,57 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
   }
 });
 
+
+app.get("/api/admin/trip-packages", verifyAdmin, async (req, res) => {
+  try {
+    const rows = await query(`
+      SELECT 
+        e.*,
+        (
+          SELECT image_url
+          FROM experience_images
+          WHERE experience_id = e.id
+          ORDER BY is_cover DESC, sort_order ASC
+          LIMIT 1
+        ) AS image
+      FROM experiences e
+      ORDER BY e.created_at DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.log("ADMIN TRIPS LOAD ERROR:", err.message);
+    res.status(500).json({ message: "Failed to load trip packages" });
+  }
+});
+
+app.put("/api/admin/trip-packages/:id/status", verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, admin_note } = req.body;
+
+    const allowed = ["Pending", "active", "Rejected", "Suspended"];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    await query(
+      `
+      UPDATE experiences
+      SET status = ?, admin_note = ?
+      WHERE id = ?
+      `,
+      [status, admin_note || null, id]
+    );
+
+    res.json({ message: "Trip package status updated" });
+  } catch (err) {
+    console.log("ADMIN TRIP STATUS ERROR:", err.message);
+    res.status(500).json({ message: "Failed to update trip package" });
+  }
+});
+
 // Temporary test route
 app.get("/api/sentry-test", (req, res) => {
   throw new Error("Sentry test error");
@@ -5914,10 +5965,6 @@ if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
 }
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT} 🚀`);
-});
-  
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });

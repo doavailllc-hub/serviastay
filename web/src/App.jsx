@@ -75,6 +75,9 @@ import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 import AdminAdmins from "./pages/admin/AdminAdmins";
+import AdminRefunds from "./pages/admin/AdminRefunds";
+import RefundRequest from "./pages/RefundRequest";
+import AdminTrips from "./pages/admin/AdminTrips";
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -125,7 +128,7 @@ export default function App() {
       <Route path="/help" element={<HelpCenter />} />
 <Route path="/host-trip-packages" element={<HostTripPackages />} />
 <Route path="/edit-trip-package/:id" element={<EditTripPackage />} />
-
+<Route path="/refund-request/:bookingId" element={<RefundRequest />} />
       {/* ========= PROTECTED ROUTES ========= */}
 
       <Route
@@ -365,6 +368,7 @@ export default function App() {
   <Route path="users" element={<AdminUsers />} />
   <Route path="users/:id" element={<AdminUserDetails />} />
   <Route path="properties" element={<AdminProperties />} />
+  <Route path="/admin/trips" element={<AdminTrips />} />
   <Route path="bookings" element={<AdminBookings />} />
   <Route path="finance" element={<AdminFinance />} />
   <Route path="payments" element={<PaymentHistory />} />
@@ -377,6 +381,7 @@ export default function App() {
   <Route path="settings" element={<AdminSettings />} />
   <Route path="audit-logs" element={<AdminAuditLogs />} />
   <Route path="admins" element={<AdminAdmins />} />
+  <Route path="refunds" element={<AdminRefunds />} />
 </Route>
       <Route path="*" element={<NotFound />} />
 
