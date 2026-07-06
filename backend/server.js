@@ -5905,7 +5905,7 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
 });
 
 
-app.get("/api/admin/trip-packages", verifyAdmin, async (req, res) => {
+app.get("/api/admin/trip-packages", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const rows = await query(`
       SELECT 
@@ -5928,7 +5928,7 @@ app.get("/api/admin/trip-packages", verifyAdmin, async (req, res) => {
   }
 });
 
-app.put("/api/admin/trip-packages/:id/status", verifyAdmin, async (req, res) => {
+app.put("/api/admin/trip-packages/:id/status", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, admin_note } = req.body;
