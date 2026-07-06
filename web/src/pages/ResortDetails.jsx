@@ -38,6 +38,20 @@ const FALLBACK_IMAGE =
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+const AMENITY_META = {
+  wifi: { title: "Wifi", text: "High speed internet", icon: <Wifi /> },
+  tv: { title: "TV", text: "Entertainment ready", icon: <Tv /> },
+  kitchen: { title: "Kitchen", text: "Fully equipped", icon: <Utensils /> },
+  parking: { title: "Free parking", text: "On premises", icon: <Car /> },
+  ac: { title: "Air conditioning", text: "Comfort cooling", icon: <AirVent /> },
+  pool: { title: "Pool", text: "Private or shared access", icon: <Waves /> },
+  security: {
+    title: "Security cameras",
+    text: "Extra safety support",
+    icon: <ShieldCheck />,
+  },
+};
+
 function toLocalISO(date = new Date()) {
   const local = new Date(date);
   local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
@@ -71,6 +85,19 @@ function getStoredUser() {
     return user && token ? user : null;
   } catch {
     return null;
+  }
+}
+
+function parseAmenities(value) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) return value;
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 }
 
@@ -154,7 +181,7 @@ export default function ResortDetails() {
   const loadReviews = useCallback(async () => {
     try {
       const { data } = await api.get(`/reviews/${id}`);
-      setReviews(data || []);
+      setReviews(Array.isArray(data) ? data : []);
     } catch (err) {
       console.log("Reviews load failed:", err);
     }
@@ -164,6 +191,19 @@ export default function ResortDetails() {
     loadProperty();
     loadReviews();
   }, [loadProperty, loadReviews]);
+
+  useEffect(() => {
+    async function loadBookedDates() {
+      try {
+        const { data } = await api.get(`/properties/${id}/booked-dates`);
+        setBookedRanges(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.log("Booked dates load failed:", err);
+      }
+    }
+
+    loadBookedDates();
+  }, [id]);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -180,19 +220,6 @@ export default function ResortDetails() {
   }, []);
 
   useEffect(() => {
-    async function loadBookedDates() {
-      try {
-        const { data } = await api.get(`/properties/${id}/booked-dates`);
-        setBookedRanges(data || []);
-      } catch (err) {
-        console.log("Booked dates load failed:", err);
-      }
-    }
-
-    loadBookedDates();
-  }, [id]);
-
-  useEffect(() => {
     if (!checkin) return;
 
     if (!checkout || checkout <= checkin) {
@@ -201,14 +228,15 @@ export default function ResortDetails() {
   }, [checkin, checkout]);
 
   const galleryImages = useMemo(() => {
-    const images = [
+    const imageList = [
       property?.image,
       ...(property?.images || []).map(
         (item) => item?.image_url || item?.url || item
       ),
     ].filter(Boolean);
 
-    const uniqueImages = [...new Set(images)];
+    const uniqueImages = [...new Set(imageList)];
+
     return uniqueImages.length ? uniqueImages : [FALLBACK_IMAGE];
   }, [property]);
 
@@ -416,7 +444,9 @@ export default function ResortDetails() {
                 <Feature
                   icon={<CalendarDays size={21} />}
                   title="Flexible date selection"
-                  text={`Check-in starts from ${formatFeatureDate(today)}. Checkout is automatically set to the next day.`}
+                  text={`Check-in starts from ${formatFeatureDate(
+                    today
+                  )}. Checkout is automatically set to the next day.`}
                 />
 
                 <Feature
@@ -434,7 +464,7 @@ export default function ResortDetails() {
               </p>
             </Section>
 
-            <AmenitiesSection />
+            <AmenitiesSection amenities={property?.amenities} />
 
             <HostSection property={property} onMessageHost={handleMessageHost} />
 
@@ -732,20 +762,22 @@ function AirbnbDatePicker({
   const handleDateClick = (date) => {
     const iso = toLocalISO(date);
 
-    if (isDateBooked(iso)) return;
+    if (iso < today || isDateBooked(iso)) return;
 
     if (selecting === "checkin") {
+      const nextCheckout = addDaysISO(iso, 1);
+
       setCheckin(iso);
-
-      if (!checkout || checkout <= iso || hasBookedDateInRange(iso, checkout)) {
-        setCheckout(addDaysISO(iso, 1));
-      }
-
+      setCheckout(
+        !checkout || checkout <= iso || hasBookedDateInRange(iso, checkout)
+          ? nextCheckout
+          : checkout
+      );
       setSelecting("checkout");
       return;
     }
 
-    if (iso <= checkin) {
+    if (!checkin || iso <= checkin) {
       setCheckin(iso);
       setCheckout(addDaysISO(iso, 1));
       setSelecting("checkout");
@@ -794,7 +826,7 @@ function AirbnbDatePicker({
       </div>
 
       {open && (
-        <div className="absolute left-1/2 top-[66px] z-[999] w-[95vw] max-w-[700px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-5 shadow-lg md:p-6">
+        <div className="absolute right-0 top-[66px] z-[999] w-[calc(100vw-32px)] max-w-[700px] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:p-5 md:p-6">
           <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h3 className="text-xl font-semibold">
@@ -1188,18 +1220,54 @@ function CounterButton({ children, onClick, disabled }) {
   );
 }
 
-function AmenitiesSection() {
+function AmenitiesSection({ amenities }) {
+  const list = parseAmenities(amenities);
+
+  const visibleAmenities = list.length
+    ? list.map((key) => ({
+        key,
+        ...(AMENITY_META[key] || {
+          title: String(key).replaceAll("_", " "),
+          text: "Available during your stay",
+          icon: <ShieldCheck />,
+        }),
+      }))
+    : [
+        { key: "wifi", ...AMENITY_META.wifi },
+        { key: "parking", ...AMENITY_META.parking },
+        { key: "kitchen", ...AMENITY_META.kitchen },
+      ];
+
   return (
     <Section title="What this place offers">
-      <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
-        <Amenity icon={<Wifi />} title="Wifi" text="High speed internet" />
-        <Amenity icon={<Car />} title="Free parking" text="On premises" />
-        <Amenity icon={<Utensils />} title="Kitchen" text="Fully equipped" />
-        <Amenity icon={<Waves />} title="Pool" text="Private or shared access" />
-        <Amenity icon={<AirVent />} title="Air conditioning" text="Comfort cooling" />
-        <Amenity icon={<Tv />} title="TV" text="Entertainment ready" />
+      <div className="mt-1 grid gap-x-12 gap-y-6 sm:grid-cols-2">
+        {visibleAmenities.map((item) => (
+          <Amenity
+            key={item.key}
+            icon={item.icon}
+            title={item.title}
+            text={item.text}
+          />
+        ))}
       </div>
     </Section>
+  );
+}
+
+function Amenity({ icon, title, text }) {
+  return (
+    <div className="flex items-start gap-4 rounded-xl py-1">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center text-gray-800">
+        {icon}
+      </span>
+
+      <div className="min-w-0">
+        <p className="text-sm font-semibold capitalize text-gray-950">
+          {title}
+        </p>
+        <p className="mt-1 text-sm leading-6 text-gray-500">{text}</p>
+      </div>
+    </div>
   );
 }
 
@@ -1294,12 +1362,7 @@ function ReviewsSection({ propertyId, reviews, onReviewAdded }) {
 
       setReview("");
       setRating(5);
-
-      try {
-        await onReviewAdded();
-      } catch (reloadError) {
-        console.log("Review reload failed:", reloadError);
-      }
+      await onReviewAdded();
 
       toast.success("Review submitted successfully");
     } catch (err) {
@@ -1437,7 +1500,10 @@ function PropertyGallery({ images, title, onShowAll }) {
 
         {Array.from({ length: Math.max(0, 5 - photos.length) }).map(
           (_, index) => (
-            <div key={`placeholder-${index}`} className="hidden bg-gray-100 md:block" />
+            <div
+              key={`placeholder-${index}`}
+              className="hidden bg-gray-100 md:block"
+            />
           )
         )}
       </div>
@@ -1592,7 +1658,7 @@ function Section({ title, children }) {
   return (
     <section className="border-b border-gray-200 py-8">
       {title && (
-        <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950 md:text-2xl">
+        <h2 className="mb-6 text-xl font-semibold tracking-tight text-gray-950 md:text-2xl">
           {title}
         </h2>
       )}
@@ -1610,21 +1676,6 @@ function Feature({ icon, title, text }) {
       <div>
         <h4 className="text-sm font-medium text-gray-950">{title}</h4>
         <p className="mt-1 text-sm leading-6 text-gray-500">{text}</p>
-      </div>
-    </div>
-  );
-}
-
-function Amenity({ icon, title, text }) {
-  return (
-    <div className="flex gap-4">
-      <span className="mt-1 flex h-6 w-6 items-center justify-center text-gray-700">
-        {icon}
-      </span>
-
-      <div>
-        <p className="text-sm font-medium text-gray-950">{title}</p>
-        <p className="mt-1 text-sm text-gray-500">{text}</p>
       </div>
     </div>
   );
