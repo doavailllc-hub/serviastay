@@ -3622,25 +3622,31 @@ app.post(
         package_type,
       } = req.body;
 
-      if (!title || !location || !price) {
+      if (!title?.trim() || !location?.trim() || Number(price) <= 0) {
         connection.release();
         return res.status(400).json({
-          message: "Title, destination and price are required",
+          success: false,
+          message: "Please enter title, destination and valid price.",
         });
       }
 
       if (!req.files || req.files.length === 0) {
         connection.release();
         return res.status(400).json({
-          message: "Please upload at least one package image",
+          success: false,
+          message: "Please upload at least one package image.",
         });
       }
 
-     const uploadedImages = await Promise.all(
-  req.files.map((file) => uploadFileToS3(file, "experiences"))
-);
+      const uploadedImages = [];
 
-const coverImage = uploadedImages[0].url;
+      for (const file of req.files) {
+        const uploaded = await uploadFileToS3(file, "experiences");
+        uploadedImages.push(uploaded);
+      }
+
+      const coverImage = uploadedImages[0]?.url || null;
+
       await connection.beginTransaction();
 
       const [result] = await connection.query(
@@ -3673,9 +3679,9 @@ const coverImage = uploadedImages[0].url;
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
-          title,
-          location,
-          city || location,
+          title.trim(),
+          location.trim(),
+          city?.trim() || location.trim(),
           category || "Family",
           Number(price || 0),
           Number(package_days || 1),
@@ -3686,43 +3692,47 @@ const coverImage = uploadedImages[0].url;
           meals || null,
           pickup_location || null,
           language || "English",
-          host_name || "Dovail Travel",
+          host_name || req.user?.fullname || req.user?.name || "Dovail Host",
           description || "",
           includes || "",
           itinerary || "",
           cancellation_policy || "",
           package_type || "Trip Package",
-          "active",
+          "Pending",
           0,
           0,
         ]
       );
 
-      const packageId = result.insertId;
-const imageValues = uploadedImages.map((img, index) => [
-  experienceId,
-  img.url,
-  img.key,
-  index === 0 ? 1 : 0,
-  index,
-]);
+      const experienceId = result.insertId;
+
+      const imageValues = uploadedImages.map((img, index) => [
+        experienceId,
+        img.url,
+        img.key || null,
+        index === 0 ? 1 : 0,
+        index,
+      ]);
 
       await connection.query(
         `
-     INSERT INTO experience_images
-  (experience_id, image_url, image_key, is_cover, sort_order)
-  VALUES ?
+        INSERT INTO experience_images
+        (experience_id, image_url, image_key, is_cover, sort_order)
+        VALUES ?
         `,
         [imageValues]
       );
 
       await connection.commit();
 
-      res.json({
+      res.status(201).json({
         success: true,
-        message: "Trip package created successfully",
-        packageId,
-        image: coverImage,
+        message:
+          "Trip package submitted successfully and is awaiting admin approval.",
+        experienceId,
+        packageId: experienceId,
+        coverImage,
+        status: "Pending",
       });
     } catch (err) {
       await connection.rollback();
@@ -3730,6 +3740,7 @@ const imageValues = uploadedImages.map((img, index) => [
       console.log("CREATE TRIP PACKAGE ERROR:", err.message);
 
       res.status(500).json({
+        success: false,
         message: "Trip package create failed",
         error: err.message,
       });
