@@ -368,7 +368,7 @@ export default function App() {
   <Route path="users" element={<AdminUsers />} />
   <Route path="users/:id" element={<AdminUserDetails />} />
   <Route path="properties" element={<AdminProperties />} />
-  <Route path="/admin/trips" element={<AdminTrips />} />
+<Route path="trips" element={<AdminTrips />} />
   <Route path="bookings" element={<AdminBookings />} />
   <Route path="finance" element={<AdminFinance />} />
   <Route path="payments" element={<PaymentHistory />} />
