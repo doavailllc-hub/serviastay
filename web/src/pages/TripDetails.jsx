@@ -1,20 +1,58 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
-  Download,
   MessageCircle,
   ReceiptText,
   ShieldCheck,
   Star,
-  User,
   Users,
   XCircle,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
+
+function formatINR(amount) {
+  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+}
+
+function formatDate(value) {
+  if (!value) return "Not selected";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not selected";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function safeStorage(key) {
+  try {
+    return (
+      JSON.parse(localStorage.getItem(key) || "null") ||
+      JSON.parse(sessionStorage.getItem(key) || "null")
+    );
+  } catch {
+    return null;
+  }
+}
+
+function getValue(obj, keys, fallback = "") {
+  for (const key of keys) {
+    if (obj?.[key] !== undefined && obj?.[key] !== null && obj?.[key] !== "") {
+      return obj[key];
+    }
+  }
+  return fallback;
+}
 
 export default function TripDetails() {
   const navigate = useNavigate();
@@ -24,37 +62,56 @@ export default function TripDetails() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
 
-  useEffect(() => {
-    loadTrip();
-  }, [id]);
-
-  const formatINR = (amount) =>
-    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
-
-  const getUser = () =>
-    JSON.parse(localStorage.getItem("user")) ||
-    JSON.parse(sessionStorage.getItem("user"));
-
-  const loadTrip = async () => {
+  const loadTrip = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/trip/${id}`);
-      setTrip(res.data);
+      const { data } = await api.get(`/trip/${id}`);
+      setTrip(data);
     } catch (err) {
-      console.log("Trip details failed:", err);
-      alert("Trip details failed to load");
+      console.error("Trip details failed:", err);
       navigate("/trips");
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    loadTrip();
+  }, [loadTrip]);
+
+  const data = useMemo(() => {
+    if (!trip) return null;
+
+    return {
+      id: trip.id,
+      title: getValue(trip, ["property_title", "title"], "Property booking"),
+      location: getValue(trip, ["location", "address"], "Location unavailable"),
+      image: getValue(
+        trip,
+        ["image", "image_url", "property_image", "cover_image"],
+        FALLBACK_IMAGE
+      ),
+      checkin: getValue(trip, ["checkin", "check_in", "check_in_date"]),
+      checkout: getValue(trip, ["checkout", "check_out", "check_out_date"]),
+      guests: Number(getValue(trip, ["guests", "guest_count"], 1)),
+      total: getValue(trip, ["total", "total_amount", "amount"], 0),
+      status: getValue(trip, ["status"], "Confirmed"),
+      paymentMethod: getValue(trip, ["payment_method"], "razorpay"),
+      description: getValue(
+        trip,
+        ["description"],
+        "Your stay is confirmed. Please check your booking details and contact the host if needed."
+      ),
+      propertyId: getValue(trip, ["property_id"], "-"),
+      hostId: getValue(trip, ["host_id"], null),
+      hostName: getValue(trip, ["host_name"], "Host"),
+      hostEmail: getValue(trip, ["host_email"], "Email unavailable"),
+      hostPhone: getValue(trip, ["host_phone"], "Phone unavailable"),
+    };
+  }, [trip]);
 
   const cancelBooking = async () => {
-    const confirmCancel = window.confirm(
-      "Are you sure you want to cancel this booking?"
-    );
-
-    if (!confirmCancel) return;
+    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
       setCancelling(true);
@@ -63,10 +120,9 @@ export default function TripDetails() {
         reason: "Cancelled by guest",
       });
 
-      alert("Booking cancelled successfully");
-      loadTrip();
+      await loadTrip();
     } catch (err) {
-      console.log("Cancel failed:", err);
+      console.error("Cancel failed:", err);
       alert(err.response?.data?.message || "Cancel booking failed");
     } finally {
       setCancelling(false);
@@ -74,405 +130,287 @@ export default function TripDetails() {
   };
 
   const downloadInvoice = () => {
-    const invoiceWindow = window.open("", "_blank");
+    if (!data) return;
 
-    invoiceWindow.document.write(`
+    const win = window.open("", "_blank");
+
+    if (!win) {
+      alert("Please allow popups to download invoice.");
+      return;
+    }
+
+    win.document.write(`
       <html>
         <head>
-          <title>Servia Stay Invoice #${trip.id}</title>
+          <title>Dovail Stay Invoice #${data.id}</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              color: #222;
-              padding: 40px;
-              background: #fff;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              border-bottom: 2px solid #eee;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .brand {
-              font-size: 30px;
-              font-weight: 800;
-              color: #3b71e6;
-            }
-            .muted {
-              color: #666;
-              font-size: 14px;
-            }
-            .box {
-              border: 1px solid #eee;
-              border-radius: 16px;
-              padding: 22px;
-              margin-bottom: 20px;
-            }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              margin: 12px 0;
-              gap: 20px;
-            }
-            .total {
-              border-top: 1px solid #eee;
-              padding-top: 16px;
-              margin-top: 16px;
-              font-size: 22px;
-              font-weight: 800;
-              color: #3b71e6;
-            }
-            .badge {
-              display: inline-block;
-              padding: 7px 14px;
-              border-radius: 999px;
-              background: #ecfdf5;
-              color: #047857;
-              font-weight: 700;
-              font-size: 12px;
-            }
-            button {
-              margin-top: 24px;
-              padding: 12px 18px;
-              border: none;
-              border-radius: 10px;
-              background: #3b71e6;
-              color: #fff;
-              font-weight: 700;
-              cursor: pointer;
-            }
-            @media print {
-              button {
-                display: none;
-              }
-            }
+            body { font-family: Arial, sans-serif; padding: 40px; color: #111827; background: #fff; }
+            .invoice { max-width: 850px; margin: auto; border: 1px solid #e5e7eb; border-radius: 22px; overflow: hidden; }
+            .header { background: #3b71e6; color: white; padding: 30px; display: flex; justify-content: space-between; gap: 20px; }
+            .content { padding: 30px; }
+            .muted { color: #6b7280; }
+            .box { border: 1px solid #e5e7eb; border-radius: 16px; padding: 20px; margin-top: 20px; }
+            .row { display: flex; justify-content: space-between; gap: 20px; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+            .total { font-size: 28px; font-weight: 800; color: #3b71e6; }
+            @media print { button { display: none; } }
           </style>
         </head>
-
         <body>
-          <div class="header">
-            <div>
-              <div class="brand">Servia Stay</div>
-              <p class="muted">Booking Invoice</p>
+          <div class="invoice">
+            <div class="header">
+              <div>
+                <h1>Dovail Stay</h1>
+                <p>Booking Invoice</p>
+              </div>
+              <div>
+                <h2>INVOICE</h2>
+                <p>#${data.id}</p>
+              </div>
             </div>
 
-            <div>
-              <p><strong>Invoice:</strong> #${trip.id}</p>
-              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <div class="content">
+              <h2>${data.title}</h2>
+              <p class="muted">${data.location}</p>
+
+              <div class="box">
+                <div class="row"><span>Check-in</span><strong>${formatDate(data.checkin)}</strong></div>
+                <div class="row"><span>Check-out</span><strong>${formatDate(data.checkout)}</strong></div>
+                <div class="row"><span>Guests</span><strong>${data.guests}</strong></div>
+                <div class="row"><span>Payment Method</span><strong>${data.paymentMethod}</strong></div>
+                <div class="row"><span>Status</span><strong>${data.status}</strong></div>
+              </div>
+
+              <div class="box">
+                <div class="row">
+                  <span>Total Paid</span>
+                  <span class="total">${formatINR(data.total)}</span>
+                </div>
+              </div>
+
+              <p class="muted" style="margin-top:30px;">Thank you for booking with Dovail Stay.</p>
+              <button onclick="window.print()">Print invoice</button>
             </div>
           </div>
-
-          <div class="box">
-            <h2>${trip.title || "Property Booking"}</h2>
-            <p class="muted">${trip.location || ""}</p>
-            <span class="badge">${trip.status || "Confirmed"}</span>
-          </div>
-
-          <div class="box">
-            <h3>Reservation Details</h3>
-            <div class="row"><span>Booking ID</span><strong>#${trip.id}</strong></div>
-            <div class="row"><span>Check-in</span><strong>${trip.checkin}</strong></div>
-            <div class="row"><span>Check-out</span><strong>${trip.checkout}</strong></div>
-            <div class="row"><span>Guests</span><strong>${trip.guests || 1}</strong></div>
-            <div class="row"><span>Payment Method</span><strong>${trip.payment_method || "cash"}</strong></div>
-          </div>
-
-          <div class="box">
-            <h3>Host Details</h3>
-            <div class="row"><span>Host</span><strong>${trip.host_name || "Host"}</strong></div>
-            <div class="row"><span>Email</span><strong>${trip.host_email || "Unavailable"}</strong></div>
-            <div class="row"><span>Phone</span><strong>${trip.host_phone || "Unavailable"}</strong></div>
-          </div>
-
-          <div class="box">
-            <h3>Payment Summary</h3>
-            <div class="row"><span>Booking Total</span><strong>${formatINR(trip.total)}</strong></div>
-            <div class="row total"><span>Total Paid</span><span>${formatINR(trip.total)}</span></div>
-          </div>
-
-          <p class="muted">
-            Thank you for booking with Servia Stay. This invoice is computer generated.
-          </p>
-
-          <button onclick="window.print()">Download / Print Invoice</button>
         </body>
       </html>
     `);
 
-    invoiceWindow.document.close();
+    win.document.close();
   };
 
   const contactHost = async () => {
     try {
-      const user = getUser();
+      const user = safeStorage("user");
 
-      if (!user) {
-        navigate("/");
+      if (!user?.id) {
+        navigate("/login");
+        return;
+      }
+
+      if (!data?.hostId) {
+        alert("Host details unavailable.");
         return;
       }
 
       await api.post("/messages", {
         sender_id: user.id,
-        receiver_id: trip.host_id,
-        property_id: trip.property_id,
-        message: `Hi, I need help with my booking #${trip.id} for ${trip.title}`,
+        receiver_id: data.hostId,
+        property_id: data.propertyId,
+        message: `Hi, I need help with my booking #${data.id} for ${data.title}`,
       });
 
       navigate("/messages");
     } catch (err) {
-      console.log("Chat host failed:", err);
+      console.error("Chat host failed:", err);
       alert("Unable to contact host");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FAFAFC]">
-        <Navbar />
+  if (loading) return <TripDetailsSkeleton />;
 
-        <main className="mx-auto max-w-6xl px-4 py-20">
-          Loading trip details...
-        </main>
-      </div>
-    );
-  }
+  if (!data) return null;
 
-  if (!trip) return null;
-
-  const status = trip.status || "Confirmed";
-  const canCancel = status !== "Cancelled" && status !== "Completed";
-  const canReview = status === "Completed";
+  const normalizedStatus = String(data.status).toLowerCase();
+  const canCancel =
+    normalizedStatus !== "cancelled" && normalizedStatus !== "completed";
+  const canReview = normalizedStatus === "completed";
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 py-10 md:px-8">
-        <div className="mb-8 flex items-center gap-5">
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-24 md:px-8">
+        <header className="mb-8 flex items-center gap-4">
           <button
+            type="button"
             onClick={() => navigate("/trips")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm hover:bg-gray-100"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition hover:bg-gray-50"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={21} />
           </button>
 
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Trip Details
+            <p className="text-sm font-semibold text-[#3b71e6]">Booking #{data.id}</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+              Trip details
             </h1>
-
-            <p className="mt-1 text-gray-500">
-              Booking #{trip.id}
-            </p>
           </div>
-        </div>
+        </header>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          <section className="space-y-8">
-            <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+          <section className="space-y-6">
+            <article className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
               <img
-                src={
-                  trip.image ||
-                  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
-                }
-                alt={trip.title || "Trip"}
+                src={data.image}
+                alt={data.title}
                 className="h-80 w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src = FALLBACK_IMAGE;
+                }}
               />
 
               <div className="p-6">
-                <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                   <div>
-                    <h2 className="text-3xl font-bold text-gray-900">
-                      {trip.title || "Property Booking"}
+                    <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+                      {data.title}
                     </h2>
-
-                    <p className="mt-2 text-gray-500">
-                      {trip.location || "Location unavailable"}
-                    </p>
+                    <p className="mt-2 text-sm text-gray-500">{data.location}</p>
                   </div>
 
-                  <StatusBadge status={status} />
+                  <StatusBadge status={data.status} />
                 </div>
 
-                <p className="leading-7 text-gray-600">
-                  {trip.description ||
-                    "Your stay is confirmed. Please check your booking details and contact the host if needed."}
+                <p className="mt-5 text-sm leading-7 text-gray-600">
+                  {data.description}
                 </p>
               </div>
-            </div>
+            </article>
 
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-2xl font-bold">
-                Reservation Details
-              </h2>
-
+            <Card title="Reservation details">
               <div className="grid gap-4 md:grid-cols-3">
                 <InfoBox
-                  icon={<CalendarDays />}
+                  icon={<CalendarDays size={20} />}
                   label="Check-in"
-                  value={trip.checkin}
+                  value={formatDate(data.checkin)}
                 />
-
                 <InfoBox
-                  icon={<CalendarDays />}
+                  icon={<CalendarDays size={20} />}
                   label="Check-out"
-                  value={trip.checkout}
+                  value={formatDate(data.checkout)}
                 />
-
                 <InfoBox
-                  icon={<Users />}
+                  icon={<Users size={20} />}
                   label="Guests"
-                  value={`${trip.guests || 1} ${
-                    trip.guests > 1 ? "guests" : "guest"
-                  }`}
+                  value={`${data.guests} ${data.guests > 1 ? "guests" : "guest"}`}
                 />
               </div>
-            </div>
+            </Card>
 
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-2xl font-bold">
-                Property Information
-              </h2>
-
+            <Card title="Property information">
               <div className="grid gap-4 md:grid-cols-2">
-                <SimpleInfo label="Property ID" value={`#${trip.property_id}`} />
-                <SimpleInfo label="Booking ID" value={`#${trip.id}`} />
-                <SimpleInfo label="Location" value={trip.location} />
-                <SimpleInfo label="Payment" value={trip.payment_method || "cash"} />
+                <SimpleInfo label="Property ID" value={`#${data.propertyId}`} />
+                <SimpleInfo label="Booking ID" value={`#${data.id}`} />
+                <SimpleInfo label="Location" value={data.location} />
+                <SimpleInfo label="Payment" value={data.paymentMethod} />
               </div>
-            </div>
+            </Card>
 
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-2xl font-bold">Host Details</h2>
-
+            <Card title="Host details">
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#3b71e6] text-2xl font-bold text-white">
-                  {trip.host_name?.charAt(0)?.toUpperCase() || "H"}
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
+                  {data.hostName?.charAt(0)?.toUpperCase() || "H"}
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold">
-                    {trip.host_name || "Host"}
-                  </h3>
-
-                  <p className="text-sm text-gray-500">
-                    {trip.host_email || "Email unavailable"}
-                  </p>
-
-                  <p className="text-sm text-gray-500">
-                    {trip.host_phone || "Phone unavailable"}
-                  </p>
+                  <h3 className="font-semibold">{data.hostName}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{data.hostEmail}</p>
+                  <p className="text-sm text-gray-500">{data.hostPhone}</p>
                 </div>
               </div>
 
               <button
+                type="button"
                 onClick={contactHost}
-                className="mt-6 flex h-12 items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 font-semibold hover:bg-gray-50"
+                className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 text-sm font-semibold transition hover:bg-gray-50"
               >
-                <MessageCircle size={18} />
-                Contact Host
+                <MessageCircle size={17} />
+                Contact host
               </button>
-            </div>
+            </Card>
 
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-2xl font-bold">
-                Booking Timeline
-              </h2>
+            <Card title="Booking timeline">
+              <Timeline status={data.status} />
+            </Card>
 
-              <Timeline status={status} />
-            </div>
-
-            <div className="rounded-3xl bg-[#FFF8E8] p-6">
+            <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-6">
               <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck className="text-yellow-700" />
-                <h3 className="text-xl font-bold">Refund Policy</h3>
+                <ShieldCheck className="text-yellow-700" size={21} />
+                <h3 className="text-lg font-semibold">Refund policy</h3>
               </div>
 
-              <p className="text-sm text-gray-700">
-                • Cancel within 24 hours of booking: full refund where applicable.
-              </p>
-
-              <p className="mt-2 text-sm text-gray-700">
-                • Cancel before check-in: refund depends on the host policy.
-              </p>
-
-              <p className="mt-2 text-sm text-gray-700">
-                • After check-in: refund is normally not available.
+              <p className="text-sm leading-7 text-gray-700">
+                Cancel within 24 hours of booking for full refund where applicable.
+                After that, refund depends on the host policy and check-in time.
               </p>
             </div>
           </section>
 
           <aside className="space-y-6">
-            <div className="sticky top-24 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-2xl font-bold">
-                Payment Summary
+            <div className="sticky top-24 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-6 text-xl font-semibold tracking-tight">
+                Payment summary
               </h2>
 
-              <SummaryRow label="Booking total" value={formatINR(trip.total)} />
-              <SummaryRow
-                label="Payment method"
-                value={trip.payment_method || "cash"}
-              />
-              <SummaryRow label="Status" value={status} />
+              <SummaryRow label="Booking total" value={formatINR(data.total)} />
+              <SummaryRow label="Payment method" value={data.paymentMethod} />
+              <SummaryRow label="Status" value={data.status} />
 
-              <div className="my-5 border-t" />
+              <div className="my-5 border-t border-gray-200" />
 
-              <div className="flex justify-between text-xl font-bold">
+              <div className="flex justify-between text-lg font-semibold">
                 <span>Total paid</span>
-                <span className="text-[#3b71e6]">
-                  {formatINR(trip.total)}
-                </span>
+                <span className="text-[#3b71e6]">{formatINR(data.total)}</span>
               </div>
 
               <div className="mt-6 space-y-3">
-              <button
-  onClick={() => navigate(`/receipt/${trip.id}`)}
-  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
->
-  <ReceiptText size={18} />
-  View Receipt
-</button>
+                <ActionButton onClick={downloadInvoice} icon={<ReceiptText size={17} />}>
+                  Download invoice
+                </ActionButton>
 
-                <button
-                  onClick={contactHost}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 font-semibold hover:bg-gray-50"
-                >
-                  <MessageCircle size={18} />
-                  Chat Host
-                </button>
+                <ActionButton onClick={contactHost} icon={<MessageCircle size={17} />}>
+                  Chat host
+                </ActionButton>
 
                 {canReview && (
-                  <button
-                    onClick={() => navigate(`/review/${trip.id}`)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-yellow-300 font-semibold text-yellow-700 hover:bg-yellow-50"
+                  <ActionButton
+                    onClick={() => navigate(`/review/${data.id}`)}
+                    icon={<Star size={17} />}
+                    tone="yellow"
                   >
-                    <Star size={18} />
-                    Write Review
-                  </button>
+                    Write review
+                  </ActionButton>
                 )}
 
                 {canCancel && (
-                  <button
+                  <ActionButton
                     onClick={cancelBooking}
                     disabled={cancelling}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-300 font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                    icon={<XCircle size={17} />}
+                    tone="red"
                   >
-                    <XCircle size={18} />
-                    {cancelling ? "Cancelling..." : "Cancel Booking"}
-                  </button>
+                    {cancelling ? "Cancelling..." : "Cancel booking"}
+                  </ActionButton>
                 )}
               </div>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-[#3b71e6] to-[#6D4EEB] p-6 text-white shadow-xl">
+            <div className="rounded-3xl bg-[#3b71e6] p-6 text-white">
               <ReceiptText className="mb-3" />
-
-              <h3 className="text-xl font-bold">Need help?</h3>
-
-              <p className="mt-2 text-white/90">
-                Contact the host or support team for booking changes,
-                cancellations, and payment questions.
+              <h3 className="text-lg font-semibold">Need help?</h3>
+              <p className="mt-2 text-sm leading-6 text-white/90">
+                Contact your host or support for booking changes, cancellations,
+                and payment questions.
               </p>
             </div>
           </aside>
@@ -482,21 +420,30 @@ export default function TripDetails() {
   );
 }
 
+function Card({ title, children }) {
+  return (
+    <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-5 text-xl font-semibold tracking-tight">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 function InfoBox({ icon, label, value }) {
   return (
-    <div className="rounded-2xl bg-[#FAFAFC] p-5">
+    <div className="rounded-2xl bg-gray-50 p-5">
       <div className="mb-3 text-[#3b71e6]">{icon}</div>
       <p className="text-sm text-gray-500">{label}</p>
-      <h3 className="mt-1 font-bold text-gray-900">{value}</h3>
+      <h3 className="mt-1 text-sm font-semibold text-gray-950">{value}</h3>
     </div>
   );
 }
 
 function SimpleInfo({ label, value }) {
   return (
-    <div className="rounded-2xl bg-[#FAFAFC] p-4">
+    <div className="rounded-2xl bg-gray-50 p-4">
       <p className="text-sm text-gray-500">{label}</p>
-      <h3 className="mt-1 font-bold text-gray-900 capitalize">
+      <h3 className="mt-1 text-sm font-semibold capitalize text-gray-950">
         {value || "-"}
       </h3>
     </div>
@@ -512,41 +459,65 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function StatusBadge({ status }) {
-  const style =
-    status === "Cancelled"
-      ? "bg-red-100 text-red-600"
-      : status === "Completed"
-      ? "bg-blue-100 text-blue-700"
-      : status === "Pending"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-green-100 text-green-700";
+function ActionButton({ children, icon, onClick, disabled, tone = "default" }) {
+  const styles = {
+    default: "border-gray-200 text-gray-800 hover:bg-gray-50",
+    red: "border-red-200 bg-red-50 text-red-600 hover:bg-red-100",
+    yellow: "border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100",
+  };
 
   return (
-    <span className={`rounded-full px-4 py-2 text-sm font-bold ${style}`}>
-      {status}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${styles[tone]}`}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+function StatusBadge({ status }) {
+  const normalized = String(status || "").toLowerCase();
+
+  const style =
+    normalized === "cancelled"
+      ? "border-red-200 bg-red-50 text-red-700"
+      : normalized === "completed"
+      ? "border-blue-200 bg-blue-50 text-blue-700"
+      : normalized === "pending"
+      ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+      : "border-green-200 bg-green-50 text-green-700";
+
+  return (
+    <span className={`w-fit rounded-full border px-3 py-1.5 text-xs font-semibold ${style}`}>
+      {status || "Confirmed"}
     </span>
   );
 }
 
 function Timeline({ status }) {
+  const normalized = String(status || "").toLowerCase();
+
   const steps = [
     { label: "Booking created", active: true },
     {
       label: "Payment recorded",
-      active: ["Pending", "Confirmed", "Completed"].includes(status),
+      active: ["pending", "confirmed", "completed"].includes(normalized),
     },
     {
       label: "Host confirmed",
-      active: ["Confirmed", "Completed"].includes(status),
+      active: ["confirmed", "completed"].includes(normalized),
     },
     {
       label: "Stay completed",
-      active: status === "Completed",
+      active: normalized === "completed",
     },
   ];
 
-  if (status === "Cancelled") {
+  if (normalized === "cancelled") {
     steps.push({
       label: "Booking cancelled",
       active: true,
@@ -557,7 +528,7 @@ function Timeline({ status }) {
   return (
     <div className="space-y-5">
       {steps.map((step, index) => (
-        <div key={index} className="flex gap-4">
+        <div key={step.label} className="flex gap-4">
           <div
             className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
               step.cancelled
@@ -571,13 +542,35 @@ function Timeline({ status }) {
           </div>
 
           <div>
-            <h4 className="font-bold">{step.label}</h4>
+            <h4 className="text-sm font-semibold">{step.label}</h4>
             <p className="text-sm text-gray-500">
               {step.active ? "Completed" : "Pending"}
             </p>
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function TripDetailsSkeleton() {
+  return (
+    <div className="min-h-screen bg-white">
+      <Navbar />
+
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-24 md:px-8">
+        <div className="mb-8 h-12 w-72 animate-pulse rounded-2xl bg-gray-100" />
+
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-6">
+            <div className="h-[430px] animate-pulse rounded-3xl bg-gray-100" />
+            <div className="h-40 animate-pulse rounded-3xl bg-gray-100" />
+            <div className="h-40 animate-pulse rounded-3xl bg-gray-100" />
+          </div>
+
+          <div className="h-96 animate-pulse rounded-3xl bg-gray-100" />
+        </div>
+      </main>
     </div>
   );
 }
