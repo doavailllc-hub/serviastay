@@ -328,7 +328,7 @@ function ReservationRow({
             />
 
             {status === "Pending" && (
-              <>
+              <>s
                 <ActionButton
                   icon={<CheckCircle size={15} />}
                   label="Accept"

@@ -228,7 +228,7 @@ const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
                 title="Trip earnings"
                 value={formatINR(stats.tripEarnings)}
                 text="Income from your hosted trip packages."
-                onClick={() => navigate("/host-package-bookings")}
+             onClick={() => navigate("/host-reservations")}
               />
             </section>
 
@@ -269,7 +269,7 @@ icon={<span className="text-lg">✓</span>}
                 icon={<CalendarDays size={20} />}
                 title="Bookings"
                 text="View reservations and package bookings"
-                onClick={() => navigate("/host-package-bookings")}
+                onClick={() => navigate("/host-reservations")
               />
 
               <OptionRow
