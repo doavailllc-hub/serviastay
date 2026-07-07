@@ -3609,21 +3609,25 @@ app.post(
         package_days,
         package_nights,
         max_people,
+        brand_name,
+        team_contact,
         hotel_name,
         transport,
         meals,
         pickup_location,
+        pickup_map_url,
         language,
         host_name,
         description,
         includes,
         itinerary,
+        exclusions,
         cancellation_policy,
+        terms_conditions,
         package_type,
       } = req.body;
 
       if (!title?.trim() || !location?.trim() || Number(price) <= 0) {
-        connection.release();
         return res.status(400).json({
           success: false,
           message: "Please enter title, destination and valid price.",
@@ -3631,7 +3635,6 @@ app.post(
       }
 
       if (!req.files || req.files.length === 0) {
-        connection.release();
         return res.status(400).json({
           success: false,
           message: "Please upload at least one package image.",
@@ -3661,22 +3664,27 @@ app.post(
           package_days,
           package_nights,
           max_people,
+          brand_name,
+          team_contact,
           hotel_name,
           transport,
           meals,
           pickup_location,
+          pickup_map_url,
           language,
           host_name,
           description,
           includes,
           itinerary,
+          exclusions,
           cancellation_policy,
+          terms_conditions,
           package_type,
           status,
           rating,
           reviews
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           title.trim(),
@@ -3687,16 +3695,21 @@ app.post(
           Number(package_days || 1),
           Number(package_nights || 0),
           Number(max_people || 10),
+          brand_name || "Dovail Travel Hosting Team",
+          team_contact || null,
           hotel_name || null,
           transport || null,
           meals || null,
           pickup_location || null,
+          pickup_map_url || null,
           language || "English",
           host_name || req.user?.fullname || req.user?.name || "Dovail Host",
           description || "",
           includes || "",
           itinerary || "",
+          exclusions || "",
           cancellation_policy || "",
+          terms_conditions || "",
           package_type || "Trip Package",
           "Pending",
           0,
@@ -3749,78 +3762,6 @@ app.post(
     }
   }
 );
-/* HOST / ADMIN - TRIP PACKAGE DASHBOARD */
-
-app.get("/api/host/trip-packages", verifyToken, async (req, res) => {
-  try {
-    const rows = await query(
-      `
-      SELECT 
-        e.*,
-        (
-          SELECT image_url
-          FROM experience_images
-          WHERE experience_id = e.id
-          ORDER BY is_cover DESC, sort_order ASC
-          LIMIT 1
-        ) AS image,
-        COUNT(b.id) AS bookings_count,
-        COALESCE(SUM(b.total), 0) AS revenue
-      FROM experiences e
-      LEFT JOIN experience_bookings b ON b.experience_id = e.id
-      WHERE e.package_type IS NOT NULL
-      GROUP BY e.id
-      ORDER BY e.id DESC
-      `
-    );
-
-    res.json(rows);
-  } catch (err) {
-    console.log("HOST TRIP PACKAGES ERROR:", err.message);
-
-    res.status(500).json({
-      message: "Trip packages load failed",
-      error: err.message,
-    });
-  }
-});
-
-app.delete("/api/trip-packages/:id", verifyToken, async (req, res) => {
-  try {
-    const packageId = Number(req.params.id);
-
-    if (!packageId) {
-      return res.status(400).json({ message: "Invalid package id" });
-    }
-
-    await query("DELETE FROM experience_images WHERE experience_id = ?", [
-      packageId,
-    ]);
-
-    await query("DELETE FROM experience_bookings WHERE experience_id = ?", [
-      packageId,
-    ]);
-
-    await query("DELETE FROM experience_reviews WHERE experience_id = ?", [
-      packageId,
-    ]);
-
-    await query("DELETE FROM experiences WHERE id = ?", [packageId]);
-
-    res.json({
-      success: true,
-      message: "Trip package deleted successfully",
-    });
-  } catch (err) {
-    console.log("DELETE TRIP PACKAGE ERROR:", err.message);
-
-    res.status(500).json({
-      message: "Trip package delete failed",
-      error: err.message,
-    });
-  }
-});
-/* HOST / ADMIN - UPDATE TRIP PACKAGE */
 
 app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
   try {
@@ -3835,16 +3776,21 @@ app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
       package_days,
       package_nights,
       max_people,
+      brand_name,
+      team_contact,
       hotel_name,
       transport,
       meals,
       pickup_location,
+      pickup_map_url,
       language,
       host_name,
       description,
       includes,
       itinerary,
+      exclusions,
       cancellation_policy,
+      terms_conditions,
       package_type,
       status,
     } = req.body;
@@ -3853,9 +3799,9 @@ app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Invalid package id" });
     }
 
-    if (!title || !location || !price) {
+    if (!title?.trim() || !location?.trim() || Number(price) <= 0) {
       return res.status(400).json({
-        message: "Title, destination and price are required",
+        message: "Title, destination and valid price are required",
       });
     }
 
@@ -3871,41 +3817,51 @@ app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
         package_days = ?,
         package_nights = ?,
         max_people = ?,
+        brand_name = ?,
+        team_contact = ?,
         hotel_name = ?,
         transport = ?,
         meals = ?,
         pickup_location = ?,
+        pickup_map_url = ?,
         language = ?,
         host_name = ?,
         description = ?,
         includes = ?,
         itinerary = ?,
+        exclusions = ?,
         cancellation_policy = ?,
+        terms_conditions = ?,
         package_type = ?,
         status = ?
       WHERE id = ?
       `,
       [
-        title,
+        title.trim(),
         category || "Family",
-        location,
-        city || location,
+        location.trim(),
+        city?.trim() || location.trim(),
         Number(price || 0),
         Number(package_days || 1),
         Number(package_nights || 0),
         Number(max_people || 10),
+        brand_name || "Dovail Travel Hosting Team",
+        team_contact || null,
         hotel_name || null,
         transport || null,
         meals || null,
         pickup_location || null,
+        pickup_map_url || null,
         language || "English",
         host_name || "Dovail Travel",
         description || "",
         includes || "",
         itinerary || "",
+        exclusions || "",
         cancellation_policy || "",
+        terms_conditions || "",
         package_type || "Trip Package",
-        status || "active",
+        status || "Pending",
         packageId,
       ]
     );
@@ -3923,7 +3879,6 @@ app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
     });
   }
 });
-
 /* HOST / ADMIN - PACKAGE BOOKINGS */
 
 app.get("/api/host/package-bookings", verifyToken, async (req, res) => {
