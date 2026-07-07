@@ -269,7 +269,7 @@ icon={<span className="text-lg">✓</span>}
                 icon={<CalendarDays size={20} />}
                 title="Bookings"
                 text="View reservations and package bookings"
-                onClick={() => navigate("/host-reservations")
+                onClick={() => navigate("/host-reservations")}
               />
 
               <OptionRow
