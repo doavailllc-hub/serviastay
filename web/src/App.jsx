@@ -78,6 +78,10 @@ import AdminAdmins from "./pages/admin/AdminAdmins";
 import AdminRefunds from "./pages/admin/AdminRefunds";
 import RefundRequest from "./pages/RefundRequest";
 import AdminTrips from "./pages/admin/AdminTrips";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+import Support from "./pages/Support";
+
 import { Toaster } from "react-hot-toast";
 
 function ProtectedPage({ children }) {
@@ -118,6 +122,10 @@ export default function App() {
 <Route path="/write-review/:bookingId" element={<WriteReview />} />
 <Route path="/host-type" element={<HostType />} />
       <Route path="/add-trip-package" element={<AddTripPackage />} />
+<Route path="/privacy" element={<PrivacyPolicy />} />
+<Route path="/terms" element={<Terms />} />
+<Route path="/support" element={<Support />} />
+
       <Route
         path="/service-booking/:id"
         element={<ServiceBookingDetails />}

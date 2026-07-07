@@ -1,359 +1,331 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 import {
-  AlertCircle,
-  Headphones,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  Home,
   LifeBuoy,
-  MessageSquare,
-  RefreshCw,
-  Send,
-  Ticket,
+  Mail,
+  MessageCircle,
+  Search,
+  ShieldCheck,
+  UserCheck,
+  X,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
-import api from "../api/api";
+
+const supportTopics = [
+  {
+    icon: Home,
+    title: "Booking support",
+    text: "Help with stays, trip packages, cancellations, refunds, and receipts.",
+    keywords: "booking stay trip cancellation refund receipt reservation",
+  },
+  {
+    icon: UserCheck,
+    title: "Host support",
+    text: "Help with listings, verification, reservations, pricing, and payouts.",
+    keywords: "host listing verification payout reservation pricing",
+  },
+  {
+    icon: CreditCard,
+    title: "Payment support",
+    text: "Payment failures, Razorpay, refunds, coupons, invoices, and payout status.",
+    keywords: "payment razorpay failed refund coupon invoice payout",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Safety & verification",
+    text: "Identity verification, account security, suspicious activity, and trust support.",
+    keywords: "kyc safety verification security identity suspicious account",
+  },
+];
+
+const faqs = [
+  {
+    q: "My payment failed. What should I do?",
+    a: "Check if money was debited. If it was debited, wait a few minutes and check your booking status. If the booking is not confirmed, contact support with your payment ID.",
+  },
+  {
+    q: "How do I contact a host?",
+    a: "Open your booking or messages page and send a message to the host directly.",
+  },
+  {
+    q: "When will my listing go live?",
+    a: "Host listings and trip packages go live only after admin verification and approval.",
+  },
+  {
+    q: "How do refunds work?",
+    a: "Refunds depend on the cancellation policy, payment status, and platform review. Eligible refunds are processed through the original payment method.",
+  },
+];
 
 export default function Support() {
-  const navigate = useNavigate();
-
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
+  const [query, setQuery] = useState("");
+  const [openFaq, setOpenFaq] = useState(0);
   const [form, setForm] = useState({
-    subject: "",
-    category: "Booking",
+    name: "",
+    email: "",
+    bookingId: "",
+    type: "Booking issue",
     message: "",
   });
 
-  useEffect(() => {
-    loadTickets();
-  }, []);
+  const filteredTopics = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return supportTopics;
 
-  const getUser = () =>
-    JSON.parse(localStorage.getItem("user")) ||
-    JSON.parse(sessionStorage.getItem("user"));
+    return supportTopics.filter((item) =>
+      `${item.title} ${item.text} ${item.keywords}`.toLowerCase().includes(q)
+    );
+  }, [query]);
 
-  const loadTickets = async () => {
-    try {
-      setLoading(true);
-
-      const user = getUser();
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      if (!user || !token) {
-        navigate("/");
-        return;
-      }
-
-      const res = await api.get(`/support/tickets/${user.id}`);
-      setTickets(res.data || []);
-    } catch (err) {
-      console.log("Support tickets load failed:", err);
-      alert("Support tickets failed to load");
-    } finally {
-      setLoading(false);
-    }
+  const updateForm = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const submitTicket = async (e) => {
+  const submitSupport = (e) => {
     e.preventDefault();
 
-    const user = getUser();
+    const subject = encodeURIComponent(`Dovail Stay Support - ${form.type}`);
+    const body = encodeURIComponent(
+      `Name: ${form.name}\nEmail: ${form.email}\nBooking ID: ${
+        form.bookingId || "N/A"
+      }\nIssue Type: ${form.type}\n\nMessage:\n${form.message}`
+    );
 
-    if (!form.subject.trim()) {
-      alert("Subject is required");
-      return;
-    }
-
-    if (!form.message.trim()) {
-      alert("Message is required");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      await api.post("/support/tickets", {
-        user_id: user.id,
-        subject: form.subject.trim(),
-        category: form.category,
-        message: form.message.trim(),
-      });
-
-      alert("Support ticket created successfully");
-
-      setForm({
-        subject: "",
-        category: "Booking",
-        message: "",
-      });
-
-      loadTickets();
-    } catch (err) {
-      console.log("Ticket create failed:", err);
-      alert(err.response?.data?.message || "Ticket create failed");
-    } finally {
-      setSubmitting(false);
-    }
+    window.location.href = `mailto:business@dovail.com?subject=${subject}&body=${body}`;
   };
 
-  const stats = useMemo(() => {
-    return {
-      total: tickets.length,
-      open: tickets.filter((item) => item.status === "Open").length,
-      closed: tickets.filter((item) => item.status === "Closed").length,
-    };
-  }, [tickets]);
-
   return (
-    <div className="min-h-screen bg-[#FAFAFC]">
+    <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 md:px-8">
-        <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Support Center
-            </h1>
+      <main className="mx-auto max-w-7xl px-4 pb-20 pt-24 md:px-8">
+        <section className="rounded-[32px] border border-gray-200 bg-[#f8fafd] px-6 py-10 md:px-10">
+          <p className="text-sm font-semibold text-[#3b71e6]">
+            Dovail Stay Support
+          </p>
 
-            <p className="mt-2 text-gray-500">
-              Get help with bookings, payments, refunds, hosting, and your account.
-            </p>
+          <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
+            Get help with bookings, hosting, payments and safety.
+          </h1>
+
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500">
+            Search support topics or contact our team with your booking details.
+          </p>
+
+          <div className="relative mt-8 max-w-3xl">
+            <Search
+              size={20}
+              className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search support topics..."
+              className="h-14 w-full rounded-2xl border border-gray-200 bg-white pl-14 pr-12 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-4 focus:ring-[#3b71e6]/10"
+            />
+
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
+        </section>
 
-          <button
-            onClick={loadTickets}
-            className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold hover:bg-gray-50"
-          >
-            <RefreshCw size={18} />
-            Refresh
-          </button>
-        </div>
+        <section className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          {filteredTopics.map((topic) => {
+            const Icon = topic.icon;
 
-        <div className="mb-8 grid gap-6 md:grid-cols-3">
-          <StatCard
-            icon={<Ticket />}
-            title="Total Tickets"
-            value={stats.total}
-            color="text-[#3b71e6]"
-          />
+            return (
+              <button
+                key={topic.title}
+                type="button"
+                onClick={() => setQuery(topic.title)}
+                className="group rounded-[28px] border border-gray-200 bg-white p-6 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-[#eef4ff] text-[#3b71e6]">
+                    <Icon size={24} />
+                  </div>
 
-          <StatCard
-            icon={<AlertCircle />}
-            title="Open Tickets"
-            value={stats.open}
-            color="text-yellow-600"
-          />
+                  <ChevronRight
+                    size={20}
+                    className="text-gray-300 transition group-hover:translate-x-1 group-hover:text-[#3b71e6]"
+                  />
+                </div>
 
-          <StatCard
-            icon={<LifeBuoy />}
-            title="Resolved"
-            value={stats.closed}
-            color="text-green-600"
-          />
-        </div>
+                <h3 className="mt-5 text-lg font-semibold">{topic.title}</h3>
 
-        <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
-          <section className="h-fit rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
-                <Headphones />
-              </div>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  {topic.text}
+                </p>
+              </button>
+            );
+          })}
+        </section>
 
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Create Ticket
-                </h2>
+        <section className="mt-10 grid gap-8 lg:grid-cols-[1fr_420px]">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-6">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Frequently asked questions
+            </h2>
 
-                <p className="text-sm text-gray-500">
-                  Tell us what happened. We&apos;ll help you.
+            <div className="mt-5 divide-y divide-gray-100">
+              {faqs.map((item, index) => (
+                <button
+                  key={item.q}
+                  type="button"
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="w-full py-5 text-left"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-sm font-semibold text-gray-950">
+                      {item.q}
+                    </h3>
+
+                    <ChevronDown
+                      size={18}
+                      className={`text-gray-400 transition ${
+                        openFaq === index ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+
+                  {openFaq === index && (
+                    <p className="mt-3 text-sm leading-6 text-gray-500">
+                      {item.a}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-yellow-200 bg-yellow-50 p-5">
+              <div className="flex gap-3">
+                <AlertTriangle size={20} className="text-yellow-700" />
+
+                <p className="text-sm leading-6 text-yellow-800">
+                  For urgent safety or legal emergencies, contact local emergency
+                  services first. Dovail Stay support is for platform assistance.
                 </p>
               </div>
             </div>
+          </div>
 
-            <form onSubmit={submitTicket} className="space-y-4">
-              <Field
-                label="Subject"
-                value={form.subject}
-                onChange={(value) => setForm({ ...form, subject: value })}
-                placeholder="Example: Payment failed"
+          <aside className="rounded-[28px] border border-gray-200 bg-white p-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#3b71e6]">
+              <LifeBuoy size={24} />
+            </div>
+
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight">
+              Contact support
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Send us your issue with booking ID or account email. This form
+              opens your email app with the details filled in.
+            </p>
+
+            <form onSubmit={submitSupport} className="mt-6 space-y-4">
+              <Input
+                label="Full name"
+                value={form.name}
+                onChange={(e) => updateForm("name", e.target.value)}
+                required
               />
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Category
-                </label>
+              <Input
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={(e) => updateForm("email", e.target.value)}
+                required
+              />
+
+              <Input
+                label="Booking ID (optional)"
+                value={form.bookingId}
+                onChange={(e) => updateForm("bookingId", e.target.value)}
+              />
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">
+                  Issue type
+                </span>
 
                 <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value })
-                  }
-                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 outline-none focus:ring-2 focus:ring-[#3b71e6]"
+                  value={form.type}
+                  onChange={(e) => updateForm("type", e.target.value)}
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
                 >
-                  <option>Booking</option>
-                  <option>Payment</option>
-                  <option>Refund</option>
-                  <option>Account</option>
-                  <option>Wishlist</option>
-                  <option>Host</option>
-                  <option>Technical</option>
-                  <option>General</option>
+                  <option>Booking issue</option>
+                  <option>Payment issue</option>
+                  <option>Refund request</option>
+                  <option>Host support</option>
+                  <option>Verification issue</option>
+                  <option>Account issue</option>
                 </select>
-              </div>
+              </label>
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">
                   Message
-                </label>
+                </span>
 
                 <textarea
+                  rows={5}
                   value={form.message}
-                  onChange={(e) =>
-                    setForm({ ...form, message: e.target.value })
-                  }
-                  placeholder="Describe your issue clearly..."
-                  className="min-h-36 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#3b71e6]"
+                  onChange={(e) => updateForm("message", e.target.value)}
+                  required
+                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
                 />
-              </div>
+              </label>
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] font-semibold text-white hover:bg-[#7152E8] disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#3b71e6] text-sm font-semibold text-white transition hover:bg-[#2f5fc2]"
               >
-                <Send size={18} />
-                {submitting ? "Submitting..." : "Submit Ticket"}
+                <Mail size={18} />
+                Send support request
               </button>
             </form>
 
-            <div className="mt-6 rounded-2xl bg-[#F4F1FF] p-5">
-              <h3 className="font-bold text-gray-900">Quick help</h3>
-
-              <p className="mt-2 text-sm text-gray-600">
-                For urgent booking issues, contact your host from Trip Details or Messages.
-              </p>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-            <div className="border-b p-6">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Your Tickets
-              </h2>
-
-              <p className="mt-1 text-gray-500">
-                Track the status of your support requests.
-              </p>
-            </div>
-
-            {loading ? (
-              <div className="p-12 text-center text-gray-500">
-                Loading tickets...
-              </div>
-            ) : tickets.length === 0 ? (
-              <div className="p-14 text-center">
-                <div className="mb-4 text-6xl">🎧</div>
-
-                <h3 className="text-2xl font-bold text-gray-900">
-                  No tickets yet
-                </h3>
-
-                <p className="mt-2 text-gray-500">
-                  Create a support ticket when you need help.
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {tickets.map((ticket) => (
-                  <TicketCard key={ticket.id} ticket={ticket} />
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
+            <button
+              type="button"
+              onClick={() => (window.location.href = "mailto:business@dovail.com")}
+              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              <MessageCircle size={18} />
+              business@dovail.com
+            </button>
+          </aside>
+        </section>
       </main>
     </div>
   );
 }
 
-function Field({ label, value, onChange, placeholder }) {
+function Input({ label, ...props }) {
   return (
-    <div>
-      <label className="mb-2 block text-sm font-semibold text-gray-700">
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-gray-700">
         {label}
-      </label>
+      </span>
 
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#3b71e6]"
+        {...props}
+        className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
       />
-    </div>
-  );
-}
-
-function TicketCard({ ticket }) {
-  return (
-    <div className="p-6 transition hover:bg-gray-50">
-      <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900">
-            {ticket.subject}
-          </h3>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Ticket #{ticket.id} · {ticket.category}
-          </p>
-        </div>
-
-        <StatusBadge status={ticket.status} />
-      </div>
-
-      <p className="line-clamp-3 text-sm leading-6 text-gray-600">
-        {ticket.message}
-      </p>
-
-      <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-        <MessageSquare size={14} />
-        {ticket.created_at
-          ? new Date(ticket.created_at).toLocaleString()
-          : "Date unavailable"}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ icon, title, value, color }) {
-  return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F1FF] text-[#3b71e6]">
-        {icon}
-      </div>
-
-      <p className="text-sm text-gray-500">{title}</p>
-
-      <h2 className={`mt-2 text-3xl font-bold ${color}`}>{value}</h2>
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const value = status || "Open";
-
-  const style =
-    value === "Closed"
-      ? "bg-green-100 text-green-700"
-      : value === "Pending"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-[#F4F1FF] text-[#3b71e6]";
-
-  return (
-    <span className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${style}`}>
-      {value}
-    </span>
+    </label>
   );
 }
