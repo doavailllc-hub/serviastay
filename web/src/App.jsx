@@ -80,7 +80,6 @@ import RefundRequest from "./pages/RefundRequest";
 import AdminTrips from "./pages/admin/AdminTrips";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
-import Support from "./pages/Support";
 
 import { Toaster } from "react-hot-toast";
 
