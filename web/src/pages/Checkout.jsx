@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   ArrowLeft,
   Check,
@@ -13,13 +14,55 @@ import {
 } from "lucide-react";
 
 import api from "../api/api";
+import { formatINR, getStoredUser } from "../utils/resortUtils";
 
 const BRAND = "#3b71e6";
 const APP_NAME = import.meta.env.VITE_APP_NAME || "Dovail Stay";
+const SITE_URL =
+  import.meta.env.VITE_SITE_URL ||
+  import.meta.env.VITE_APP_URL ||
+  "https://stay.dovail.com";
+
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
+
+function getImageUrl(property) {
+  const image =
+    property?.image ||
+    property?.image_url ||
+    property?.cover_image ||
+    property?.thumbnail ||
+    "";
+
+  if (!image) return FALLBACK_IMAGE;
+  if (image.startsWith("https://")) return image;
+
+  if (image.startsWith("http://")) {
+    try {
+      const url = new URL(image);
+      return `${SITE_URL}${url.pathname}`;
+    } catch {
+      return FALLBACK_IMAGE;
+    }
+  }
+
+  if (image.startsWith("/uploads/")) return `${SITE_URL}${image}`;
+  if (image.startsWith("uploads/")) return `${SITE_URL}/${image}`;
+
+  return image;
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "Not selected";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${dateString}T00:00:00`));
+}
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -27,6 +70,10 @@ export default function Checkout() {
 
   const property = location.state?.property;
   const guests = Number(location.state?.guests || 1);
+  const adults = Number(location.state?.adults || guests || 1);
+  const children = Number(location.state?.children || 0);
+  const infants = Number(location.state?.infants || 0);
+  const pets = Number(location.state?.pets || 0);
   const nights = Number(location.state?.nights || 1);
   const checkin = location.state?.checkin || "";
   const checkout = location.state?.checkout || "";
@@ -47,37 +94,27 @@ export default function Checkout() {
   const discount = Number(coupon?.discount || 0);
   const total = Math.max(beforeDiscountTotal - discount, 0);
 
-  const formatINR = (amount) =>
-    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+  const image = getImageUrl(property);
 
-  const image =
-    property?.image ||
-    property?.image_url ||
-    property?.cover_image ||
-    property?.thumbnail ||
-    FALLBACK_IMAGE;
+  const guestSummary = [
+    adults > 0 ? `${adults} adult${adults > 1 ? "s" : ""}` : "",
+    children > 0 ? `${children} child${children > 1 ? "ren" : ""}` : "",
+    infants > 0 ? `${infants} infant${infants > 1 ? "s" : ""}` : "",
+    pets > 0 ? `${pets} pet${pets > 1 ? "s" : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  const getUser = () => {
-    try {
-      const user =
-        JSON.parse(localStorage.getItem("user") || "null") ||
-        JSON.parse(sessionStorage.getItem("user") || "null");
+  const getUserOrRedirect = () => {
+    const user = getStoredUser();
 
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      if (!user || !token) {
-        alert("Please login first");
-        navigate("/login");
-        return null;
-      }
-
-      return user;
-    } catch {
-      alert("Session expired. Please login again.");
+    if (!user?.id) {
+      toast.error("Please login first");
       navigate("/login");
       return null;
     }
+
+    return user;
   };
 
   const loadRazorpay = () =>
@@ -114,18 +151,23 @@ export default function Checkout() {
       setCouponLoading(true);
       setCouponError("");
 
-      const res = await api.post("/coupons/validate", {
+      const { data } = await api.post("/coupons/validate", {
         code,
         amount: beforeDiscountTotal,
+        property_id: property?.id,
+        checkin,
+        checkout,
+        guests,
       });
 
       setCoupon({
         code,
-        discount: Number(res.data.discount || 0),
-        payableAmount: Number(res.data.payableAmount || 0),
+        discount: Number(data.discount || 0),
+        payableAmount: Number(data.payableAmount || 0),
       });
 
       setCouponCode(code);
+      toast.success("Coupon applied");
     } catch (err) {
       console.log("Coupon validation failed:", err);
       setCoupon(null);
@@ -142,15 +184,19 @@ export default function Checkout() {
   };
 
   const createBooking = async ({ method, paymentId, orderId }) => {
-    const user = getUser();
+    const user = getUserOrRedirect();
     if (!user) return;
 
-    const res = await api.post("/bookings", {
+    const { data } = await api.post("/bookings", {
       property_id: property.id,
       user_id: user.id,
       checkin,
       checkout,
       guests,
+      adults,
+      children,
+      infants,
+      pets,
       total,
       payment_method: method,
       payment_status: "Paid",
@@ -165,9 +211,13 @@ export default function Checkout() {
     navigate("/booking-success", {
       replace: true,
       state: {
-        booking: res.data,
+        booking: data,
         property,
         guests,
+        adults,
+        children,
+        infants,
+        pets,
         nights,
         total,
         discount,
@@ -181,14 +231,26 @@ export default function Checkout() {
   };
 
   const payWithRazorpay = async () => {
-    const user = getUser();
+    const user = getUserOrRedirect();
     if (!user) {
       setLoading(false);
       return;
     }
 
     if (!property?.id) {
-      alert("Property not found");
+      toast.error("Property not found");
+      setLoading(false);
+      return;
+    }
+
+    if (!checkin || !checkout) {
+      toast.error("Please select check-in and checkout dates");
+      setLoading(false);
+      return;
+    }
+
+    if (total <= 0) {
+      toast.error("Invalid payment amount");
       setLoading(false);
       return;
     }
@@ -196,12 +258,12 @@ export default function Checkout() {
     const scriptLoaded = await loadRazorpay();
 
     if (!scriptLoaded) {
-      alert("Razorpay failed to load. Please check your internet connection.");
+      toast.error("Razorpay failed to load. Please check your internet.");
       setLoading(false);
       return;
     }
 
-    const orderRes = await api.post("/payments/create-order", {
+    const { data } = await api.post("/payments/create-order", {
       user_id: user.id,
       property_id: property.id,
       amount: total,
@@ -213,15 +275,19 @@ export default function Checkout() {
       checkin,
       checkout,
       guests,
+      adults,
+      children,
+      infants,
+      pets,
     });
 
     const options = {
-      key: orderRes.data.key,
-      amount: orderRes.data.order.amount,
-      currency: "INR",
+      key: data.key,
+      amount: data.order.amount,
+      currency: data.order.currency || "INR",
       name: APP_NAME,
       description: property?.title || "Stay booking",
-      order_id: orderRes.data.order.id,
+      order_id: data.order.id,
 
       prefill: {
         name: user.fullname || user.name || "",
@@ -261,7 +327,7 @@ export default function Checkout() {
           });
         } catch (err) {
           console.log("Payment verification failed:", err);
-          alert(
+          toast.error(
             err.response?.data?.message ||
               "Payment verification failed. Please contact support."
           );
@@ -274,7 +340,7 @@ export default function Checkout() {
 
     razorpay.on("payment.failed", (response) => {
       console.log("Razorpay payment failed:", response.error);
-      alert(response.error?.description || "Payment failed. Please try again.");
+      toast.error(response.error?.description || "Payment failed. Try again.");
       setLoading(false);
     });
 
@@ -286,12 +352,12 @@ export default function Checkout() {
 
     try {
       if (!acceptedRules) {
-        alert("Please accept the house rules before continuing.");
+        toast.error("Please accept the house rules before continuing.");
         return;
       }
 
       if (!property?.id) {
-        alert("Property not found");
+        toast.error("Property not found");
         return;
       }
 
@@ -301,9 +367,9 @@ export default function Checkout() {
       console.log("Checkout failed:", err);
 
       if (err.response?.status === 409) {
-        alert("This property is already booked for these dates.");
+        toast.error("This property is already booked for these dates.");
       } else {
-        alert(err.response?.data?.message || "Payment failed. Please try again.");
+        toast.error(err.response?.data?.message || "Payment failed. Try again.");
       }
 
       setLoading(false);
@@ -336,6 +402,9 @@ export default function Checkout() {
     );
   }
 
+  const canPay =
+    acceptedRules && !loading && Boolean(property?.id) && total > 0 && checkin && checkout;
+
   return (
     <div className="min-h-screen bg-white text-gray-950">
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-7 md:px-8 lg:pt-10">
@@ -361,13 +430,13 @@ export default function Checkout() {
             <Section title="Your trip">
               <TripRow
                 title="Dates"
-                value={`${checkin} – ${checkout}`}
+                value={`${formatDate(checkin)} – ${formatDate(checkout)}`}
                 onEdit={() => navigate(-1)}
               />
 
               <TripRow
                 title="Guests"
-                value={`${guests} ${guests === 1 ? "guest" : "guests"}`}
+                value={guestSummary || `${guests} guests`}
                 onEdit={() => navigate(-1)}
               />
             </Section>
@@ -419,6 +488,7 @@ export default function Checkout() {
                   <button
                     type="button"
                     onClick={removeCoupon}
+                    aria-label="Remove coupon"
                     className="flex h-12 items-center justify-center gap-2 rounded-xl border border-gray-300 px-5 text-sm font-semibold text-gray-950 transition hover:bg-gray-50"
                   >
                     <X size={16} />
@@ -429,6 +499,7 @@ export default function Checkout() {
                     type="button"
                     onClick={validateCoupon}
                     disabled={couponLoading}
+                    aria-label="Apply coupon"
                     className="h-12 rounded-xl bg-gray-950 px-6 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60"
                   >
                     {couponLoading ? "Checking..." : "Apply"}
@@ -494,7 +565,9 @@ export default function Checkout() {
                   alt={property?.title || "Selected stay"}
                   className="h-28 w-28 rounded-2xl object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = FALLBACK_IMAGE;
+                    if (e.currentTarget.src !== FALLBACK_IMAGE) {
+                      e.currentTarget.src = FALLBACK_IMAGE;
+                    }
                   }}
                 />
 
@@ -506,7 +579,11 @@ export default function Checkout() {
                   </h3>
 
                   <p className="mt-2 text-xs font-medium text-gray-600">
-                    ★ {property?.rating || "5.0"} · Guest favorite
+                    ★{" "}
+                    {property?.rating && Number(property.rating) > 0
+                      ? Number(property.rating).toFixed(1)
+                      : "New"}{" "}
+                    · Guest favorite
                   </p>
                 </div>
               </div>
@@ -547,7 +624,8 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={handlePayment}
-                disabled={loading || !acceptedRules}
+                disabled={!canPay}
+                aria-label="Confirm and pay"
                 className="mt-6 w-full rounded-xl bg-[#3b71e6] py-3.5 text-sm font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {loading ? "Processing..." : "Confirm and pay"}
@@ -659,7 +737,11 @@ function PriceRow({ label, value, success }) {
       }`}
     >
       <span>{label}</span>
-      <span className={success ? "font-semibold text-green-700" : "font-medium text-gray-950"}>
+      <span
+        className={
+          success ? "font-semibold text-green-700" : "font-medium text-gray-950"
+        }
+      >
         {value}
       </span>
     </div>

@@ -1314,7 +1314,49 @@ app.post("/api/check-availability", async (req, res) => {
   }
 });
 
+app.post("/api/properties/check-availability", verifyToken, async (req, res) => {
+  try {
+    const { property_id, checkin, checkout } = req.body;
 
+    if (!property_id || !checkin || !checkout) {
+      return res.status(400).json({ message: "Missing availability details" });
+    }
+
+    if (checkout <= checkin) {
+      return res.status(400).json({ message: "Invalid checkout date" });
+    }
+
+    const rows = await query(
+      `
+      SELECT id FROM servia_bookings
+      WHERE property_id = ?
+      AND status != 'Cancelled'
+      AND checkin < ?
+      AND checkout > ?
+      LIMIT 1
+      `,
+      [property_id, checkout, checkin]
+    );
+
+    if (rows.length) {
+      return res.status(409).json({
+        available: false,
+        message: "This property is already booked for these dates",
+      });
+    }
+
+    res.json({
+      available: true,
+      message: "Property is available",
+    });
+  } catch (err) {
+    console.log("AVAILABILITY CHECK ERROR:", err.message);
+    res.status(500).json({
+      message: "Availability check failed",
+      error: err.message,
+    });
+  }
+});
 async function sendBookingConfirmation({
   email,
   guestName,
@@ -1380,128 +1422,296 @@ async function sendBookingConfirmation({
   });
 }
 app.post("/api/bookings", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
+
   try {
     const {
       property_id,
-      user_id,
       checkin,
       checkout,
       guests,
-      total,
+      adults,
+      children,
+      infants,
+      pets,
       payment_method,
       coupon_code,
-      discount,
       razorpay_order_id,
+      razorpay_payment_id,
     } = req.body;
 
-    const existing = await query(
+    const userId = Number(req.user?.id);
+    const propertyId = Number(property_id);
+
+    if (!userId || !propertyId || !checkin || !checkout) {
+      connection.release();
+      return res.status(400).json({ message: "Missing booking details" });
+    }
+
+    if (checkout <= checkin) {
+      connection.release();
+      return res.status(400).json({ message: "Invalid checkout date" });
+    }
+
+    await connection.beginTransaction();
+
+    const [propertyRows] = await connection.query(
       `
-      SELECT id FROM servia_bookings
+      SELECT id, user_id, title, price, status
+      FROM servia_properties
+      WHERE id = ?
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [propertyId]
+    );
+
+    if (!propertyRows.length) {
+      await connection.rollback();
+      connection.release();
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    const property = propertyRows[0];
+
+    if (property.status !== "Published") {
+      await connection.rollback();
+      connection.release();
+      return res.status(400).json({ message: "Property is not available" });
+    }
+
+    if (Number(property.user_id) === userId) {
+      await connection.rollback();
+      connection.release();
+      return res.status(400).json({ message: "You cannot book your own listing" });
+    }
+
+    const [existing] = await connection.query(
+      `
+      SELECT id
+      FROM servia_bookings
       WHERE property_id = ?
       AND status != 'Cancelled'
       AND checkin < ?
       AND checkout > ?
+      LIMIT 1
+      FOR UPDATE
       `,
-      [property_id, checkout, checkin]
+      [propertyId, checkout, checkin]
     );
 
     if (existing.length) {
+      await connection.rollback();
+      connection.release();
       return res.status(409).json({
         message: "This property is already booked for these dates",
       });
     }
 
-    const result = await query(
+    const start = new Date(`${checkin}T00:00:00`);
+    const end = new Date(`${checkout}T00:00:00`);
+
+    const nights = Math.max(
+      1,
+      Math.round((end - start) / (1000 * 60 * 60 * 24))
+    );
+
+    const price = Number(property.price || 0);
+    const subtotal = price * nights;
+    const serviceFee = Math.round(subtotal * 0.08);
+    const taxes = Math.round(subtotal * 0.12);
+
+    let discount = 0;
+    let appliedCoupon = null;
+
+    if (coupon_code) {
+      const [couponRows] = await connection.query(
+        `
+        SELECT *
+        FROM servia_coupons
+        WHERE UPPER(code) = UPPER(?)
+        AND is_active = 1
+        LIMIT 1
+        `,
+        [coupon_code]
+      );
+
+      if (!couponRows.length) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({ message: "Invalid coupon" });
+      }
+
+      const coupon = couponRows[0];
+      const baseAmount = subtotal + serviceFee + taxes;
+      const minimumAmount = Number(coupon.minimum_amount || 0);
+      const maxDiscount = Number(coupon.max_discount || 0);
+
+      if (baseAmount < minimumAmount) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({
+          message: `Minimum booking amount for this coupon is ₹${minimumAmount}`,
+        });
+      }
+
+      if (coupon.discount_type === "percentage") {
+        discount = Math.round(
+          baseAmount * (Number(coupon.discount_value || 0) / 100)
+        );
+      } else {
+        discount = Number(coupon.discount_value || 0);
+      }
+
+      if (maxDiscount > 0) {
+        discount = Math.min(discount, maxDiscount);
+      }
+
+      discount = Math.max(0, discount);
+      appliedCoupon = coupon.code;
+    }
+
+    const total = Math.max(subtotal + serviceFee + taxes - discount, 0);
+
+    if (payment_method === "razorpay") {
+      if (!razorpay_order_id || !razorpay_payment_id) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({
+          message: "Payment details missing",
+        });
+      }
+    }
+
+    const [result] = await connection.query(
       `
       INSERT INTO servia_bookings
-      (property_id, user_id, checkin, checkout, guests, total, status, payment_method, payment_status, razorpay_order_id, coupon_code, discount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
+      (
         property_id,
         user_id,
         checkin,
         checkout,
         guests,
         total,
-        payment_method === "razorpay" ? "Pending" : "Confirmed",
-        payment_method || "cash",
-        payment_method === "razorpay" ? "Pending" : "Paid",
+        status,
+        payment_method,
+        payment_status,
+        razorpay_order_id,
+        coupon_code,
+        discount
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        propertyId,
+        userId,
+        checkin,
+        checkout,
+        Number(guests || 1),
+        total,
+        payment_method === "razorpay" ? "Confirmed" : "Pending",
+        payment_method || "razorpay",
+        payment_method === "razorpay" ? "Paid" : "Pending",
         razorpay_order_id || null,
-        coupon_code || null,
-        Number(discount || 0),
+        appliedCoupon,
+        discount,
       ]
     );
+
+    if (appliedCoupon) {
+      await connection.query(
+        `
+        UPDATE servia_coupons
+        SET used_count = COALESCE(used_count, 0) + 1
+        WHERE UPPER(code) = UPPER(?)
+        `,
+        [appliedCoupon]
+      );
+    }
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: "Booking created successfully",
+      bookingId: result.insertId,
+      pricing: {
+        nights,
+        price,
+        subtotal,
+        serviceFee,
+        taxes,
+        discount,
+        total,
+      },
+    });
 
     try {
       const users = await query(
         "SELECT fullname, email FROM servia_users WHERE id = ? LIMIT 1",
-        [user_id]
+        [userId]
       );
 
       const properties = await query(
         `
         SELECT p.title, u.email AS host_email, u.fullname AS host_name
         FROM servia_properties p
-        LEFT JOIN servia_users u ON p.host_id = u.id
+        LEFT JOIN servia_users u ON p.user_id = u.id
         WHERE p.id = ?
         LIMIT 1
         `,
-        [property_id]
+        [propertyId]
       );
 
       const guest = users[0];
-      const property = properties[0];
+      const bookedProperty = properties[0];
 
       if (guest?.email) {
         await sendBookingConfirmation({
           email: guest.email,
           guestName: guest.fullname || "Guest",
-          propertyTitle: property?.title || "Servia Stay",
+          propertyTitle: bookedProperty?.title || "Dovail Stay",
           checkin,
           checkout,
-          guests,
+          guests: Number(guests || 1),
           total,
           bookingId: result.insertId,
         });
       }
 
-      if (property?.host_email) {
+      if (bookedProperty?.host_email && typeof sendEmail === "function") {
         await sendEmail({
-          to: property.host_email,
-          subject: "New Booking Received - Servia Stay",
+          to: bookedProperty.host_email,
+          subject: "New Booking Received - Dovail Stay",
           html: `
             <h2>New Booking Received 🏡</h2>
-            <p>Hi ${property.host_name || "Host"},</p>
+            <p>Hi ${bookedProperty.host_name || "Host"},</p>
             <p>Your property has received a new booking.</p>
-
             <p><b>Guest:</b> ${guest?.fullname || "Guest"}</p>
-            <p><b>Property:</b> ${property?.title || "Servia Stay"}</p>
+            <p><b>Property:</b> ${bookedProperty?.title || "Dovail Stay"}</p>
             <p><b>Check-in:</b> ${checkin}</p>
             <p><b>Check-out:</b> ${checkout}</p>
-            <p><b>Guests:</b> ${guests}</p>
+            <p><b>Guests:</b> ${Number(guests || 1)}</p>
             <p><b>Total:</b> ₹${Number(total || 0).toLocaleString("en-IN")}</p>
-
-            <br/>
-            <p>Please check your host dashboard for details.</p>
           `,
         });
       }
     } catch (emailErr) {
       console.log("BOOKING EMAIL ERROR:", emailErr.message);
     }
-
-    res.json({
-      success: true,
-      message: "Booking created successfully",
-      bookingId: result.insertId,
-    });
   } catch (err) {
-    console.log("BOOKING ERROR:", err);
+    try {
+      await connection.rollback();
+    } catch {}
+
+    console.log("BOOKING ERROR:", err.message);
+
     res.status(500).json({
       message: "Booking failed",
       error: err.message,
     });
+  } finally {
+    connection.release();
   }
 });
 /* WISHLIST */
@@ -1523,16 +1733,6 @@ app.post("/api/wishlist", verifyToken, async (req, res) => {
       "INSERT INTO servia_wishlist (user_id, property_id) VALUES (?, ?)",
       [user_id, property_id]
     );
-if (coupon_code) {
-  await query(
-    `
-    UPDATE servia_coupons
-    SET used_count = used_count + 1
-    WHERE UPPER(code) = UPPER(?)
-    `,
-    [coupon_code]
-  );
-}
     res.json({
       success: true,
       wishlistId: result.insertId,
@@ -1682,34 +1882,172 @@ app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, re
 });
 
 app.post("/api/payments/create-order", paymentLimiter, verifyToken, async (req, res) => {
-  
   if (!razorpay) {
-  return res.status(503).json({ message: "Payment gateway not configured" });
-}
-  try {
-    const { amount, property_id, user_id } = req.body;
+    return res.status(503).json({ message: "Payment gateway not configured" });
+  }
 
-    if (!amount || Number(amount) <= 0) {
-      return res.status(400).json({ message: "Invalid amount" });
+  try {
+    const {
+      property_id,
+      checkin,
+      checkout,
+      guests,
+      adults,
+      children,
+      infants,
+      pets,
+      coupon_code,
+    } = req.body;
+
+    const userId = Number(req.user?.id);
+
+    if (!userId || !property_id || !checkin || !checkout) {
+      return res.status(400).json({ message: "Missing payment details" });
+    }
+
+    if (checkout <= checkin) {
+      return res.status(400).json({ message: "Invalid checkout date" });
+    }
+
+    const properties = await query(
+      `
+      SELECT id, price, status
+      FROM servia_properties
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [property_id]
+    );
+
+    if (!properties.length) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    if (properties[0].status !== "Published") {
+      return res.status(400).json({ message: "Property is not available" });
+    }
+
+    const existing = await query(
+      `
+      SELECT id
+      FROM servia_bookings
+      WHERE property_id = ?
+      AND status != 'Cancelled'
+      AND checkin < ?
+      AND checkout > ?
+      LIMIT 1
+      `,
+      [property_id, checkout, checkin]
+    );
+
+    if (existing.length) {
+      return res.status(409).json({
+        message: "This property is already booked for these dates",
+      });
+    }
+
+    const start = new Date(`${checkin}T00:00:00`);
+    const end = new Date(`${checkout}T00:00:00`);
+
+    const nights = Math.max(
+      1,
+      Math.round((end - start) / (1000 * 60 * 60 * 24))
+    );
+
+    const price = Number(properties[0].price || 0);
+    const subtotal = price * nights;
+    const serviceFee = Math.round(subtotal * 0.08);
+    const taxes = Math.round(subtotal * 0.12);
+
+    let discount = 0;
+    let appliedCoupon = null;
+
+    if (coupon_code) {
+      const couponRows = await query(
+        `
+        SELECT *
+        FROM servia_coupons
+        WHERE UPPER(code) = UPPER(?)
+        AND is_active = 1
+        LIMIT 1
+        `,
+        [coupon_code]
+      );
+
+      if (!couponRows.length) {
+        return res.status(400).json({ message: "Invalid coupon" });
+      }
+
+      const coupon = couponRows[0];
+      const minimumAmount = Number(coupon.minimum_amount || 0);
+      const maxDiscount = Number(coupon.max_discount || 0);
+
+      const baseAmount = subtotal + serviceFee + taxes;
+
+      if (baseAmount < minimumAmount) {
+        return res.status(400).json({
+          message: `Minimum booking amount for this coupon is ₹${minimumAmount}`,
+        });
+      }
+
+      if (coupon.discount_type === "percentage") {
+        discount = Math.round(baseAmount * (Number(coupon.discount_value || 0) / 100));
+      } else {
+        discount = Number(coupon.discount_value || 0);
+      }
+
+      if (maxDiscount > 0) {
+        discount = Math.min(discount, maxDiscount);
+      }
+
+      discount = Math.max(0, discount);
+      appliedCoupon = coupon.code;
+    }
+
+    const total = Math.max(subtotal + serviceFee + taxes - discount, 0);
+
+    if (total <= 0) {
+      return res.status(400).json({ message: "Invalid payment amount" });
     }
 
     const order = await razorpay.orders.create({
-      amount: Math.round(Number(amount) * 100),
+      amount: Math.round(total * 100),
       currency: "INR",
       receipt: `servia_${Date.now()}`,
       notes: {
-        property_id: String(property_id || ""),
-        user_id: String(user_id || ""),
+        property_id: String(property_id),
+        user_id: String(userId),
+        checkin,
+        checkout,
+        guests: String(guests || 1),
+        adults: String(adults || 1),
+        children: String(children || 0),
+        infants: String(infants || 0),
+        pets: String(pets || 0),
+        coupon_code: appliedCoupon || "",
       },
     });
 
     res.json({
       key: process.env.RAZORPAY_KEY_ID,
       order,
+      priceDetails: {
+        nights,
+        price,
+        subtotal,
+        serviceFee,
+        taxes,
+        discount,
+        total,
+        couponCode: appliedCoupon,
+      },
     });
   } catch (err) {
     console.log("RAZORPAY ORDER ERROR:", err);
-    res.status(500).json({ message: "Payment order creation failed" });
+    res.status(500).json({
+      message: "Payment order creation failed",
+      error: err.message,
+    });
   }
 });
 
