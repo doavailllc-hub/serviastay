@@ -1,25 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   CalendarDays,
   Download,
   Eye,
   MapPin,
+  MessageCircle,
   ReceiptText,
   RefreshCw,
   RotateCcw,
+  Star,
   Users,
 } from "lucide-react";
 
 import api from "../api/api";
 import Navbar from "../components/Navbar";
+import { formatINR, getStoredUser } from "../utils/resortUtils";
+
+const SITE_URL =
+  import.meta.env.VITE_SITE_URL ||
+  import.meta.env.VITE_APP_URL ||
+  "https://stay.dovail.com";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
-
-function formatINR(amount) {
-  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
-}
 
 function formatDate(value) {
   if (!value) return "Not selected";
@@ -44,6 +49,55 @@ function getTripValue(trip, keys, fallback = "") {
   return fallback;
 }
 
+function getImageUrl(trip) {
+  const image = getTripValue(
+    trip,
+    ["image", "image_url", "property_image", "cover_image", "thumbnail"],
+    ""
+  );
+
+  if (!image) return FALLBACK_IMAGE;
+  if (image.startsWith("https://")) return image;
+
+  if (image.startsWith("http://")) {
+    try {
+      const url = new URL(image);
+      return `${SITE_URL}${url.pathname}`;
+    } catch {
+      return FALLBACK_IMAGE;
+    }
+  }
+
+  if (image.startsWith("/uploads/")) return `${SITE_URL}${image}`;
+  if (image.startsWith("uploads/")) return `${SITE_URL}/${image}`;
+
+  return image;
+}
+
+function isPastTrip(trip) {
+  const status = String(trip.status || "").toLowerCase();
+
+  if (
+    ["cancelled", "completed", "checked-out", "checked out", "refunded"].includes(
+      status
+    )
+  ) {
+    return true;
+  }
+
+  const checkout = getTripValue(trip, ["checkout", "check_out", "check_out_date"]);
+
+  if (!checkout) return false;
+
+  const checkoutDate = new Date(checkout);
+  const today = new Date();
+
+  checkoutDate.setHours(23, 59, 59, 999);
+  today.setHours(0, 0, 0, 0);
+
+  return checkoutDate < today;
+}
+
 export default function Trips() {
   const navigate = useNavigate();
 
@@ -54,14 +108,9 @@ export default function Trips() {
     try {
       setLoading(true);
 
-      const user =
-        JSON.parse(localStorage.getItem("user") || "null") ||
-        JSON.parse(sessionStorage.getItem("user") || "null");
+      const user = getStoredUser();
 
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      if (!user?.id || !token) {
+      if (!user?.id) {
         navigate("/login");
         return;
       }
@@ -70,6 +119,7 @@ export default function Trips() {
       setTrips(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Trips load failed:", err);
+      toast.error(err.response?.data?.message || "Trips load failed");
       setTrips([]);
     } finally {
       setLoading(false);
@@ -85,13 +135,8 @@ export default function Trips() {
     const past = [];
 
     trips.forEach((trip) => {
-      const status = String(trip.status || "").toLowerCase();
-
-      if (status === "cancelled" || status === "completed") {
-        past.push(trip);
-      } else {
-        upcoming.push(trip);
-      }
+      if (isPastTrip(trip)) past.push(trip);
+      else upcoming.push(trip);
     });
 
     return { upcomingTrips: upcoming, pastTrips: past };
@@ -139,12 +184,15 @@ export default function Trips() {
               title="Upcoming trips"
               trips={upcomingTrips}
               navigate={navigate}
+              reload={loadTrips}
             />
 
             <TripSection
               title="Past trips"
               trips={pastTrips}
               navigate={navigate}
+              reload={loadTrips}
+              past
             />
           </div>
         )}
@@ -153,7 +201,7 @@ export default function Trips() {
   );
 }
 
-function TripSection({ title, trips, navigate }) {
+function TripSection({ title, trips, navigate, reload, past }) {
   return (
     <section>
       <div className="mb-5 flex items-center justify-between">
@@ -173,7 +221,13 @@ function TripSection({ title, trips, navigate }) {
       ) : (
         <div className="grid gap-5">
           {trips.map((trip) => (
-            <TripCard key={trip.id} trip={trip} navigate={navigate} />
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              navigate={navigate}
+              reload={reload}
+              past={past}
+            />
           ))}
         </div>
       )}
@@ -181,20 +235,20 @@ function TripSection({ title, trips, navigate }) {
   );
 }
 
-function TripCard({ trip, navigate }) {
+function TripCard({ trip, navigate, reload, past }) {
   const title = getTripValue(
     trip,
     ["property_title", "title", "property_name"],
     "Property booking"
   );
 
-  const location = getTripValue(trip, ["location", "address"], "Location unavailable");
-
-  const image = getTripValue(
+  const location = getTripValue(
     trip,
-    ["image", "image_url", "property_image", "cover_image"],
-    FALLBACK_IMAGE
+    ["location", "address"],
+    "Location unavailable"
   );
+
+  const image = getImageUrl(trip);
 
   const checkin = getTripValue(trip, ["checkin", "check_in", "check_in_date"]);
   const checkout = getTripValue(trip, ["checkout", "check_out", "check_out_date"]);
@@ -203,12 +257,25 @@ function TripCard({ trip, navigate }) {
   const status = getTripValue(trip, ["status"], "Confirmed");
   const paymentStatus = getTripValue(trip, ["payment_status"], "");
   const paymentMethod = getTripValue(trip, ["payment_method"], "razorpay");
+  const hostId = getTripValue(trip, ["host_id", "user_id"], null);
+  const propertyId = getTripValue(trip, ["property_id"], null);
+
+  const statusLower = String(status || "").toLowerCase();
+  const canRequestRefund =
+    !past &&
+    !["cancelled", "completed", "refunded"].includes(statusLower) &&
+    String(paymentStatus).toLowerCase() === "paid";
+
+  const canReview =
+    past &&
+    !["cancelled", "refunded"].includes(statusLower) &&
+    propertyId;
 
   const downloadInvoice = () => {
     const win = window.open("", "_blank");
 
     if (!win) {
-      alert("Please allow popups to download invoice.");
+      toast.error("Please allow popups to download invoice.");
       return;
     }
 
@@ -268,15 +335,33 @@ function TripCard({ trip, navigate }) {
     win.document.close();
   };
 
+  const contactHost = () => {
+    if (!hostId) {
+      toast.error("Host details unavailable");
+      return;
+    }
+
+    navigate("/messages", {
+      state: {
+        openUserId: hostId,
+        propertyId,
+      },
+    });
+  };
+
   return (
     <article className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
       <div className="flex flex-col md:flex-row">
         <img
           src={image}
           alt={title}
+          loading="lazy"
+          decoding="async"
           className="h-60 w-full object-cover md:h-auto md:w-72"
           onError={(event) => {
-            event.currentTarget.src = FALLBACK_IMAGE;
+            if (event.currentTarget.src !== FALLBACK_IMAGE) {
+              event.currentTarget.src = FALLBACK_IMAGE;
+            }
           }}
         />
 
@@ -313,7 +398,7 @@ function TripCard({ trip, navigate }) {
               <InfoPill
                 icon={<ReceiptText size={18} />}
                 label="Payment"
-                value={paymentMethod}
+                value={`Paid via ${paymentMethod}`}
                 capitalize
               />
             </div>
@@ -342,18 +427,44 @@ function TripCard({ trip, navigate }) {
               Invoice
             </button>
 
-            {status !== "Cancelled" &&
-              status !== "Completed" &&
-              paymentStatus === "Paid" && (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/refund-request/${trip.id}`)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
-                >
-                  <RotateCcw size={17} />
-                  Refund
-                </button>
-              )}
+            <button
+              type="button"
+              onClick={contactHost}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold transition hover:bg-gray-50"
+            >
+              <MessageCircle size={17} />
+              Contact host
+            </button>
+
+            {canRequestRefund && (
+              <button
+                type="button"
+                onClick={() => navigate(`/refund-request/${trip.id}`)}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+              >
+                <RotateCcw size={17} />
+                Refund
+              </button>
+            )}
+
+            {canReview && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/review/${trip.id}`, {
+                    state: {
+                      bookingId: trip.id,
+                      propertyId,
+                      propertyTitle: title,
+                    },
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                <Star size={17} />
+                Leave review
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -388,14 +499,20 @@ function StatusBadge({ status }) {
   const style =
     normalized === "cancelled"
       ? "border-red-200 bg-red-50 text-red-700"
-      : normalized === "completed"
+      : normalized === "completed" ||
+        normalized === "checked-out" ||
+        normalized === "checked out"
       ? "border-blue-200 bg-blue-50 text-blue-700"
       : normalized === "pending"
       ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+      : normalized === "refunded"
+      ? "border-purple-200 bg-purple-50 text-purple-700"
       : "border-green-200 bg-green-50 text-green-700";
 
   return (
-    <span className={`w-fit rounded-full border px-3 py-1.5 text-xs font-semibold ${style}`}>
+    <span
+      className={`w-fit rounded-full border px-3 py-1.5 text-xs font-semibold ${style}`}
+    >
       {status || "Confirmed"}
     </span>
   );
@@ -427,10 +544,7 @@ function TripsSkeleton() {
   return (
     <div className="space-y-5">
       {[1, 2].map((item) => (
-        <div
-          key={item}
-          className="h-64 animate-pulse rounded-3xl bg-gray-100"
-        />
+        <div key={item} className="h-64 animate-pulse rounded-3xl bg-gray-100" />
       ))}
     </div>
   );
