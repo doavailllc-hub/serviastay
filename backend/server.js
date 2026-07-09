@@ -24,6 +24,10 @@ const API_BASE_URL = process.env.API_BASE_URL || "https://stay.dovail.com";
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://localhost:8081",
+  "http://127.0.0.1:8081",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://44.212.49.157",
   "http://44.212.49.157:5173",
   "http://stay.dovail.com",
