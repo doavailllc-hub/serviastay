@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Apple, ArrowLeft, CheckCircle2, Loader2, X } from "lucide-react";
+import { Apple, ArrowLeft, Loader2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
 import logo from "../assets/logo.png";
-
-const BRAND = "#3b71e6";
-const BRAND_HOVER = "#2f5fc2";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -131,7 +128,7 @@ export default function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
-      navigate("/home", { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
       console.log("Verify OTP failed:", err);
       setError(err.response?.data?.message || "Invalid or expired code.");
@@ -232,7 +229,7 @@ export default function Login() {
 
             <button
               type="button"
-              onClick={() => navigate("/home")}
+              onClick={() => navigate("/")}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-700 transition hover:bg-gray-50"
               aria-label="Close"
             >
@@ -281,8 +278,8 @@ export default function Login() {
                   className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
                 />
 
-                {error && <Alert type="error" message={error} />}
-                {success && <Alert type="success" message={success} />}
+                {error && <InlineMessage type="error" message={error} />}
+                {success && <InlineMessage type="success" message={success} />}
 
                 <button
                   type="submit"
@@ -298,17 +295,14 @@ export default function Login() {
                 <SocialButtons />
 
                 <p className="mt-6 text-center text-xs leading-5 text-gray-500">
-                  New users are automatically signed up after email
-                  verification. By continuing, you agree to Dovail Stay&apos;s
-                  terms and privacy policy.
+                  New users are automatically signed up after email verification.
+                  By continuing, you agree to Dovail Stay&apos;s terms and
+                  privacy policy.
                 </p>
               </form>
             ) : (
               <div className="mt-7">
-                <div
-                  onPaste={handlePasteOtp}
-                  className="grid grid-cols-6 gap-2"
-                >
+                <div onPaste={handlePasteOtp} className="grid grid-cols-6 gap-2">
                   {otp.map((digit, index) => (
                     <input
                       key={index}
@@ -327,8 +321,8 @@ export default function Login() {
                   ))}
                 </div>
 
-                {error && <Alert type="error" message={error} />}
-                {success && <Alert type="success" message={success} />}
+                {error && <InlineMessage type="error" message={error} />}
+                {success && <InlineMessage type="success" message={success} />}
 
                 <div className="mt-5 text-center text-sm">
                   <span className="text-gray-500">Didn&apos;t get it? </span>
@@ -373,19 +367,18 @@ export default function Login() {
   );
 }
 
-function Alert({ type, message }) {
+function InlineMessage({ type = "success", message }) {
   const isSuccess = type === "success";
 
   return (
     <div
-      className={`mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
+      className={`mt-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium ${
         isSuccess
           ? "border-green-200 bg-green-50 text-green-700"
-          : "border-red-200 bg-red-50 text-red-600"
+          : "border-red-200 bg-red-50 text-red-700"
       }`}
     >
-      {isSuccess && <CheckCircle2 size={16} />}
-      {message}
+      <span>{message}</span>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
+import { formatINR, getStoredUser } from "../utils/resortUtils";
 
 const BRAND = "#3b71e6";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
@@ -64,13 +65,27 @@ export default function ExperienceCheckout() {
   }, [pkg]);
 
   const price = Number(pkg?.price || 0);
-  const subtotal = Number(state.subtotal || price * travelers);
-  const serviceFee = Number(state.serviceFee || Math.round(subtotal * 0.08));
-  const total = Number(state.total || subtotal + serviceFee);
+  const subtotal = price * travelers;
+  const taxes = Math.round(subtotal * 0.12);
+  const total = subtotal + taxes;
 
   const loadRazorpay = () =>
     new Promise((resolve) => {
       if (window.Razorpay) return resolve(true);
+
+      const existingScript = document.querySelector(
+        `script[src="${RAZORPAY_SCRIPT}"]`
+      );
+
+      if (existingScript) {
+        existingScript.addEventListener("load", () => resolve(true), {
+          once: true,
+        });
+        existingScript.addEventListener("error", () => resolve(false), {
+          once: true,
+        });
+        return;
+      }
 
       const script = document.createElement("script");
       script.src = RAZORPAY_SCRIPT;
@@ -80,43 +95,39 @@ export default function ExperienceCheckout() {
       document.body.appendChild(script);
     });
 
-  const getUser = () => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user") || "null");
+  const getUserOrRedirect = () => {
+    const user = getStoredUser();
 
-    if (!token || !user?.id) {
+    if (!user?.id) {
       navigate("/login");
       return null;
     }
 
-    return { token, user };
+    return user;
   };
 
-  const createBooking = async ({ paymentStatus, paymentId = null, orderId = null }) => {
-    const auth = getUser();
-    if (!auth) return;
+  const createBooking = async ({
+    paymentStatus,
+    paymentId = null,
+    orderId = null,
+  }) => {
+    const user = getUserOrRedirect();
+    if (!user) return;
 
-    const res = await api.post(
-      "/experience-bookings",
-      {
-        experience_id: Number(id),
-        user_id: Number(auth.user.id),
-        departure_id: departureId,
-        booking_date: selectedDate,
-        guests: travelers,
-        total,
-        payment_method: paymentMethod,
-        payment_status: paymentStatus,
-        status: paymentStatus === "Paid" ? "Confirmed" : "Pending",
-        razorpay_payment_id: paymentId,
-        razorpay_order_id: orderId,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-        },
-      }
-    );
+    const res = await api.post("/experience-bookings", {
+      experience_id: Number(id),
+      user_id: Number(user.id),
+      departure_id: departureId,
+      booking_date: selectedDate,
+      guests: travelers,
+      total,
+      taxes,
+      payment_method: paymentMethod,
+      payment_status: paymentStatus,
+      status: paymentStatus === "Paid" ? "Confirmed" : "Pending",
+      razorpay_payment_id: paymentId,
+      razorpay_order_id: orderId,
+    });
 
     navigate("/experience-booking-success", {
       replace: true,
@@ -127,6 +138,8 @@ export default function ExperienceCheckout() {
         guests: travelers,
         departureId,
         selectedDeparture,
+        subtotal,
+        taxes,
         total,
         paymentStatus,
         paymentId,
@@ -135,8 +148,8 @@ export default function ExperienceCheckout() {
   };
 
   const payWithRazorpay = async () => {
-    const auth = getUser();
-    if (!auth) return;
+    const user = getUserOrRedirect();
+    if (!user) return;
 
     const loaded = await loadRazorpay();
 
@@ -145,23 +158,15 @@ export default function ExperienceCheckout() {
       return;
     }
 
-    const orderRes = await api.post(
-      "/experience-payments/create-order",
-      {
-        experience_id: Number(id),
-        user_id: Number(auth.user.id),
-        amount: total,
-        currency: "INR",
-        guests: travelers,
-        booking_date: selectedDate,
-        departure_id: departureId,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-        },
-      }
-    );
+    const orderRes = await api.post("/experience-payments/create-order", {
+      experience_id: Number(id),
+      user_id: Number(user.id),
+      amount: total,
+      currency: "INR",
+      guests: travelers,
+      booking_date: selectedDate,
+      departure_id: departureId,
+    });
 
     const options = {
       key: orderRes.data.key,
@@ -174,32 +179,40 @@ export default function ExperienceCheckout() {
         color: BRAND,
       },
       prefill: {
-        name: auth.user.fullname || auth.user.name || "",
-        email: auth.user.email || "",
-        contact: auth.user.phone || auth.user.phone_number || "",
+        name: user.fullname || user.name || "",
+        email: user.email || "",
+        contact: user.phone || user.phone_number || "",
+      },
+      notes: {
+        experience_id: String(id),
+        user_id: String(user.id),
+        booking_date: selectedDate,
+        guests: String(travelers),
       },
       handler: async (response) => {
-        await api.post(
-          "/experience-payments/verify",
-          {
+        try {
+          await api.post("/experience-payments/verify", {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${auth.token}`,
-            },
-          }
-        );
+          });
 
-        await createBooking({
-          paymentStatus: "Paid",
-          paymentId: response.razorpay_payment_id,
-          orderId: response.razorpay_order_id,
-        });
+          await createBooking({
+            paymentStatus: "Paid",
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id,
+          });
+        } catch (err) {
+          console.error("Experience payment verification failed:", err);
+          setError(
+            err.response?.data?.message ||
+              "Payment verification failed. Please contact support."
+          );
+          setPaying(false);
+        }
       },
       modal: {
+        escape: true,
         ondismiss: () => setPaying(false),
       },
     };
@@ -217,13 +230,31 @@ export default function ExperienceCheckout() {
 
   const handlePayment = async () => {
     try {
+      if (paying) return;
+
       setError("");
-      setPaying(true);
 
       if (!selectedDate) {
         setError("Travel date is missing. Please go back and select a package date.");
         return;
       }
+
+      if (!pkg?.id && !id) {
+        setError("Package details are missing.");
+        return;
+      }
+
+      if (travelers <= 0) {
+        setError("Please select at least one traveler.");
+        return;
+      }
+
+      if (total <= 0) {
+        setError("Invalid payment amount.");
+        return;
+      }
+
+      setPaying(true);
 
       if (paymentMethod === "pay_later") {
         await createBooking({
@@ -236,7 +267,6 @@ export default function ExperienceCheckout() {
     } catch (err) {
       console.error("Payment failed:", err);
       setError(err.response?.data?.message || "Payment failed. Please try again.");
-    } finally {
       setPaying(false);
     }
   };
@@ -266,6 +296,7 @@ export default function ExperienceCheckout() {
             </h1>
             <p className="mt-3 text-sm text-gray-500">{error}</p>
             <button
+              type="button"
               onClick={() => navigate("/experiences")}
               className="mt-6 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white"
             >
@@ -284,6 +315,7 @@ export default function ExperienceCheckout() {
       <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">
         <header className="mb-8">
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
           >
@@ -342,11 +374,16 @@ export default function ExperienceCheckout() {
 
             <Card title="Trip summary">
               <div className="space-y-4">
-                <SummaryRow label="Travel date" value={formatDisplayDate(selectedDate)} />
+                <SummaryRow
+                  label="Travel date"
+                  value={formatDisplayDate(selectedDate)}
+                />
+
                 <SummaryRow
                   label="Travelers"
                   value={`${travelers} traveler${travelers > 1 ? "s" : ""}`}
                 />
+
                 <SummaryRow
                   label="Departure"
                   value={
@@ -375,6 +412,7 @@ export default function ExperienceCheckout() {
             )}
 
             <button
+              type="button"
               onClick={handlePayment}
               disabled={paying}
               className="h-12 w-full rounded-xl bg-[#3b71e6] px-6 text-sm font-medium text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300 md:w-auto"
@@ -383,7 +421,7 @@ export default function ExperienceCheckout() {
                 ? "Processing..."
                 : paymentMethod === "pay_later"
                 ? "Confirm booking"
-                : `Pay ₹${total.toLocaleString("en-IN")}`}
+                : `Pay ${formatINR(total)}`}
             </button>
           </div>
 
@@ -419,18 +457,15 @@ export default function ExperienceCheckout() {
 
                 <div className="mt-4 space-y-3 text-sm">
                   <PriceRow
-                    label={`₹${price.toLocaleString("en-IN")} × ${travelers}`}
-                    value={`₹${subtotal.toLocaleString("en-IN")}`}
+                    label={`${formatINR(price)} × ${travelers}`}
+                    value={formatINR(subtotal)}
                   />
 
-                  <PriceRow
-                    label="Service fee"
-                    value={`₹${serviceFee.toLocaleString("en-IN")}`}
-                  />
+                  <PriceRow label="Taxes" value={formatINR(taxes)} />
 
                   <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
                     <span>Total</span>
-                    <span>₹{total.toLocaleString("en-IN")}</span>
+                    <span>{formatINR(total)}</span>
                   </div>
                 </div>
               </div>
