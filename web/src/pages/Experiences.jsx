@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
-  Loader2,
   MapPin,
   Search,
   SlidersHorizontal,
@@ -20,7 +19,13 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#3b71e6";
+const SITE_URL =
+  import.meta.env.VITE_SITE_URL ||
+  import.meta.env.VITE_APP_URL ||
+  "https://stay.dovail.com";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
 
 const categories = [
   "All",
@@ -50,10 +55,16 @@ function todayISO() {
   return date.toISOString().slice(0, 10);
 }
 
+function toISO(date) {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
 function formatDate(value) {
   if (!value) return "Today";
 
-  return new Date(value).toLocaleDateString("en-IN", {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -62,6 +73,32 @@ function formatDate(value) {
 
 function addMonths(date, count) {
   return new Date(date.getFullYear(), date.getMonth() + count, 1);
+}
+
+function getImageUrl(item) {
+  const image =
+    item?.image ||
+    item?.image_url ||
+    item?.cover_image ||
+    item?.thumbnail ||
+    "";
+
+  if (!image) return FALLBACK_IMAGE;
+  if (image.startsWith("https://")) return image;
+
+  if (image.startsWith("http://")) {
+    try {
+      const url = new URL(image);
+      return `${SITE_URL}${url.pathname}`;
+    } catch {
+      return FALLBACK_IMAGE;
+    }
+  }
+
+  if (image.startsWith("/uploads/")) return `${SITE_URL}${image}`;
+  if (image.startsWith("uploads/")) return `${SITE_URL}/${image}`;
+
+  return image;
 }
 
 export default function Experiences() {
@@ -83,7 +120,7 @@ export default function Experiences() {
 
   useEffect(() => {
     loadPackages();
-  }, [searchText, activeCategory]);
+  }, [searchText, activeCategory, date, guests]);
 
   useEffect(() => {
     const close = (event) => {
@@ -104,7 +141,9 @@ export default function Experiences() {
       const res = await api.get("/experiences", {
         params: {
           search: searchText,
-          category: activeCategory,
+          category: activeCategory === "All" ? "" : activeCategory,
+          date,
+          guests,
         },
       });
 
@@ -232,6 +271,7 @@ export default function Experiences() {
                 </SearchBox>
 
                 <button
+                  type="button"
                   onClick={handleSearch}
                   className="m-2 flex h-11 items-center justify-center rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white transition hover:bg-[#2f5fc2] active:scale-[0.98]"
                 >
@@ -269,6 +309,16 @@ export default function Experiences() {
                   onDone={() => setActivePanel(null)}
                 />
               )}
+
+              {activePanel === "filters" && (
+                <FilterDropdown
+                  sortBy={sortBy}
+                  setSortBy={setSortBy}
+                  activeCategory={activeCategory}
+                  setActiveCategory={setActiveCategory}
+                  onDone={() => setActivePanel(null)}
+                />
+              )}
             </div>
           </div>
         </section>
@@ -278,6 +328,7 @@ export default function Experiences() {
             {categories.map((item) => (
               <button
                 key={item}
+                type="button"
                 onClick={() => setActiveCategory(item)}
                 className={`min-w-fit rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98] ${
                   activeCategory === item
@@ -302,7 +353,13 @@ export default function Experiences() {
                 <option value="duration">Shortest duration</option>
               </select>
 
-              <button className="flex min-w-fit items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePanel(activePanel === "filters" ? null : "filters")
+                }
+                className="flex min-w-fit items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
                 <SlidersHorizontal size={16} />
                 Filters
               </button>
@@ -325,6 +382,7 @@ export default function Experiences() {
             </div>
 
             <button
+              type="button"
               onClick={clearFilters}
               className="text-sm font-medium text-[#3b71e6] hover:underline"
             >
@@ -338,6 +396,7 @@ export default function Experiences() {
             <StateBox>
               <h3 className="text-base font-medium text-red-600">{error}</h3>
               <button
+                type="button"
                 onClick={loadPackages}
                 className="mt-4 rounded-xl bg-[#3b71e6] px-5 py-2 text-sm font-medium text-white"
               >
@@ -433,9 +492,7 @@ function DestinationDropdown({ where, suggestions, onSelect, onClose }) {
 
             <div>
               <p className="text-sm font-medium text-gray-950">{item}</p>
-              <p className="text-xs text-gray-500">
-                Search packages in {item}
-              </p>
+              <p className="text-xs text-gray-500">Search packages in {item}</p>
             </div>
 
             {where === item && (
@@ -451,14 +508,19 @@ function DestinationDropdown({ where, suggestions, onSelect, onClose }) {
 function DateDropdown({ value, setValue, viewMonth, setViewMonth, onDone }) {
   const days = useMemo(() => getMonthDays(viewMonth), [viewMonth]);
   const today = todayISO();
+  const currentMonth = new Date();
+  const isCurrentMonth =
+    viewMonth.getFullYear() === currentMonth.getFullYear() &&
+    viewMonth.getMonth() === currentMonth.getMonth();
 
   return (
     <div className="absolute left-1/2 top-[72px] z-50 w-[94vw] max-w-[420px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-4 shadow-lg md:left-[42%] md:translate-x-0">
       <div className="mb-4 flex items-center justify-between">
         <button
           type="button"
+          disabled={isCurrentMonth}
           onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeft size={17} />
         </button>
@@ -577,14 +639,67 @@ function GuestDropdown({ guests, setGuests, onDone }) {
   );
 }
 
+function FilterDropdown({
+  sortBy,
+  setSortBy,
+  activeCategory,
+  setActiveCategory,
+  onDone,
+}) {
+  return (
+    <div className="absolute right-0 top-[72px] z-50 w-[320px] rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+      <p className="text-sm font-semibold text-gray-950">Filters</p>
+
+      <label className="mt-4 block">
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Sort by
+        </span>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-[#3b71e6]"
+        >
+          <option value="recommended">Recommended</option>
+          <option value="rating">Highest rated</option>
+          <option value="priceLow">Lowest price</option>
+          <option value="priceHigh">Highest price</option>
+          <option value="duration">Shortest duration</option>
+        </select>
+      </label>
+
+      <label className="mt-4 block">
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Category
+        </span>
+
+        <select
+          value={activeCategory}
+          onChange={(e) => setActiveCategory(e.target.value)}
+          className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-[#3b71e6]"
+        >
+          {categories.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <button
+        type="button"
+        onClick={onDone}
+        className="mt-5 h-10 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
+      >
+        Apply filters
+      </button>
+    </div>
+  );
+}
+
 function PackageCard({ item, onClick }) {
   const [liked, setLiked] = useState(false);
-
-  const image =
-    item.image ||
-    item.image_url ||
-    item.cover_image ||
-    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
+  const image = getImageUrl(item);
 
   const price = Number(item.price || 0);
   const rating = Number(item.rating || 0);
@@ -598,6 +713,12 @@ function PackageCard({ item, onClick }) {
           src={image}
           alt={item.title || "Trip package"}
           loading="lazy"
+          decoding="async"
+          onError={(event) => {
+            if (event.currentTarget.src !== FALLBACK_IMAGE) {
+              event.currentTarget.src = FALLBACK_IMAGE;
+            }
+          }}
           className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.035]"
         />
 
@@ -608,6 +729,7 @@ function PackageCard({ item, onClick }) {
             setLiked((prev) => !prev);
           }}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow-sm transition hover:bg-white active:scale-[0.95]"
+          aria-label={liked ? "Remove from wishlist" : "Save package"}
         >
           <Heart
             size={18}
@@ -625,7 +747,7 @@ function PackageCard({ item, onClick }) {
 
           <div className="flex shrink-0 items-center gap-1 text-sm font-medium">
             <Star size={13} fill="currentColor" />
-            {rating ? rating.toFixed(2) : "New"}
+            {rating ? rating.toFixed(1) : "New"}
           </div>
         </div>
 
@@ -684,10 +806,4 @@ function getMonthDays(monthDate) {
   );
 
   return [...blanks, ...days];
-}
-
-function toISO(date) {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
 }

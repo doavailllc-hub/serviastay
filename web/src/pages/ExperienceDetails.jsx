@@ -17,7 +17,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#3b71e6";
 
 function todayISO() {
   const date = new Date();
@@ -106,7 +105,7 @@ export default function ExperienceDetails() {
       pkg?.images?.map((img) => img.image_url).filter(Boolean) || [];
 
     if (dbImages.length) return dbImages;
-    if (pkg?.image) return [pkg.image];
+    if (pkg?.image) return [getImageUrl()];
 
     return [
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80",
@@ -134,12 +133,12 @@ export default function ExperienceDetails() {
 
   const handleBookPackage = () => {
     if (departures.length > 0 && !selectedDeparture) {
-      alert("Please select an available departure date.");
+      toast.error("Please select an available departure date.");
       return;
     }
 
     if (!selectedDate) {
-      alert("Please select a travel date first.");
+      toast.error("Please select a travel date first.");
       return;
     }
 
@@ -149,7 +148,7 @@ export default function ExperienceDetails() {
       : 999;
 
     if (travelers > remainingSeats) {
-      alert(`Only ${remainingSeats} seats left for this departure.`);
+      toast.error(`Only ${remainingSeats} seats left for this departure.`);
       return;
     }
 
@@ -178,7 +177,7 @@ export default function ExperienceDetails() {
       if (navigator.share) await navigator.share(shareData);
       else {
         await navigator.clipboard.writeText(window.location.href);
-        alert("Package link copied.");
+        toast.error("Package link copied.");
       }
     } catch {
       // cancelled
@@ -232,7 +231,7 @@ export default function ExperienceDetails() {
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
                 <span className="flex items-center gap-1">
                   <Star size={14} fill="currentColor" />
-                  {rating ? rating.toFixed(2) : "New"}
+                  {rating ? rating.toFixed(1) : "New"}
                 </span>
                 <span>·</span>
                 <span>{reviewCount} reviews</span>
@@ -384,9 +383,10 @@ export default function ExperienceDetails() {
                 />
               </div>
 
-              <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
-                Google Map can be added here later
-              </div>
+       <GoogleMapEmbed
+  location={pkg.location || pkg.city || "India"}
+  title={pkg.title}
+/>
             </Section>
 
             <Section title="Cancellation policy">
@@ -409,7 +409,7 @@ export default function ExperienceDetails() {
                     >
                       <div className="overflow-hidden rounded-2xl bg-gray-100">
                         <img
-                          src={item.image || item.image_url || images[0]}
+                          src={getImageUrl()|| item.image_url || images[0]}
                           alt={item.title}
                           className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
                         />
@@ -840,7 +840,43 @@ function formatInputDate(value) {
     return todayISO();
   }
 }
+function GoogleMapEmbed({ latitude, longitude, title }) {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+  if (!latitude || !longitude) {
+    return (
+      <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
+        Map location is not available for this package.
+      </div>
+    );
+  }
+
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return (
+      <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
+        Invalid map location.
+      </div>
+    );
+  }
+
+  const mapUrl = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${lat},${lng}&zoom=14`;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+      <iframe
+        title={`Map of ${title || "trip destination"}`}
+        src={mapUrl}
+        className="h-72 w-full"
+        loading="lazy"
+        allowFullScreen
+        referrerPolicy="no-referrer-when-downgrade"
+      />
+    </div>
+  );
+}
 function formatDisplayDate(value) {
   if (!value) return "Today";
 
