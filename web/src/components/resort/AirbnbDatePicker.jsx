@@ -193,8 +193,8 @@ export default function AirbnbDatePicker({
       {open && (
         <div
           className="
-            absolute right-0 top-[68px] z-[999]
-            w-[calc(100vw-24px)] max-w-[760px]
+       absolute left-1/2 top-[72px] z-[999] -translate-x-1/2
+       max-w-[880px]
             overflow-hidden rounded-2xl
             border border-gray-200 bg-white
             shadow-[0_18px_55px_rgba(0,0,0,0.16)]
@@ -245,8 +245,8 @@ export default function AirbnbDatePicker({
             </button>
           </div>
 
-          <div className="px-4 py-5 sm:px-6 sm:py-6">
-            <div className="grid grid-cols-1 items-start md:grid-cols-2 md:gap-12">
+          <div className="px-8 py-7">
+            <div className="grid grid-cols-1 items-start md:grid-cols-2 md:gap-16">
               <div className="min-w-0">
                 <CalendarMonth
                   date={viewDate}
@@ -277,7 +277,7 @@ export default function AirbnbDatePicker({
             </div>
           </div>
 
-          <div className="flex min-h-[80px] items-center justify-between border-t border-gray-200 px-4 sm:px-6">
+          <div className="flex min-h-[88px] items-center justify-between border-t border-gray-200 px-4 sm:px-6">
             <button
               type="button"
               onClick={clearDates}
@@ -294,8 +294,8 @@ export default function AirbnbDatePicker({
               type="button"
               onClick={() => setOpen(false)}
               className="
-                inline-flex h-11 items-center justify-center
-                rounded-full bg-[#3b71e6] px-6
+                inline-flex h-12 items-center justify-center
+                rounded-full bg-[#3b71e6] px-8
                 text-sm font-semibold text-white
                 transition hover:bg-[#2f5fc2]
                 focus:outline-none focus:ring-2
@@ -317,7 +317,7 @@ function DateButton({ label, value, active, onClick, bordered = false }) {
       type="button"
       onClick={onClick}
       className={`
-        min-w-0 px-4 py-3 text-left transition
+        min-w-0 px-5 py-4 text-left transition
         hover:bg-gray-50
         ${bordered ? "border-l border-gray-200" : ""}
         ${active ? "bg-[#eef4ff]" : "bg-white"}
