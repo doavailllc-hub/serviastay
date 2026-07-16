@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { ChevronLeft, ChevronRight, Keyboard } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import CalendarMonth from "./CalendarMonth";
 import {
   addDaysISO,
   formatCalendarHeader,
   formatCalendarInput,
-  formatShortInput,
   toLocalISO,
 } from "../../utils/resortUtils";
 import { MS_PER_DAY } from "../../constants/resortConstants";
@@ -29,40 +28,70 @@ export default function AirbnbDatePicker({
   const pickerRef = useRef(null);
 
   useEffect(() => {
-    function closePicker(event) {
+    const closePicker = (event) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target)) {
         setOpen(false);
       }
-    }
+    };
+
+    const closeWithEscape = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
 
     document.addEventListener("mousedown", closePicker);
-    return () => document.removeEventListener("mousedown", closePicker);
+    document.addEventListener("keydown", closeWithEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", closePicker);
+      document.removeEventListener("keydown", closeWithEscape);
+    };
   }, []);
 
-  const nights = Math.max(
-    1,
-    Math.round(
-      (new Date(`${checkout}T00:00:00`) -
-        new Date(`${checkin}T00:00:00`)) /
-        MS_PER_DAY
-    )
-  );
+  useEffect(() => {
+    if (!open || !checkin) return;
 
-  const isDateBooked = (iso) => {
-    return bookedRanges.some((range) => {
-      const start = String(range.checkin).slice(0, 10);
-      const end = String(range.checkout).slice(0, 10);
-      return iso >= start && iso < end;
+    const selectedDate = new Date(`${checkin}T00:00:00`);
+
+    setViewDate(
+      new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+    );
+  }, [open, checkin]);
+
+  const nights = useMemo(() => {
+    if (!checkin || !checkout) return 1;
+
+    const checkinDate = new Date(`${checkin}T00:00:00`);
+    const checkoutDate = new Date(`${checkout}T00:00:00`);
+
+    return Math.max(
+      1,
+      Math.round((checkoutDate - checkinDate) / MS_PER_DAY)
+    );
+  }, [checkin, checkout]);
+
+  const isDateBooked = (iso) =>
+    bookedRanges.some((range) => {
+      const start = String(range.checkin || "").slice(0, 10);
+      const end = String(range.checkout || "").slice(0, 10);
+
+      return start && end && iso >= start && iso < end;
     });
-  };
 
   const hasBookedDateInRange = (startIso, endIso) => {
-    let current = new Date(`${startIso}T00:00:00`);
+    if (!startIso || !endIso) return false;
+
+    const current = new Date(`${startIso}T00:00:00`);
     const end = new Date(`${endIso}T00:00:00`);
 
     while (current < end) {
       const iso = toLocalISO(current);
-      if (isDateBooked(iso)) return true;
+
+      if (isDateBooked(iso)) {
+        return true;
+      }
+
       current.setDate(current.getDate() + 1);
     }
 
@@ -76,15 +105,15 @@ export default function AirbnbDatePicker({
 
     if (selecting === "checkin") {
       const nextCheckout = addDaysISO(iso, 1);
+      const existingCheckoutIsValid =
+        checkout &&
+        checkout > iso &&
+        !hasBookedDateInRange(iso, checkout);
 
       setCheckin(iso);
-      setCheckout(
-        !checkout || checkout <= iso || hasBookedDateInRange(iso, checkout)
-          ? nextCheckout
-          : checkout
-      );
-
+      setCheckout(existingCheckoutIsValid ? checkout : nextCheckout);
       setSelecting("checkout");
+
       return;
     }
 
@@ -92,6 +121,7 @@ export default function AirbnbDatePicker({
       setCheckin(iso);
       setCheckout(addDaysISO(iso, 1));
       setSelecting("checkout");
+
       return;
     }
 
@@ -101,7 +131,6 @@ export default function AirbnbDatePicker({
     }
 
     setCheckout(iso);
-    setOpen(false);
     setSelecting("checkin");
   };
 
@@ -109,152 +138,172 @@ export default function AirbnbDatePicker({
     setCheckin(today);
     setCheckout(addDaysISO(today, 1));
     setSelecting("checkin");
+
+    const currentDate = new Date(`${today}T00:00:00`);
+
+    setViewDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+    );
+  };
+
+  const previousMonth = () => {
+    setViewDate(
+      (current) =>
+        new Date(current.getFullYear(), current.getMonth() - 1, 1)
+    );
+  };
+
+  const nextMonth = () => {
+    setViewDate(
+      (current) =>
+        new Date(current.getFullYear(), current.getMonth() + 1, 1)
+    );
   };
 
   const todayDate = new Date(`${today}T00:00:00`);
+
   const isCurrentMonth =
     viewDate.getFullYear() === todayDate.getFullYear() &&
     viewDate.getMonth() === todayDate.getMonth();
 
+  const openPicker = (type) => {
+    setSelecting(type);
+    setOpen(true);
+  };
+
   return (
     <div ref={pickerRef} className="relative">
-      <div className="grid grid-cols-2 border-b border-gray-200">
+      <div className="grid grid-cols-2 overflow-hidden border-b border-gray-200">
         <DateButton
           label="Check-in"
           value={formatCalendarInput(checkin)}
-          active={selecting === "checkin" && open}
-          onClick={() => {
-            setOpen(true);
-            setSelecting("checkin");
-          }}
+          active={open && selecting === "checkin"}
+          onClick={() => openPicker("checkin")}
         />
 
         <DateButton
           label="Checkout"
           value={formatCalendarInput(checkout)}
-          active={selecting === "checkout" && open}
-          onClick={() => {
-            setOpen(true);
-            setSelecting("checkout");
-          }}
+          active={open && selecting === "checkout"}
+          onClick={() => openPicker("checkout")}
           bordered
         />
       </div>
 
       {open && (
-        <div className="absolute right-0 top-[66px] z-[999] w-[calc(100vw-32px)] max-w-[700px] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:p-5 md:p-6">
-          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold">
-                {nights} {nights === 1 ? "night" : "nights"}
+        <div
+          className="
+            absolute right-0 top-[68px] z-[999]
+            w-[calc(100vw-24px)] max-w-[760px]
+            overflow-hidden rounded-2xl
+            border border-gray-200 bg-white
+            shadow-[0_18px_55px_rgba(0,0,0,0.16)]
+          "
+          role="dialog"
+          aria-modal="true"
+          aria-label="Select check-in and check-out dates"
+        >
+          <div className="flex min-h-[72px] items-center justify-between border-b border-gray-200 px-4 sm:px-6">
+            <button
+              type="button"
+              disabled={isCurrentMonth}
+              onClick={previousMonth}
+              className="
+                flex h-10 w-10 shrink-0 items-center justify-center
+                rounded-full text-gray-900 transition
+                hover:bg-gray-100
+                disabled:cursor-not-allowed disabled:opacity-25
+              "
+              aria-label="Previous month"
+            >
+              <ChevronLeft size={20} strokeWidth={2} />
+            </button>
+
+            <div className="min-w-0 px-3 text-center">
+              <h3 className="truncate text-[15px] font-semibold text-gray-900 sm:text-base">
+                Select check-in and check-out dates
               </h3>
 
-              <p className="mt-1 text-sm text-gray-500">
-                {formatCalendarHeader(checkin)} -{" "}
+              <p className="mt-0.5 hidden text-xs text-gray-500 sm:block">
+                {nights} {nights === 1 ? "night" : "nights"} ·{" "}
+                {formatCalendarHeader(checkin)} –{" "}
                 {formatCalendarHeader(checkout)}
               </p>
             </div>
 
-            <div className="flex gap-2">
-              <CalendarTopBox
-                label="Check-in"
-                value={formatShortInput(checkin)}
-                active={selecting === "checkin"}
-                onClick={() => setSelecting("checkin")}
-              />
-
-              <CalendarTopBox
-                label="Checkout"
-                value={formatShortInput(checkout)}
-                active={selecting === "checkout"}
-                onClick={() => setSelecting("checkout")}
-              />
-            </div>
-          </div>
-
-          <div className="mb-4 flex items-center justify-between">
             <button
               type="button"
-              disabled={isCurrentMonth}
-              onClick={() =>
-                setViewDate(
-                  new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)
-                )
-              }
-              className="rounded-full p-2 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
-              aria-label="Previous month"
-            >
-              <ChevronLeft size={19} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setViewDate(
-                  new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
-                )
-              }
-              className="rounded-full p-2 transition hover:bg-gray-100"
+              onClick={nextMonth}
+              className="
+                flex h-10 w-10 shrink-0 items-center justify-center
+                rounded-full text-gray-900 transition
+                hover:bg-gray-100
+              "
               aria-label="Next month"
             >
-              <ChevronRight size={19} />
+              <ChevronRight size={20} strokeWidth={2} />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <CalendarMonth
-              date={viewDate}
-              checkin={checkin}
-              checkout={checkout}
-              today={today}
-              onDateClick={handleDateClick}
-              bookedRanges={bookedRanges}
-            />
+          <div className="px-4 py-5 sm:px-6 sm:py-6">
+            <div className="grid grid-cols-1 items-start md:grid-cols-2 md:gap-12">
+              <div className="min-w-0">
+                <CalendarMonth
+                  date={viewDate}
+                  checkin={checkin}
+                  checkout={checkout}
+                  today={today}
+                  onDateClick={handleDateClick}
+                  bookedRanges={bookedRanges}
+                />
+              </div>
 
-            <div className="hidden md:block">
-              <CalendarMonth
-                date={
-                  new Date(
-                    viewDate.getFullYear(),
-                    viewDate.getMonth() + 1,
-                    1
-                  )
-                }
-                checkin={checkin}
-                checkout={checkout}
-                today={today}
-                onDateClick={handleDateClick}
-                bookedRanges={bookedRanges}
-              />
+              <div className="hidden min-w-0 md:block">
+                <CalendarMonth
+                  date={
+                    new Date(
+                      viewDate.getFullYear(),
+                      viewDate.getMonth() + 1,
+                      1
+                    )
+                  }
+                  checkin={checkin}
+                  checkout={checkout}
+                  today={today}
+                  onDateClick={handleDateClick}
+                  bookedRanges={bookedRanges}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+          <div className="flex min-h-[80px] items-center justify-between border-t border-gray-200 px-4 sm:px-6">
             <button
               type="button"
-              className="rounded-lg p-2 hover:bg-gray-100"
-              aria-label="Keyboard date input"
+              onClick={clearDates}
+              className="
+                rounded-lg px-1 py-2
+                text-sm font-medium text-[#3b71e6]
+                transition hover:text-[#2f5fc2] hover:underline
+              "
             >
-              <Keyboard size={19} />
+              Clear dates
             </button>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={clearDates}
-                className="text-sm font-medium text-[#3b71e6] hover:underline"
-              >
-                Clear dates
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#2f5fc2]"
-              >
-                Close
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="
+                inline-flex h-11 items-center justify-center
+                rounded-full bg-[#3b71e6] px-6
+                text-sm font-semibold text-white
+                transition hover:bg-[#2f5fc2]
+                focus:outline-none focus:ring-2
+                focus:ring-[#3b71e6]/30 focus:ring-offset-2
+              "
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
@@ -262,40 +311,25 @@ export default function AirbnbDatePicker({
   );
 }
 
-function DateButton({ label, value, active, onClick, bordered }) {
+function DateButton({ label, value, active, onClick, bordered = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-3 text-left transition hover:bg-gray-50 ${
-        bordered ? "border-l border-gray-200" : ""
-      } ${active ? "bg-[#eef4ff]" : ""}`}
+      className={`
+        min-w-0 px-4 py-3 text-left transition
+        hover:bg-gray-50
+        ${bordered ? "border-l border-gray-200" : ""}
+        ${active ? "bg-[#eef4ff]" : "bg-white"}
+      `}
     >
-      <span className="block text-[11px] font-medium uppercase tracking-wide text-gray-500">
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">
         {label}
       </span>
 
-      <span className="mt-1 block text-sm font-medium text-gray-950">
+      <span className="mt-1 block truncate text-sm font-medium text-gray-950">
         {value}
       </span>
-    </button>
-  );
-}
-
-function CalendarTopBox({ label, value, active, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-32 rounded-xl border px-3 py-2.5 text-left transition md:w-36 ${
-        active ? "border-[#3b71e6] bg-[#eef4ff]" : "border-gray-200"
-      }`}
-    >
-      <span className="block text-[11px] font-medium uppercase text-gray-500">
-        {label}
-      </span>
-
-      <span className="mt-1 block text-sm">{value}</span>
     </button>
   );
 }
