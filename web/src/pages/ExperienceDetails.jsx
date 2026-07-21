@@ -104,8 +104,10 @@ export default function ExperienceDetails() {
     const dbImages =
       pkg?.images?.map((img) => img.image_url).filter(Boolean) || [];
 
-    if (dbImages.length) return dbImages;
-    if (pkg?.image) return [getImageUrl()];
+    if (dbImages.length) return dbImages.map(getImageUrl).filter(Boolean);
+    if (pkg?.image || pkg?.image_url) {
+      return [getImageUrl(pkg.image || pkg.image_url)].filter(Boolean);
+    }
 
     return [
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80",
@@ -133,12 +135,12 @@ export default function ExperienceDetails() {
 
   const handleBookPackage = () => {
     if (departures.length > 0 && !selectedDeparture) {
-      toast.error("Please select an available departure date.");
+      window.alert("Please select an available departure date.");
       return;
     }
 
     if (!selectedDate) {
-      toast.error("Please select a travel date first.");
+      window.alert("Please select a travel date first.");
       return;
     }
 
@@ -148,7 +150,7 @@ export default function ExperienceDetails() {
       : 999;
 
     if (travelers > remainingSeats) {
-      toast.error(`Only ${remainingSeats} seats left for this departure.`);
+      window.alert(`Only ${remainingSeats} seats left for this departure.`);
       return;
     }
 
@@ -177,7 +179,7 @@ export default function ExperienceDetails() {
       if (navigator.share) await navigator.share(shareData);
       else {
         await navigator.clipboard.writeText(window.location.href);
-        toast.error("Package link copied.");
+        window.alert("Package link copied.");
       }
     } catch {
       // cancelled
@@ -383,10 +385,11 @@ export default function ExperienceDetails() {
                 />
               </div>
 
-       <GoogleMapEmbed
-  location={pkg.location || pkg.city || "India"}
-  title={pkg.title}
-/>
+              <GoogleMapEmbed
+                latitude={pkg.pickup_latitude || pkg.latitude}
+                longitude={pkg.pickup_longitude || pkg.longitude}
+                title={pkg.title}
+              />
             </Section>
 
             <Section title="Cancellation policy">
@@ -409,7 +412,12 @@ export default function ExperienceDetails() {
                     >
                       <div className="overflow-hidden rounded-2xl bg-gray-100">
                         <img
-                          src={getImageUrl()|| item.image_url || images[0]}
+                          src={getImageUrl(
+                            item.image_url ||
+                              item.image ||
+                              item.cover_image ||
+                              item.images?.[0]?.image_url
+                          ) || images[0]}
                           alt={item.title}
                           className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
                         />
@@ -806,6 +814,22 @@ function parseList(value, fallback = []) {
   return String(value).split(",").map((item) => item.trim()).filter(Boolean);
 }
 
+function getImageUrl(value) {
+  const image =
+    typeof value === "string"
+      ? value
+      : value?.image_url || value?.url || value?.image || "";
+
+  if (!image) return "";
+  if (/^(https?:|data:|blob:)/i.test(image)) return image;
+
+  const configuredBase =
+    import.meta.env.VITE_API_BASE_URL || "https://stay.dovail.com/api";
+  const siteBase = configuredBase.replace(/\/api\/?$/, "").replace(/\/$/, "");
+
+  return `${siteBase}/${String(image).replace(/^\//, "")}`;
+}
+
 function parseItinerary(value) {
   if (!value) return [];
 
@@ -842,6 +866,14 @@ function formatInputDate(value) {
 }
 function GoogleMapEmbed({ latitude, longitude, title }) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
+    return (
+      <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 px-5 text-center text-sm text-gray-500">
+        Google Maps is not configured for this website.
+      </div>
+    );
+  }
 
   if (!latitude || !longitude) {
     return (
