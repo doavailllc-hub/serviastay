@@ -322,11 +322,13 @@ export default function AddTripPackage() {
         },
       });
 
-      toast.error(
-        "Trip package submitted for verification. It will go live after admin approval."
-      );
-
-      navigate("/host-dashboard");
+      navigate("/host-dashboard", {
+        replace: true,
+        state: {
+          success:
+            "Trip package submitted for verification. It will go live after admin approval.",
+        },
+      });
     } catch (err) {
       console.error("Trip package create failed:", err);
 
@@ -799,7 +801,7 @@ export default function AddTripPackage() {
 
                     <PreviewRow
                       label="Price"
-                      value={`â‚¹${Number(form.price || 0).toLocaleString(
+                      value={`₹${Number(form.price || 0).toLocaleString(
                         "en-IN"
                       )}`}
                     />
@@ -1034,7 +1036,7 @@ function PriceBox({ label, value, onChange }) {
       <span className="text-sm font-medium text-gray-500">{label}</span>
 
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-3xl font-semibold text-gray-950">â‚¹</span>
+        <span className="text-3xl font-semibold text-gray-950">₹</span>
 
         <input
           type="number"
