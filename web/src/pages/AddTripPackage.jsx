@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
   ExternalLink,
   ImagePlus,
+  LocateFixed,
   Loader2,
   MapPin,
   Plus,
@@ -96,6 +97,8 @@ export default function AddTripPackage() {
     meals: "",
     pickup_location: "",
     pickup_map_url: "",
+    pickup_latitude: "",
+    pickup_longitude: "",
     language: "English",
 
     description: "",
@@ -319,7 +322,7 @@ export default function AddTripPackage() {
         },
       });
 
-      alert(
+      toast.error(
         "Trip package submitted for verification. It will go live after admin approval."
       );
 
@@ -555,13 +558,18 @@ export default function AddTripPackage() {
                   />
 
                   <div className="md:col-span-2">
-                    <Input
-                      label="Pickup Google Map URL"
-                      value={form.pickup_map_url}
-                      onChange={(e) =>
-                        updateField("pickup_map_url", e.target.value)
-                      }
-                      placeholder="https://maps.google.com/..."
+                    <MapLocationPicker
+                      latitude={form.pickup_latitude}
+                      longitude={form.pickup_longitude}
+                      onLocationChange={({ latitude, longitude, mapUrl }) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          pickup_latitude: latitude,
+                          pickup_longitude: longitude,
+                          pickup_map_url: mapUrl,
+                        }));
+                        if (error) setError("");
+                      }}
                     />
 
                     {form.pickup_map_url && (
@@ -791,7 +799,7 @@ export default function AddTripPackage() {
 
                     <PreviewRow
                       label="Price"
-                      value={`₹${Number(form.price || 0).toLocaleString(
+                      value={`â‚¹${Number(form.price || 0).toLocaleString(
                         "en-IN"
                       )}`}
                     />
@@ -1026,7 +1034,7 @@ function PriceBox({ label, value, onChange }) {
       <span className="text-sm font-medium text-gray-500">{label}</span>
 
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-3xl font-semibold text-gray-950">₹</span>
+        <span className="text-3xl font-semibold text-gray-950">â‚¹</span>
 
         <input
           type="number"
@@ -1047,6 +1055,228 @@ function PreviewRow({ label, value }) {
       <span className="max-w-[60%] text-right font-medium text-gray-950">
         {value}
       </span>
+    </div>
+  );
+}
+
+const DEFAULT_MAP_CENTER = { lat: 25.2048, lng: 55.2708 };
+
+let googleMapsLoader;
+
+function loadGoogleMaps() {
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (googleMapsLoader) return googleMapsLoader;
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
+    return Promise.reject(
+      new Error("VITE_GOOGLE_MAPS_API_KEY is missing from the environment.")
+    );
+  }
+
+  googleMapsLoader = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-dovail-google-maps]');
+
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.google.maps), {
+        once: true,
+      });
+      existing.addEventListener("error", reject, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.dovailGoogleMaps = "true";
+    script.onload = () => resolve(window.google.maps);
+    script.onerror = () => reject(new Error("Google Maps could not be loaded."));
+    document.head.appendChild(script);
+  });
+
+  return googleMapsLoader;
+}
+
+function MapLocationPicker({ latitude, longitude, onLocationChange }) {
+  const mapElement = useRef(null);
+  const mapInstance = useRef(null);
+  const markerInstance = useRef(null);
+  const geocoderInstance = useRef(null);
+  const [search, setSearch] = useState("");
+  const [mapError, setMapError] = useState("");
+  const [locating, setLocating] = useState(false);
+
+  const setPoint = (lat, lng, centerMap = true) => {
+    const point = { lat: Number(lat), lng: Number(lng) };
+
+    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
+
+    markerInstance.current?.setPosition(point);
+    markerInstance.current?.setVisible(true);
+
+    if (centerMap) {
+      mapInstance.current?.panTo(point);
+      mapInstance.current?.setZoom(16);
+    }
+
+    const cleanLat = point.lat.toFixed(6);
+    const cleanLng = point.lng.toFixed(6);
+
+    onLocationChange({
+      latitude: cleanLat,
+      longitude: cleanLng,
+      mapUrl: `https://www.google.com/maps?q=${cleanLat},${cleanLng}`,
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    let mapClickListener;
+
+    loadGoogleMaps()
+      .then((maps) => {
+        if (cancelled || !mapElement.current) return;
+
+        const hasSavedPoint =
+          Number.isFinite(Number(latitude)) &&
+          Number.isFinite(Number(longitude)) &&
+          latitude !== "" &&
+          longitude !== "";
+        const initialPoint = hasSavedPoint
+          ? { lat: Number(latitude), lng: Number(longitude) }
+          : DEFAULT_MAP_CENTER;
+
+        const map = new maps.Map(mapElement.current, {
+          center: initialPoint,
+          zoom: hasSavedPoint ? 16 : 11,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          clickableIcons: false,
+        });
+
+        const marker = new maps.Marker({
+          map,
+          position: initialPoint,
+          visible: hasSavedPoint,
+          draggable: true,
+          title: "Pickup point",
+        });
+
+        mapInstance.current = map;
+        markerInstance.current = marker;
+        geocoderInstance.current = new maps.Geocoder();
+
+        mapClickListener = map.addListener("click", (event) => {
+          setPoint(event.latLng.lat(), event.latLng.lng(), false);
+        });
+
+        marker.addListener("dragend", (event) => {
+          setPoint(event.latLng.lat(), event.latLng.lng(), false);
+        });
+      })
+      .catch((err) => setMapError(err.message));
+
+    return () => {
+      cancelled = true;
+      mapClickListener?.remove();
+    };
+  }, []);
+
+  const searchLocation = () => {
+    if (!search.trim() || !geocoderInstance.current) return;
+
+    setMapError("");
+    geocoderInstance.current.geocode({ address: search.trim() }, (results, status) => {
+      if (status === "OK" && results?.[0]) {
+        const point = results[0].geometry.location;
+        setPoint(point.lat(), point.lng());
+        return;
+      }
+
+      setMapError("Location not found. Try a more complete address.");
+    });
+  };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setMapError("Current location is not supported by this browser.");
+      return;
+    }
+
+    setLocating(true);
+    setMapError("");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setPoint(coords.latitude, coords.longitude);
+        setLocating(false);
+      },
+      () => {
+        setMapError("Location access was denied or unavailable.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  return (
+    <div>
+      <span className="mb-2 block text-sm font-medium text-gray-700">
+        Select exact pickup point
+      </span>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              searchLocation();
+            }
+          }}
+          placeholder="Search airport, hotel, landmark or address"
+          className="h-11 flex-1 rounded-xl border border-gray-200 px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
+        />
+        <button
+          type="button"
+          onClick={searchLocation}
+          className="h-11 rounded-xl bg-[#3b71e6] px-5 text-sm font-medium text-white hover:bg-[#2f5fc2]"
+        >
+          Search map
+        </button>
+        <button
+          type="button"
+          onClick={useCurrentLocation}
+          disabled={locating}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          <LocateFixed size={16} />
+          {locating ? "Locating..." : "Use my location"}
+        </button>
+      </div>
+
+      {mapError ? (
+        <div className="mt-3 flex min-h-72 items-center justify-center rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
+          {mapError}
+        </div>
+      ) : (
+        <div
+          ref={mapElement}
+          className="mt-3 h-80 w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
+        />
+      )}
+
+      <p className="mt-2 text-xs text-gray-500">
+        Search a place, click anywhere on the map, or drag the marker to the exact pickup point.
+      </p>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Input label="Latitude" value={latitude} readOnly placeholder="Select on map" />
+        <Input label="Longitude" value={longitude} readOnly placeholder="Select on map" />
+      </div>
     </div>
   );
 }
