@@ -3956,9 +3956,11 @@ app.post(
         hotel_name,
         transport,
         meals,
-        pickup_location,
-        pickup_map_url,
-        language,
+      pickup_location,
+pickup_map_url,
+pickup_latitude,
+pickup_longitude,
+language,
         host_name,
         description,
         includes,
@@ -3998,7 +4000,9 @@ app.post(
         `
         INSERT INTO experiences
         (
-          title,
+          host_id,
+title,
+location,
           location,
           city,
           category,
@@ -4011,9 +4015,11 @@ app.post(
           hotel_name,
           transport,
           meals,
-          pickup_location,
-          pickup_map_url,
-          language,
+        pickup_location,
+pickup_map_url,
+pickup_latitude,
+pickup_longitude,
+language,
           host_name,
           description,
           includes,
@@ -4026,11 +4032,12 @@ app.post(
           rating,
           reviews
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
-          title.trim(),
-          location.trim(),
+           Number(req.user.id),
+  title.trim(),
+  location.trim(),
           city?.trim() || location.trim(),
           category || "Family",
           Number(price || 0),
@@ -4042,9 +4049,11 @@ app.post(
           hotel_name || null,
           transport || null,
           meals || null,
-          pickup_location || null,
-          pickup_map_url || null,
-          language || "English",
+       pickup_location || null,
+pickup_map_url || null,
+pickup_latitude ? Number(pickup_latitude) : null,
+pickup_longitude ? Number(pickup_longitude) : null,
+language || "English",
           host_name || req.user?.fullname || req.user?.name || "Dovail Host",
           description || "",
           includes || "",
@@ -4105,6 +4114,67 @@ app.post(
   }
 );
 
+
+/* HOST - OWN TRIP PACKAGES */
+
+app.get("/api/host/trip-packages", verifyToken, async (req, res) => {
+  try {
+    const hostId = Number(req.user?.id);
+
+    if (!hostId) {
+      return res.status(401).json({
+        message: "Invalid user session",
+      });
+    }
+
+    const rows = await query(
+      `
+      SELECT
+        e.*,
+        (
+          SELECT ei.image_url
+          FROM experience_images ei
+          WHERE ei.experience_id = e.id
+          ORDER BY
+            ei.is_cover DESC,
+            ei.sort_order ASC,
+            ei.id ASC
+          LIMIT 1
+        ) AS image,
+        (
+          SELECT COUNT(*)
+          FROM experience_bookings eb
+          WHERE eb.experience_id = e.id
+        ) AS booking_count,
+        (
+          SELECT COALESCE(SUM(eb.total), 0)
+          FROM experience_bookings eb
+          WHERE eb.experience_id = e.id
+            AND eb.status IN (
+              'Confirmed',
+              'Checked-in',
+              'Checked-out',
+              'Completed'
+            )
+        ) AS earnings
+      FROM experiences e
+      WHERE e.host_id = ?
+        AND e.package_type IS NOT NULL
+      ORDER BY e.created_at DESC, e.id DESC
+      `,
+      [hostId]
+    );
+
+    return res.json(rows);
+  } catch (err) {
+    console.log("HOST TRIP PACKAGES ERROR:", err.message);
+
+    return res.status(500).json({
+      message: "Host trip packages load failed",
+      error: err.message,
+    });
+  }
+});
 app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
   try {
     const packageId = Number(req.params.id);
@@ -4246,10 +4316,12 @@ app.get("/api/host/package-bookings", verifyToken, async (req, res) => {
         u.email AS guest_email,
         u.phone AS guest_phone
       FROM experience_bookings b
-      JOIN experiences e ON e.id = b.experience_id
-      LEFT JOIN servia_users u ON u.id = b.user_id
-      ORDER BY b.id DESC
-      `
+JOIN experiences e ON e.id = b.experience_id
+LEFT JOIN servia_users u ON u.id = b.user_id
+WHERE e.host_id = ?
+ORDER BY b.id DESC
+        `,
+      [Number(req.user.id)]
     );
 
     res.json(rows);

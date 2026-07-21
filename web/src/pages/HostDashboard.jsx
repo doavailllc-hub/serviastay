@@ -47,11 +47,14 @@ export default function HostDashboard() {
       setLoading(true);
       setError("");
 
-      const user = JSON.parse(localStorage.getItem("user") || "null");
-      const token = localStorage.getItem("token");
+      const user =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
 
       if (!user?.id || !token) {
-        navigate("/");
+        navigate("/login", { replace: true });
         return;
       }
 
@@ -79,7 +82,9 @@ const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
       if (authFailed) {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
-        navigate("/");
+        sessionStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        navigate("/login", { replace: true });
         return;
       }
 
@@ -127,7 +132,7 @@ const [staysRes, tripsRes, stayBookingsRes, tripBookingsRes] =
     );
 
     const tripPackageEarnings = trips.reduce(
-      (sum, item) => sum + Number(item.revenue || 0),
+      (sum, item) => sum + Number(item.earnings || item.revenue || 0),
       0
     );
 
