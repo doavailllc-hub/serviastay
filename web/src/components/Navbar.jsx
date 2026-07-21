@@ -51,8 +51,11 @@ export default function Navbar() {
 
   const loadUserState = () => {
     try {
-      const storedUser = JSON.parse(localStorage.getItem("user") || "null");
-      const token = localStorage.getItem("token");
+      const storedUser =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
 
       if (storedUser?.id && token) {
         setUser(storedUser);
@@ -144,6 +147,15 @@ export default function Navbar() {
           <Link
             to="/host-type"
             onClick={closeMenu}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-[#222] no-underline transition hover:bg-gray-100 lg:hidden"
+          >
+            <Home size={17} />
+            Host
+          </Link>
+
+          <Link
+            to="/host-type"
+            onClick={closeMenu}
             className="hidden rounded-full px-4 py-3 text-sm font-semibold text-[#222] no-underline transition hover:bg-gray-100 lg:block"
           >
             {user ? "Switch to hosting" : "Become a host"}
@@ -196,7 +208,7 @@ export default function Navbar() {
           </button>
 
           {open && (
-            <div className="absolute right-0 top-[58px] z-[9999] w-[330px] overflow-hidden rounded-[24px] border border-gray-100 bg-white py-3 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+            <div className="absolute right-0 top-[58px] z-[9999] w-[330px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[24px] border border-gray-100 bg-white py-3 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
               {!user ? (
                 <GuestMenu closeMenu={closeMenu} />
               ) : (
@@ -222,7 +234,7 @@ function GuestMenu({ closeMenu }) {
       <MenuLink to="/login" text="Log in or sign up" strong onClick={closeMenu} />
       <Divider />
       <MenuLink
-        to="/become-a-host"
+        to="/host-type"
         icon={<Home size={18} />}
         text="Become a host"
         subText="Earn extra income with Dovail Stay."
@@ -274,6 +286,15 @@ function UserMenu({
       </div>
 
       <Divider />
+
+      <MenuLink
+        to="/host-type"
+        icon={<Sparkles size={18} />}
+        text="Switch to hosting"
+        subText="List a stay or create a trip package."
+        strong
+        onClick={closeMenu}
+      />
 
       <MenuLink
         to="/host-dashboard"
