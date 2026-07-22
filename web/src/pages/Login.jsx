@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2, LockKeyhole, Mail, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
+import logo from "../assets/logo.png";
 
 const GOOGLE_SCRIPT = "https://accounts.google.com/gsi/client";
 const APPLE_SCRIPT =
@@ -266,9 +267,9 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] px-4 py-8 text-gray-950 sm:px-6">
+    <main className="min-h-screen bg-white px-4 py-8 text-gray-950 sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center">
-        <section className="w-full rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.10)] sm:p-9">
+        <section className="w-full rounded-3xl border border-gray-200 bg-white p-6 sm:p-10">
           <header className="flex items-center justify-between">
             <button
               type="button"
@@ -292,15 +293,18 @@ export default function Login() {
             </button>
           </header>
 
-          <div className="mt-7 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#3b71e6] text-2xl font-black text-white">
-            D
+          <div className="mt-7 flex justify-center">
+            <img
+              src={logo}
+              alt="Dovail Stay"
+              className="h-12 w-auto max-w-[190px] object-contain"
+            />
           </div>
-          <p className="mt-3 font-bold text-[#3b71e6]">Dovail Stay</p>
 
-          <h1 className="mt-7 text-3xl font-bold tracking-tight">
+          <h1 className="mt-8 text-center text-3xl font-semibold tracking-tight">
             {step === "email" ? "Log in or sign up" : "Check your email"}
           </h1>
-          <p className="mt-2 text-sm leading-6 text-gray-500">
+          <p className="mt-2 text-center text-sm leading-6 text-gray-500">
             {step === "email"
               ? "Continue securely with your email, Google account, or Apple ID."
               : `Enter the 6-digit verification code sent to ${cleanEmail}.`}
@@ -361,7 +365,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading || (step === "otp" && otpCode.length !== 6)}
-              className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#3b71e6] font-bold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
+              className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#3b71e6] font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
             >
               {loading ? <Loader2 size={20} className="animate-spin" /> : <LockKeyhole size={18} />}
               {step === "email" ? "Continue" : "Verify and continue"}
