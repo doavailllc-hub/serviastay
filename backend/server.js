@@ -1764,7 +1764,44 @@ app.get("/api/wishlist/:userId", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Wishlist fetch failed", error: err.message });
   }
 });
+app.delete("/api/wishlist/:wishlistId", verifyToken, async (req, res) => {
+  try {
+    const wishlistId = Number(req.params.wishlistId);
+    const userId = Number(req.user.id);
 
+    if (!wishlistId) {
+      return res.status(400).json({
+        message: "Invalid wishlist id",
+      });
+    }
+
+    const result = await query(
+      `
+      DELETE FROM servia_wishlist
+      WHERE id = ? AND user_id = ?
+      `,
+      [wishlistId, userId]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        message: "Wishlist item not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Removed from wishlist",
+    });
+  } catch (err) {
+    console.log("WISHLIST DELETE ERROR:", err.message);
+
+    return res.status(500).json({
+      message: "Wishlist delete failed",
+      error: err.message,
+    });
+  }
+});
 /* ADMIN */
 
 app.get("/api/admin/stats", verifyToken, verifyAdmin, async (req, res) => {

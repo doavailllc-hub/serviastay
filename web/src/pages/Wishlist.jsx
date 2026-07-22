@@ -48,19 +48,26 @@ export default function Wishlist() {
     }
   };
 
-  const removeWishlist = async (id) => {
-    try {
-      setRemovingId(id);
-      await api.delete(`/wishlist/${id}`);
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    } catch (err) {
-      console.log("Remove wishlist failed:", err);
-      alert("Failed to remove wishlist item");
-    } finally {
-      setRemovingId(null);
-    }
-  };
+const removeWishlist = async (wishlistId) => {
+  try {
+    setRemovingId(wishlistId);
 
+    await api.delete(`/wishlist/${wishlistId}`);
+
+    setItems((prev) =>
+      prev.filter(
+        (item) => Number(item.wishlist_id) !== Number(wishlistId)
+      )
+    );
+  } catch (err) {
+    console.log("Remove wishlist failed:", err);
+    window.alert(
+      err.response?.data?.message || "Failed to remove wishlist item"
+    );
+  } finally {
+    setRemovingId(null);
+  }
+};
   return (
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
@@ -111,9 +118,9 @@ export default function Wishlist() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeWishlist(item.id);
+                    removeWishlist(item.wishlist_id);
                     }}
-                    disabled={removingId === item.id}
+               removingId === item.wishlist_id
                     className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#3b71e6] shadow-sm backdrop-blur transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {removingId === item.id ? (
