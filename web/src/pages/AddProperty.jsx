@@ -6,10 +6,14 @@ import {
   ImagePlus,
   MessageCircle,
   ShieldCheck,
+  Check,
+  Search,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
+
+import { AMENITY_GROUPS } from "../data/amenityData";
 
 export default function AddProperty() {
   const navigate = useNavigate();
@@ -26,10 +30,12 @@ export default function AddProperty() {
   bedrooms: 1,
   bathrooms: 1,
   host_whatsapp: "",
+  amenities: [],
 });
 
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [amenitySearch, setAmenitySearch] = useState("");
 
   const updateForm = (key, value) => {
     setForm((prev) => ({
@@ -42,6 +48,15 @@ export default function AddProperty() {
     return String(value || "").replace(/\D/g, "");
   };
 
+  const toggleAmenity = (key) => {
+    setForm((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(key)
+        ? prev.amenities.filter((item) => item !== key)
+        : [...prev.amenities, key],
+    }));
+  };
+
   const handleFiles = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
 
@@ -52,7 +67,7 @@ export default function AddProperty() {
     );
 
     if (imageFiles.length !== selectedFiles.length) {
-      alert("Only image files are allowed");
+      window.alert("Only image files are allowed");
     }
 
     const mappedFiles = imageFiles.map((file) => ({
@@ -138,7 +153,7 @@ export default function AddProperty() {
     const error = validateForm();
 
     if (error) {
-      alert(error);
+      window.alert(error);
       return;
     }
 
@@ -150,7 +165,7 @@ export default function AddProperty() {
       localStorage.getItem("token") || sessionStorage.getItem("token");
 
     if (!user || !token) {
-      alert("Please login first");
+      window.alert("Please login first");
       navigate("/");
       return;
     }
@@ -174,6 +189,7 @@ const propertyRes = await api.post("/properties", {
   bathrooms: Number(form.bathrooms),
   image: coverImage,
   host_whatsapp: cleanWhatsAppNumber(form.host_whatsapp),
+  amenities: JSON.stringify(form.amenities),
 });
 
       const propertyId = propertyRes.data.propertyId;
@@ -182,15 +198,23 @@ const propertyRes = await api.post("/properties", {
         await uploadGalleryImage(propertyId, item.file);
       }
 
-      alert("Property added successfully");
+      window.alert("Property added successfully");
       navigate("/host-listings");
     } catch (err) {
       console.log("Property create failed:", err);
-      alert(err.response?.data?.message || "Property create failed");
+      window.alert(err.response?.data?.message || "Property create failed");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const normalizedAmenitySearch = amenitySearch.trim().toLowerCase();
+  const filteredAmenityGroups = AMENITY_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(([, label]) =>
+      label.toLowerCase().includes(normalizedAmenitySearch)
+    ),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="min-h-screen bg-[#FAFAFC]">
@@ -303,6 +327,90 @@ const propertyRes = await api.post("/properties", {
                 <option>Beach House</option>
                 <option>Farm Stay</option>
               </select>
+            </div>
+
+            <div className="md:col-span-2 rounded-3xl border border-gray-200 bg-white p-5 md:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+                    Amenities
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Select everything guests can use. {form.amenities.length} selected.
+                  </p>
+                </div>
+
+                {form.amenities.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => updateForm("amenities", [])}
+                    className="self-start text-sm font-medium text-[#3b71e6] hover:underline sm:self-auto"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <div className="relative mt-5">
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="search"
+                  value={amenitySearch}
+                  onChange={(event) => setAmenitySearch(event.target.value)}
+                  placeholder="Search amenities"
+                  className="h-12 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
+                />
+              </div>
+
+              <div className="mt-6 max-h-[620px] space-y-7 overflow-y-auto pr-1">
+                {filteredAmenityGroups.map((group) => (
+                  <section key={group.title}>
+                    <h3 className="mb-3 text-sm font-semibold text-gray-950">
+                      {group.title}
+                    </h3>
+
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.items.map(([key, label]) => {
+                        const selected = form.amenities.includes(key);
+
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => toggleAmenity(key)}
+                            className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+                              selected
+                                ? "border-[#3b71e6] bg-[#eef4ff] font-medium text-[#2459bd]"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                                selected
+                                  ? "border-[#3b71e6] bg-[#3b71e6] text-white"
+                                  : "border-gray-300 text-transparent"
+                              }`}
+                            >
+                              <Check size={14} strokeWidth={3} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+
+                {filteredAmenityGroups.length === 0 && (
+                  <div className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                    No amenities match your search.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="md:col-span-2 rounded-3xl border border-green-100 bg-green-50 p-5">
