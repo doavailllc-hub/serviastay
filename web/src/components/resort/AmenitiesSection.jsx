@@ -13,8 +13,10 @@ import {
   Home,
   Search,
   ShieldCheck,
+  Tv,
   Trees,
   Utensils,
+  WashingMachine,
   Waves,
   Wifi,
   X,
@@ -41,11 +43,64 @@ const CATEGORY_ICON = {
 };
 
 const SPECIAL_ICON = {
+  wifi: Wifi,
+  tv: Tv,
+  kitchen: Utensils,
+  ac: AirVent,
+  air_conditioning: AirVent,
+  parking: Car,
+  free_parking: Car,
+  washer: WashingMachine,
+  washing_machine: WashingMachine,
   pool: Waves,
+  swimming_pool: Waves,
   hot_tub: Waves,
+  dedicated_workspace: Briefcase,
+  workspace: Briefcase,
   fireplace: Flame,
   fire_pit: Flame,
+  firepit: Flame,
   security: ShieldCheck,
+  accessible: Accessibility,
+  accessibility: Accessibility,
+};
+
+const LEGACY_AMENITY_META = {
+  accessible: {
+    key: "accessible",
+    title: "Accessible",
+    category: "Accessibility",
+  },
+  air_conditioning: {
+    key: "air_conditioning",
+    title: "Air conditioning",
+    category: "Heating and cooling",
+  },
+  free_parking: {
+    key: "free_parking",
+    title: "Free parking",
+    category: "Parking and facilities",
+  },
+  washing_machine: {
+    key: "washing_machine",
+    title: "Washing machine",
+    category: "Bedroom and laundry",
+  },
+  swimming_pool: {
+    key: "swimming_pool",
+    title: "Swimming pool",
+    category: "Parking and facilities",
+  },
+  workspace: {
+    key: "workspace",
+    title: "Workspace",
+    category: "Internet and office",
+  },
+  firepit: {
+    key: "firepit",
+    title: "Fire pit",
+    category: "Outdoor",
+  },
 };
 
 const formatKey = (value) =>
@@ -67,7 +122,7 @@ export default function AmenitiesSection({ amenities }) {
         seen.add(key);
 
         return (
-          AMENITY_META[key] || {
+          AMENITY_META[key] || LEGACY_AMENITY_META[key] || {
             key,
             title: formatKey(key),
             category: "Other amenities",
