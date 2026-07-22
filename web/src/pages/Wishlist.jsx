@@ -120,10 +120,10 @@ const removeWishlist = async (wishlistId) => {
                       e.stopPropagation();
                     removeWishlist(item.wishlist_id);
                     }}
-               removingId === item.wishlist_id
+                    disabled={removingId === item.wishlist_id}
                     className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#3b71e6] shadow-sm backdrop-blur transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {removingId === item.id ? (
+                    {removingId === item.wishlist_id? (
                       <Loader2 size={18} className="animate-spin" />
                     ) : (
                       <Heart size={20} fill="currentColor" />
