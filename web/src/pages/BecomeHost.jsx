@@ -1,46 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Wifi,
-  Tv,
-  CookingPot,
-  WashingMachine,
-  Car,
-  Snowflake,
-  BriefcaseBusiness,
-  Waves,
-  Flame,
   Plus,
   Minus,
   MapPin,
   X,
   Camera,
   ArrowLeft,
-  Coffee,
-  Dumbbell,
-  ShieldCheck,
-  Utensils,
-  Refrigerator,
-  Microwave,
-  Baby,
-  PawPrint,
-  TreePine,
-  Accessibility,
   Home,
   CheckCircle,
+  Check,
+  Loader2,
+  Search,
 } from "lucide-react";
-import {
-  GoogleMap,
-  Marker,
-  Autocomplete,
-  useLoadScript,
-} from "@react-google-maps/api";
 
 import api from "../api/api";
+import { AMENITY_GROUPS } from "../data/amenityData";
 
 const BRAND = "#3b71e6";
 const BRAND_HOVER = "#2f5fc2";
-const libraries = ["places"];
 
 const steps = [
   "basic",
@@ -53,35 +31,15 @@ const steps = [
   "pricing",
 ];
 
-const amenitiesList = [
-  { key: "wifi", label: "Wifi", icon: Wifi },
-  { key: "tv", label: "TV", icon: Tv },
-  { key: "kitchen", label: "Kitchen", icon: CookingPot },
-  { key: "washer", label: "Washer", icon: WashingMachine },
-  { key: "parking", label: "Free parking", icon: Car },
-  { key: "ac", label: "Air conditioning", icon: Snowflake },
-  { key: "workspace", label: "Dedicated workspace", icon: BriefcaseBusiness },
-  { key: "pool", label: "Pool", icon: Waves },
-  { key: "firepit", label: "Fire pit", icon: Flame },
-  { key: "breakfast", label: "Breakfast", icon: Coffee },
-  { key: "gym", label: "Gym", icon: Dumbbell },
-  { key: "security", label: "Security cameras", icon: ShieldCheck },
-  { key: "dining", label: "Dining area", icon: Utensils },
-  { key: "fridge", label: "Refrigerator", icon: Refrigerator },
-  { key: "microwave", label: "Microwave", icon: Microwave },
-  { key: "family", label: "Family friendly", icon: Baby },
-  { key: "pet", label: "Pet friendly", icon: PawPrint },
-  { key: "garden", label: "Garden view", icon: TreePine },
-  { key: "accessible", label: "Accessibility features", icon: Accessibility },
-];
-
 export default function BecomeHost() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
-  const [autocomplete, setAutocomplete] = useState(null);
   const [uploadModal, setUploadModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [amenitySearch, setAmenitySearch] = useState("");
+  const previewsRef = useRef([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -103,19 +61,29 @@ export default function BecomeHost() {
     weekendPrice: 155,
   });
 
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries,
-  });
-
   const progress = ((step + 1) / steps.length) * 100;
 
-  const center = useMemo(
-    () => ({
-      lat: Number(form.latitude),
-      lng: Number(form.longitude),
-    }),
-    [form.latitude, form.longitude]
+  useEffect(() => {
+    previewsRef.current = form.previews;
+  }, [form.previews]);
+
+  useEffect(
+    () => () => {
+      previewsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    },
+    []
+  );
+
+  const normalizedAmenitySearch = amenitySearch.trim().toLowerCase();
+  const filteredAmenityGroups = useMemo(
+    () =>
+      AMENITY_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter(([, label]) =>
+          label.toLowerCase().includes(normalizedAmenitySearch)
+        ),
+      })).filter((group) => group.items.length > 0),
+    [normalizedAmenitySearch]
   );
 
   const update = (key, value) => {
@@ -132,17 +100,6 @@ export default function BecomeHost() {
     }));
   };
 
-  const handlePlaceChanged = () => {
-    if (!autocomplete) return;
-
-    const place = autocomplete.getPlace();
-    if (!place?.geometry?.location) return;
-
-    update("location", place.formatted_address || place.name || "");
-    update("latitude", place.geometry.location.lat());
-    update("longitude", place.geometry.location.lng());
-  };
-
   const toggleAmenity = (key) => {
     setForm((prev) => ({
       ...prev,
@@ -152,27 +109,43 @@ export default function BecomeHost() {
     }));
   };
 
-  const handleImages = (e) => {
+  const handleImages = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const validFiles = files.filter((file) => file.type.startsWith("image/"));
+    const validFiles = files.filter((file) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    );
+
+    if (validFiles.length !== files.length) {
+      window.alert("Only JPG, PNG and WEBP image files are allowed.");
+    }
 
     if (!validFiles.length) {
-      alert("Please upload valid image files only.");
       return;
     }
 
     if (form.images.length + validFiles.length > 10) {
-      alert("Maximum 10 photos allowed.");
+      window.alert("Maximum 10 photos allowed.");
       return;
     }
 
-    const previews = validFiles.map((file) => URL.createObjectURL(file));
+    const optimizedFiles = await Promise.all(validFiles.map(optimizeImage));
+    const totalBytes = [...form.images, ...optimizedFiles].reduce(
+      (sum, file) => sum + Number(file.size || 0),
+      0
+    );
+
+    if (totalBytes > 50 * 1024 * 1024) {
+      window.alert("The selected photos are still too large. Please use smaller images.");
+      return;
+    }
+
+    const previews = optimizedFiles.map((file) => URL.createObjectURL(file));
 
     setForm((prev) => ({
       ...prev,
-      images: [...prev.images, ...validFiles],
+      images: [...prev.images, ...optimizedFiles],
       previews: [...prev.previews, ...previews],
     }));
 
@@ -195,7 +168,13 @@ export default function BecomeHost() {
     const current = steps[step];
 
     if (current === "basic") return form.title.trim().length >= 5;
-    if (current === "location") return form.location.trim() && form.latitude;
+    if (current === "location") {
+      return (
+        form.location.trim() &&
+        Number.isFinite(Number(form.latitude)) &&
+        Number.isFinite(Number(form.longitude))
+      );
+    }
     if (current === "floor") {
       return form.guests > 0 && form.bedrooms > 0 && form.beds > 0;
     }
@@ -225,13 +204,17 @@ export default function BecomeHost() {
   const publishListing = async () => {
     try {
       setLoading(true);
+      setUploadProgress(0);
 
-      const user = JSON.parse(localStorage.getItem("user"));
-      const token = localStorage.getItem("token");
+      const user =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
 
       if (!user || !token) {
-        alert("Please login first.");
-        navigate("/");
+        window.alert("Please login first.");
+        navigate("/login", { replace: true });
         return;
       }
 
@@ -261,17 +244,22 @@ export default function BecomeHost() {
       });
 
       await api.post("/properties/host-create", data, {
-        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (event) => {
+          if (!event.total) return;
+          setUploadProgress(Math.round((event.loaded * 100) / event.total));
+        },
       });
 
-      alert(
+      form.previews.forEach((url) => URL.revokeObjectURL(url));
+      window.alert(
         "Listing submitted for verification. It will show publicly after admin approval."
       );
-      navigate("/host-listings");
+      navigate("/host-listings", { replace: true });
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to submit listing.");
+      window.alert(err.response?.data?.message || "Failed to submit listing.");
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -338,54 +326,19 @@ export default function BecomeHost() {
                 description="Your exact address is only shared with guests after their reservation is confirmed."
               />
 
-              <div className="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-gray-100 shadow-sm">
-                <div className="relative h-[520px]">
-                  {isLoaded ? (
-                    <>
-                      <GoogleMap
-                        center={center}
-                        zoom={13}
-                        mapContainerStyle={{ width: "100%", height: "100%" }}
-                        onClick={(e) => {
-                          update("latitude", e.latLng.lat());
-                          update("longitude", e.latLng.lng());
-                        }}
-                        options={{
-                          streetViewControl: false,
-                          mapTypeControl: false,
-                          fullscreenControl: false,
-                        }}
-                      >
-                        <Marker position={center} />
-                      </GoogleMap>
-
-                      <div className="absolute left-1/2 top-5 w-[92%] -translate-x-1/2 md:w-[82%]">
-                        <Autocomplete
-                          onLoad={setAutocomplete}
-                          onPlaceChanged={handlePlaceChanged}
-                        >
-                          <div className="flex h-14 items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 shadow-lg">
-                            <MapPin size={18} className="text-gray-500" />
-
-                            <input
-                              value={form.location}
-                              onChange={(e) =>
-                                update("location", e.target.value)
-                              }
-                              placeholder="Enter your address"
-                              className="w-full text-sm outline-none placeholder:text-gray-400"
-                            />
-                          </div>
-                        </Autocomplete>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                      Loading map...
-                    </div>
-                  )}
-                </div>
-              </div>
+              <LocationMapPicker
+                location={form.location}
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={({ location, latitude, longitude }) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    location: location ?? prev.location,
+                    latitude,
+                    longitude,
+                  }))
+                }
+              />
             </section>
           )}
 
@@ -488,30 +441,68 @@ export default function BecomeHost() {
                 description="Choose at least 3 amenities guests can use during their stay."
               />
 
-              <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3">
-                {amenitiesList.map((item) => {
-                  const Icon = item.icon;
-                  const active = form.amenities.includes(item.key);
+              <div className="relative mt-7">
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="search"
+                  value={amenitySearch}
+                  onChange={(event) => setAmenitySearch(event.target.value)}
+                  placeholder="Search amenities"
+                  className="h-12 w-full rounded-2xl border border-gray-200 pl-11 pr-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
 
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => toggleAmenity(item.key)}
-                      className={`rounded-3xl border p-4 text-left transition ${
-                        active
-                          ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6] shadow-sm"
-                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      <Icon size={22} />
+              <p className="mt-3 text-sm font-medium text-[#3b71e6]">
+                {form.amenities.length} selected
+              </p>
 
-                      <span className="mt-4 block text-sm font-semibold">
-                        {item.label}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="mt-6 max-h-[560px] space-y-7 overflow-y-auto pr-1">
+                {filteredAmenityGroups.map((group) => (
+                  <section key={group.title}>
+                    <h3 className="mb-3 text-sm font-semibold text-gray-950">
+                      {group.title}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                      {group.items.map(([key, label]) => {
+                        const active = form.amenities.includes(key);
+
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => toggleAmenity(key)}
+                            className={`flex min-h-20 items-start justify-between gap-3 rounded-2xl border p-4 text-left transition ${
+                              active
+                                ? "border-[#3b71e6] bg-[#eef4ff] text-[#3b71e6] shadow-sm"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span className="text-sm font-semibold">{label}</span>
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                                active
+                                  ? "border-[#3b71e6] bg-[#3b71e6] text-white"
+                                  : "border-gray-300 text-transparent"
+                              }`}
+                            >
+                              <Check size={14} strokeWidth={3} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+
+                {filteredAmenityGroups.length === 0 && (
+                  <div className="rounded-2xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                    No amenities match your search.
+                  </div>
+                )}
               </div>
             </section>
           )}
@@ -709,7 +700,14 @@ export default function BecomeHost() {
               disabled={loading || !canNext()}
               className="rounded-2xl bg-[#3b71e6] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Submitting..." : "Send for verification"}
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  Submitting{uploadProgress ? ` ${uploadProgress}%` : "..."}
+                </span>
+              ) : (
+                "Send for verification"
+              )}
             </button>
           ) : (
             <button
@@ -754,6 +752,243 @@ function HostHeader({ navigate }) {
       </div>
     </header>
   );
+}
+
+let googleMapsPromise;
+
+function loadGoogleMapsOnce() {
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (googleMapsPromise) return googleMapsPromise;
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
+    return Promise.reject(new Error("Google Maps API key is missing."));
+  }
+
+  googleMapsPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(
+      'script[src*="maps.googleapis.com/maps/api/js"]'
+    );
+
+    if (existing) {
+      existing.addEventListener(
+        "load",
+        () => resolve(window.google.maps),
+        { once: true }
+      );
+      existing.addEventListener(
+        "error",
+        () => reject(new Error("Google Maps could not be loaded.")),
+        { once: true }
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "dovail-google-maps";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(window.google.maps);
+    script.onerror = () => reject(new Error("Google Maps could not be loaded."));
+    document.head.appendChild(script);
+  });
+
+  return googleMapsPromise;
+}
+
+function LocationMapPicker({ location, latitude, longitude, onChange }) {
+  const mapElement = useRef(null);
+  const mapRef = useRef(null);
+  const geocoderRef = useRef(null);
+  const onChangeRef = useRef(onChange);
+  const [query, setQuery] = useState(location || "");
+  const [mapError, setMapError] = useState("");
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let clickListener;
+    let idleListener;
+
+    loadGoogleMapsOnce()
+      .then((maps) => {
+        if (cancelled || !mapElement.current) return;
+
+        const initial = {
+          lat: Number(latitude) || 24.7136,
+          lng: Number(longitude) || 46.6753,
+        };
+
+        const map = new maps.Map(mapElement.current, {
+          center: initial,
+          zoom: 15,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          clickableIcons: false,
+          gestureHandling: "greedy",
+        });
+
+        mapRef.current = map;
+        geocoderRef.current = new maps.Geocoder();
+
+        const publishCenter = (center) => {
+          if (!center) return;
+          onChangeRef.current({
+            latitude: Number(center.lat()).toFixed(7),
+            longitude: Number(center.lng()).toFixed(7),
+          });
+        };
+
+        clickListener = map.addListener("click", (event) => {
+          map.panTo(event.latLng);
+          publishCenter(event.latLng);
+        });
+
+        idleListener = map.addListener("idle", () => {
+          publishCenter(map.getCenter());
+        });
+      })
+      .catch((err) => setMapError(err.message));
+
+    return () => {
+      cancelled = true;
+      clickListener?.remove();
+      idleListener?.remove();
+    };
+  }, []);
+
+  const searchAddress = () => {
+    if (!query.trim() || !geocoderRef.current) return;
+
+    setSearching(true);
+    setMapError("");
+    geocoderRef.current.geocode(
+      { address: query.trim() },
+      (results, status) => {
+        setSearching(false);
+
+        if (status !== "OK" || !results?.[0]) {
+          setMapError("Address not found. Try a more complete address.");
+          return;
+        }
+
+        const result = results[0];
+        const point = result.geometry.location;
+        const formattedAddress = result.formatted_address || query.trim();
+
+        setQuery(formattedAddress);
+        mapRef.current?.panTo(point);
+        mapRef.current?.setZoom(17);
+        onChangeRef.current({
+          location: formattedAddress,
+          latitude: Number(point.lat()).toFixed(7),
+          longitude: Number(point.lng()).toFixed(7),
+        });
+      }
+    );
+  };
+
+  return (
+    <div className="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-gray-100 shadow-sm">
+      <div className="relative h-[520px]">
+        <div ref={mapElement} className="h-full w-full" />
+
+        {!mapError && (
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-[#3b71e6] drop-shadow-md">
+            <MapPin size={40} fill="white" strokeWidth={2.4} />
+          </div>
+        )}
+
+        <div className="absolute left-1/2 top-5 w-[92%] -translate-x-1/2 md:w-[82%]">
+          <div className="flex min-h-14 items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2 pl-4 shadow-lg">
+            <MapPin size={18} className="shrink-0 text-gray-500" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  searchAddress();
+                }
+              }}
+              placeholder="Search address, landmark or area"
+              className="min-w-0 flex-1 text-sm outline-none placeholder:text-gray-400"
+            />
+            <button
+              type="button"
+              onClick={searchAddress}
+              disabled={searching}
+              className="h-10 rounded-xl bg-[#3b71e6] px-4 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {searching ? "Searching" : "Search"}
+            </button>
+          </div>
+
+          {mapError && (
+            <div className="mt-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 shadow">
+              {mapError}
+            </div>
+          )}
+        </div>
+
+        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-xl bg-white/95 px-3 py-2 text-xs font-medium text-gray-600 shadow backdrop-blur">
+          <span>{Number(latitude).toFixed(6)}</span>
+          <span>·</span>
+          <span>{Number(longitude).toFixed(6)}</span>
+        </div>
+      </div>
+      <p className="bg-white px-4 py-3 text-xs text-gray-500">
+        Search an address, click the map, or drag the map until the pin is exactly on your property.
+      </p>
+    </div>
+  );
+}
+
+async function optimizeImage(file) {
+  if (file.size <= 1.5 * 1024 * 1024 || !window.createImageBitmap) {
+    return file;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDimension = 2400;
+    const scale = Math.min(
+      1,
+      maxDimension / Math.max(bitmap.width, bitmap.height)
+    );
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.84)
+    );
+
+    if (!blob || blob.size >= file.size) return file;
+
+    const cleanName = file.name.replace(/\.[^.]+$/, "") || "listing-photo";
+    return new File([blob], `${cleanName}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  }
 }
 
 function PageTitle({ eyebrow, title, description, compact }) {
