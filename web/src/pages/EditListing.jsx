@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Upload, X, ImagePlus } from "lucide-react";
+import { Check, ImagePlus, Loader2, Search, Upload, X } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
+import { AMENITY_GROUPS } from "../data/amenityData";
+import { parseAmenities } from "../utils/resortUtils";
 
 export default function EditListing() {
   const navigate = useNavigate();
@@ -12,6 +14,8 @@ export default function EditListing() {
   const [form, setForm] = useState({
     title: "",
     location: "",
+    latitude: "",
+    longitude: "",
     price: "",
     description: "",
     category: "",
@@ -19,12 +23,14 @@ export default function EditListing() {
     bedrooms: 1,
     bathrooms: 1,
     image: "",
+    amenities: [],
   });
 
   const [gallery, setGallery] = useState([]);
   const [newFiles, setNewFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [amenitySearch, setAmenitySearch] = useState("");
 
   useEffect(() => {
     loadListing();
@@ -33,8 +39,12 @@ export default function EditListing() {
 
   const loadListing = async () => {
     try {
-      const res = await api.get(`/properties/${id}`);
-      setForm(res.data);
+      const res = await api.get(`/host/properties/${id}`);
+      setForm((prev) => ({
+        ...prev,
+        ...res.data,
+        amenities: parseAmenities(res.data?.amenities),
+      }));
     } catch (err) {
       console.log("Listing load failed:", err);
     } finally {
@@ -52,22 +62,41 @@ export default function EditListing() {
   };
 
   const updateForm = (key, value) => {
-    setForm({ ...form, [key]: value });
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleAmenity = (key) => {
+    setForm((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(key)
+        ? prev.amenities.filter((item) => item !== key)
+        : [...prev.amenities, key],
+    }));
   };
 
   const handleNewFiles = (e) => {
     const selected = Array.from(e.target.files || []);
 
-    const mapped = selected.map((file) => ({
+    const validImages = selected.filter((file) => file.type.startsWith("image/"));
+
+    if (validImages.length !== selected.length) {
+      window.alert("Only image files are allowed");
+    }
+
+    const mapped = validImages.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
 
     setNewFiles((prev) => [...prev, ...mapped].slice(0, 10));
+    e.target.value = "";
   };
 
   const removeNewFile = (index) => {
-    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewFiles((prev) => {
+      if (prev[index]?.preview) URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const deleteGalleryImage = async (imageId) => {
@@ -79,12 +108,12 @@ export default function EditListing() {
       loadGallery();
     } catch (err) {
       console.log("Image delete failed:", err);
-      alert("Image delete failed");
+      window.alert(err.response?.data?.message || "Image delete failed");
     }
   };
 
   const setCoverImage = (imageUrl) => {
-    setForm({ ...form, image: imageUrl });
+    setForm((prev) => ({ ...prev, image: imageUrl }));
   };
 
   const uploadGalleryImage = async (file) => {
@@ -101,17 +130,17 @@ export default function EditListing() {
 
   const saveChanges = async () => {
     if (!form.title?.trim()) {
-      alert("Title is required");
+      window.alert("Title is required");
       return;
     }
 
     if (!form.location?.trim()) {
-      alert("Location is required");
+      window.alert("Location is required");
       return;
     }
 
     if (!form.price || Number(form.price) <= 0) {
-      alert("Valid price is required");
+      window.alert("Valid price is required");
       return;
     }
 
@@ -124,28 +153,43 @@ export default function EditListing() {
         guests: Number(form.guests),
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
+        amenities: JSON.stringify(form.amenities),
       });
 
       for (const item of newFiles) {
         await uploadGalleryImage(item.file);
       }
 
-      alert("Listing updated successfully");
+      newFiles.forEach((item) => URL.revokeObjectURL(item.preview));
+      window.alert("Listing updated successfully");
       navigate("/host-listings");
     } catch (err) {
       console.log("Update failed:", err);
-      alert(err.response?.data?.message || "Update failed");
+      window.alert(err.response?.data?.message || "Update failed");
     } finally {
       setSaving(false);
     }
   };
 
+  const normalizedAmenitySearch = amenitySearch.trim().toLowerCase();
+  const filteredAmenityGroups = AMENITY_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(([, label]) =>
+      label.toLowerCase().includes(normalizedAmenitySearch)
+    ),
+  })).filter((group) => group.items.length > 0);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFC]">
         <Navbar />
-        <main className="mx-auto max-w-5xl px-4 py-20">
-          Loading listing...
+        <main className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-4 py-20">
+          <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
+            <Loader2 size={22} className="animate-spin" />
+            Loading listing...
+          </div>
         </main>
       </div>
     );
@@ -182,6 +226,20 @@ export default function EditListing() {
               label="Location"
               value={form.location}
               onChange={(v) => updateForm("location", v)}
+            />
+
+            <Input
+              label="Latitude"
+              type="number"
+              value={form.latitude}
+              onChange={(v) => updateForm("latitude", v)}
+            />
+
+            <Input
+              label="Longitude"
+              type="number"
+              value={form.longitude}
+              onChange={(v) => updateForm("longitude", v)}
             />
 
             <Input
@@ -229,6 +287,90 @@ export default function EditListing() {
               value={form.bathrooms}
               onChange={(v) => updateForm("bathrooms", v)}
             />
+
+            <div className="md:col-span-2 rounded-3xl border border-gray-200 bg-white p-5 md:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-gray-950">
+                    Amenities
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Update everything guests can use. {form.amenities.length} selected.
+                  </p>
+                </div>
+
+                {form.amenities.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => updateForm("amenities", [])}
+                    className="self-start text-sm font-medium text-[#3b71e6] hover:underline sm:self-auto"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <div className="relative mt-5">
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="search"
+                  value={amenitySearch}
+                  onChange={(event) => setAmenitySearch(event.target.value)}
+                  placeholder="Search amenities"
+                  className="h-12 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-4 text-sm outline-none transition focus:border-[#3b71e6] focus:ring-2 focus:ring-[#3b71e6]/10"
+                />
+              </div>
+
+              <div className="mt-6 max-h-[620px] space-y-7 overflow-y-auto pr-1">
+                {filteredAmenityGroups.map((group) => (
+                  <section key={group.title}>
+                    <h3 className="mb-3 text-sm font-semibold text-gray-950">
+                      {group.title}
+                    </h3>
+
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.items.map(([key, label]) => {
+                        const selected = form.amenities.includes(key);
+
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => toggleAmenity(key)}
+                            className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+                              selected
+                                ? "border-[#3b71e6] bg-[#eef4ff] font-medium text-[#2459bd]"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                                selected
+                                  ? "border-[#3b71e6] bg-[#3b71e6] text-white"
+                                  : "border-gray-300 text-transparent"
+                              }`}
+                            >
+                              <Check size={14} strokeWidth={3} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+
+                {filteredAmenityGroups.length === 0 && (
+                  <div className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                    No amenities match your search.
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="md:col-span-2">
               <Label text="Cover Image" />
@@ -379,7 +521,14 @@ export default function EditListing() {
               disabled={saving}
               className="h-12 rounded-xl bg-[#3b71e6] px-8 font-semibold text-white shadow-lg hover:bg-[#7152E8] disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 size={17} className="animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                "Save Changes"
+              )}
             </button>
           </div>
         </div>
