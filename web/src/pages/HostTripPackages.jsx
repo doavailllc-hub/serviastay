@@ -15,8 +15,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
 
-const BRAND = "#3b71e6";
-
 export default function HostTripPackages() {
   const navigate = useNavigate();
 
@@ -42,45 +40,35 @@ export default function HostTripPackages() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+      const user =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
 
       if (!token || !user?.id) {
-        navigate("/login");
+        navigate("/login", { replace: true });
         return;
       }
 
       const headers = { Authorization: `Bearer ${token}` };
-
-      let res;
-
-      try {
-        res = await api.get(`/host/trip-packages/${user.id}`, { headers });
-      } catch {
-        res = await api.get("/host/trip-packages", { headers });
-      }
-
-      const data = getArray(res.data);
-      const hostId = String(user.id);
-
-      const filtered = data.filter((pkg) => {
-        const owner =
-          pkg.host_id ??
-          pkg.hostId ??
-          pkg.user_id ??
-          pkg.userId ??
-          pkg.owner_id ??
-          pkg.ownerId ??
-          pkg.created_by ??
-          pkg.createdBy;
-
-        return String(owner || "") === hostId;
-      });
-
-      setPackages(filtered);
+      const res = await api.get("/host/trip-packages", { headers });
+      setPackages(getArray(res.data));
     } catch (err) {
       console.error("Host trip packages load failed:", err);
-      setError("Unable to load your trip packages.");
+
+      if ([401, 403].includes(err?.response?.status)) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setError(
+        err?.response?.data?.message || "Unable to load your trip packages."
+      );
     } finally {
       setLoading(false);
     }
@@ -94,12 +82,13 @@ export default function HostTripPackages() {
     ).length;
 
     const totalBookings = packages.reduce(
-      (sum, p) => sum + Number(p.bookings_count || 0),
+      (sum, p) =>
+        sum + Number(p.booking_count ?? p.bookings_count ?? p.bookings ?? 0),
       0
     );
 
     const totalRevenue = packages.reduce(
-      (sum, p) => sum + Number(p.revenue || 0),
+      (sum, p) => sum + Number(p.earnings ?? p.revenue ?? 0),
       0
     );
 
@@ -118,7 +107,8 @@ export default function HostTripPackages() {
     try {
       setDeletingId(id);
 
-      const token = localStorage.getItem("token");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
 
       await api.delete(`/trip-packages/${id}`, {
         headers: {
@@ -126,10 +116,12 @@ export default function HostTripPackages() {
         },
       });
 
-      setPackages((prev) => prev.filter((item) => item.id !== id));
+      setPackages((prev) =>
+        prev.filter((item) => String(item.id) !== String(id))
+      );
     } catch (err) {
       console.error("Delete package failed:", err);
-      alert(err.response?.data?.message || "Package delete failed");
+      setError(err?.response?.data?.message || "Package delete failed.");
     } finally {
       setDeletingId(null);
     }
@@ -294,11 +286,18 @@ function PackageRow({ pkg, deleting, onView, onEdit, onDelete }) {
               value={rating ? rating.toFixed(2) : "New"}
             />
 
-            <MiniInfo label="Bookings" value={Number(pkg.bookings_count || 0)} />
+            <MiniInfo
+              label="Bookings"
+              value={Number(
+                pkg.booking_count ?? pkg.bookings_count ?? pkg.bookings ?? 0
+              )}
+            />
 
             <MiniInfo
               label="Revenue"
-              value={`₹${Number(pkg.revenue || 0).toLocaleString("en-IN")}`}
+              value={`₹${Number(
+                pkg.earnings ?? pkg.revenue ?? 0
+              ).toLocaleString("en-IN")}`}
             />
           </div>
         </div>
