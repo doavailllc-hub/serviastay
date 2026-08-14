@@ -8,6 +8,7 @@ import {
   Send,
   Wallet,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -40,11 +41,18 @@ export default function Payouts() {
         return;
       }
 
-      const res = await api.get(`/host/payouts/${user.id}`);
-      setData(res.data);
+      const res = await api.get(`/host/wallet/${user.id}`);
+      const wallet = res.data?.wallet || {};
+      setData({
+        totalEarnings: wallet.total_earnings || 0,
+        availableBalance: wallet.available_balance || 0,
+        pendingPayout: wallet.pending_payouts || 0,
+        paidOut: wallet.paid_payouts || 0,
+        history: res.data?.payouts || [],
+      });
     } catch (err) {
       console.log("Payouts load failed:", err);
-      alert("Payouts failed to load");
+      toast.error("Payouts failed to load");
     } finally {
       setLoading(false);
     }
@@ -55,29 +63,28 @@ export default function Payouts() {
       const user = JSON.parse(localStorage.getItem("user"));
 
       if (!amount || Number(amount) <= 0) {
-        alert("Enter a valid amount");
+        toast.error("Enter a valid amount");
         return;
       }
 
       if (Number(amount) > Number(data?.availableBalance || 0)) {
-        alert("Amount is higher than available balance");
+        toast.error("Amount is higher than available balance");
         return;
       }
 
       setRequesting(true);
 
-      await api.post("/host/payouts/request", {
-        host_id: user.id,
+      await api.post("/host/payout-request", {
         amount: Number(amount),
         method,
       });
 
-      alert("Payout request submitted");
+      toast.success("Payout request submitted");
       setAmount("");
       loadPayouts();
     } catch (err) {
       console.log("Payout request failed:", err);
-      alert("Payout request failed");
+      toast.error("Payout request failed");
     } finally {
       setRequesting(false);
     }

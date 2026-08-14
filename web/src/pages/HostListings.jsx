@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Plus, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -58,7 +59,7 @@ export default function HostListings() {
       loadListings();
     } catch (err) {
       console.log("Delete failed:", err);
-      alert("Delete failed");
+      toast.error("Delete failed");
     }
   };
 

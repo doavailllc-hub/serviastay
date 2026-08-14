@@ -9,6 +9,7 @@ import {
   Users,
   UserX,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import api from "../../api/api";
 
@@ -30,7 +31,7 @@ export default function AdminUsers() {
       const res = await api.get("/admin/users");
       setUsers(res.data || []);
     } catch (err) {
-      alert(err.response?.data?.message || "Users load failed");
+      toast.error(err.response?.data?.message || "Users load failed");
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,7 @@ export default function AdminUsers() {
       await api.put(`/admin/users/${id}/role`, { role: newRole });
       loadUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "Role update failed");
+      toast.error(err.response?.data?.message || "Role update failed");
     }
   };
 
@@ -64,7 +65,7 @@ export default function AdminUsers() {
       await api.put(`/admin/users/${id}/status`, { status: newStatus });
       loadUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "Status update failed");
+      toast.error(err.response?.data?.message || "Status update failed");
     }
   };
 
@@ -79,7 +80,7 @@ export default function AdminUsers() {
       await api.delete(`/admin/users/${id}`);
       loadUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "User delete failed");
+      toast.error(err.response?.data?.message || "User delete failed");
     }
   };
 

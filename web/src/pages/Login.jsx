@@ -1,20 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2, LockKeyhole, Mail, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../api/api";
 import logo from "../assets/logo.png";
 
 const GOOGLE_SCRIPT = "https://accounts.google.com/gsi/client";
-const APPLE_SCRIPT =
-  "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
 
 function loadScript(src, id) {
   return new Promise((resolve, reject) => {
     if (document.getElementById(id)) {
       const waitForSdk = () => {
-        if ((id === "google-identity" && window.google?.accounts?.id) ||
-            (id === "apple-identity" && window.AppleID?.auth)) {
+        if (id === "google-identity" && window.google?.accounts?.id) {
           resolve();
         } else {
           window.setTimeout(waitForSdk, 50);
@@ -35,14 +32,9 @@ function loadScript(src, id) {
   });
 }
 
-function randomState() {
-  const bytes = new Uint8Array(24);
-  window.crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const googleButtonRef = useRef(null);
   const otpRefs = useRef([]);
 
@@ -54,14 +46,18 @@ export default function Login() {
   const [socialLoading, setSocialLoading] = useState("");
   const [error, setError] = useState("");
   const [googleReady, setGoogleReady] = useState(false);
-  const [appleReady, setAppleReady] = useState(false);
 
   const cleanEmail = email.trim().toLowerCase();
   const otpCode = otp.join("");
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID;
-  const appleRedirectUri =
-    import.meta.env.VITE_APPLE_REDIRECT_URI || `${window.location.origin}/login`;
+
+  const requestedPath = location.state?.from;
+  const destination =
+    requestedPath &&
+    requestedPath.pathname?.startsWith("/") &&
+    !requestedPath.pathname.startsWith("//")
+      ? `${requestedPath.pathname}${requestedPath.search || ""}${requestedPath.hash || ""}`
+      : "/home";
 
   const saveSession = (data) => {
     if (!data?.token || !data?.user) {
@@ -71,7 +67,7 @@ export default function Login() {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     window.dispatchEvent(new Event("auth-changed"));
-    navigate("/home", { replace: true });
+    navigate(destination, { replace: true });
   };
 
   const finishSocialLogin = async (provider, identityToken, name) => {
@@ -87,7 +83,7 @@ export default function Login() {
       setError(
         err?.response?.data?.message ||
           err?.message ||
-          `${provider === "google" ? "Google" : "Apple"} login failed.`
+          "Google login failed."
       );
     } finally {
       setSocialLoading("");
@@ -136,30 +132,6 @@ export default function Login() {
   }, [googleClientId]);
 
   useEffect(() => {
-    if (!appleClientId) return;
-    let active = true;
-
-    loadScript(APPLE_SCRIPT, "apple-identity")
-      .then(() => {
-        if (!active) return;
-        window.AppleID.auth.init({
-          clientId: appleClientId,
-          scope: "name email",
-          redirectURI: appleRedirectUri,
-          state: randomState(),
-          nonce: randomState(),
-          usePopup: true,
-        });
-        setAppleReady(true);
-      })
-      .catch(() => active && setError("Apple login could not be loaded."));
-
-    return () => {
-      active = false;
-    };
-  }, [appleClientId, appleRedirectUri]);
-
-  useEffect(() => {
     if (step !== "otp" || timer <= 0) return undefined;
     const interval = window.setInterval(
       () => setTimer((value) => Math.max(0, value - 1)),
@@ -167,32 +139,6 @@ export default function Login() {
     );
     return () => window.clearInterval(interval);
   }, [step, timer]);
-
-  const signInWithApple = async () => {
-    if (!appleReady) {
-      setError("Apple login is not configured yet.");
-      return;
-    }
-
-    try {
-      setError("");
-      setSocialLoading("apple");
-      const response = await window.AppleID.auth.signIn();
-      const identityToken = response?.authorization?.id_token;
-      const appleName = response?.user?.name;
-      const name = [appleName?.firstName, appleName?.lastName]
-        .filter(Boolean)
-        .join(" ");
-
-      if (!identityToken) throw new Error("Apple did not return an identity token.");
-      await finishSocialLogin("apple", identityToken, name);
-    } catch (err) {
-      if (err?.error !== "popup_closed_by_user") {
-        setError(err?.error || err?.message || "Apple login failed.");
-      }
-      setSocialLoading("");
-    }
-  };
 
   const sendOtp = async () => {
     if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
@@ -306,7 +252,7 @@ export default function Login() {
           </h1>
           <p className="mt-2 text-center text-sm leading-6 text-gray-500">
             {step === "email"
-              ? "Continue securely with your email, Google account, or Apple ID."
+              ? "Continue securely with your email or Google account."
               : `Enter the 6-digit verification code sent to ${cleanEmail}.`}
           </p>
 
@@ -395,15 +341,6 @@ export default function Login() {
                 )}
               </div>
 
-              <button
-                type="button"
-                disabled={!appleReady || Boolean(socialLoading)}
-                onClick={signInWithApple}
-                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-black text-sm font-semibold text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:bg-gray-400"
-              >
-                {socialLoading === "apple" && <Loader2 size={18} className="animate-spin" />}
-                Continue with Apple
-              </button>
             </>
           )}
 

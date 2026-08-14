@@ -11,6 +11,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -47,7 +48,7 @@ export default function PaymentHistory() {
       setPayments(res.data || []);
     } catch (err) {
       console.log("Payments load failed:", err);
-      alert("Payments failed to load");
+      toast.error("Payments failed to load");
     } finally {
       setLoading(false);
     }

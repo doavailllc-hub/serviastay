@@ -10,6 +10,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -184,7 +185,7 @@ export default function HostPackageDepartures() {
       setDepartures((prev) => prev.filter((item) => item.id !== departureId));
     } catch (err) {
       console.error("Delete departure failed:", err);
-      alert(err.response?.data?.message || "Unable to delete departure.");
+      toast.error(err.response?.data?.message || "Unable to delete departure.");
     } finally {
       setDeletingId(null);
     }

@@ -118,9 +118,9 @@ export default function App() {
       <Route path="/reserve/:id" element={<ResortDetails />} />
       <Route path="/service/:id" element={<ServiceDetails />} />
       <Route path="/experience-checkout/:id" element={<ExperienceCheckout />} />
-<Route path="/write-review/:bookingId" element={<WriteReview />} />
-<Route path="/host-type" element={<HostType />} />
-      <Route path="/add-trip-package" element={<AddTripPackage />} />
+<Route path="/write-review/:bookingId" element={<ProtectedPage><WriteReview /></ProtectedPage>} />
+<Route path="/host-type" element={<ProtectedPage><HostType /></ProtectedPage>} />
+      <Route path="/add-trip-package" element={<ProtectedPage><AddTripPackage /></ProtectedPage>} />
 <Route path="/privacy" element={<PrivacyPolicy />} />
 <Route path="/terms" element={<Terms />} />
 <Route path="/support" element={<Support />} />
@@ -133,9 +133,9 @@ export default function App() {
       <Route path="/experiences" element={<Experience />} />
       <Route path="/services" element={<Services />} />
       <Route path="/help" element={<HelpCenter />} />
-<Route path="/host-trip-packages" element={<HostTripPackages />} />
-<Route path="/edit-trip-package/:id" element={<EditTripPackage />} />
-<Route path="/refund-request/:bookingId" element={<RefundRequest />} />
+<Route path="/host-trip-packages" element={<ProtectedPage><HostTripPackages /></ProtectedPage>} />
+<Route path="/edit-trip-package/:id" element={<ProtectedPage><EditTripPackage /></ProtectedPage>} />
+<Route path="/refund-request/:bookingId" element={<ProtectedPage><RefundRequest /></ProtectedPage>} />
       {/* ========= PROTECTED ROUTES ========= */}
 
       <Route
@@ -148,7 +148,7 @@ export default function App() {
       />
 <Route
   path="/host-trip-packages/:id/departures"
-  element={<HostPackageDepartures />}
+  element={<ProtectedPage><HostPackageDepartures /></ProtectedPage>}
 />
       <Route
         path="/wishlist"
@@ -339,6 +339,14 @@ export default function App() {
           </ProtectedPage>
         }
       />
+      <Route path="/edit-listing/:id" element={<ProtectedPage><EditListing /></ProtectedPage>} />
+      <Route path="/payment-methods" element={<ProtectedPage><PaymentMethods /></ProtectedPage>} />
+      <Route path="/host-reviews" element={<ProtectedPage><HostReviews /></ProtectedPage>} />
+      <Route path="/analytics" element={<ProtectedPage><Analytics /></ProtectedPage>} />
+      <Route path="/security" element={<ProtectedPage><Security /></ProtectedPage>} />
+      <Route path="/recently-viewed" element={<ProtectedPage><RecentlyViewed /></ProtectedPage>} />
+      <Route path="/host-profile" element={<ProtectedPage><HostProfile /></ProtectedPage>} />
+      <Route path="/host-profile/:id" element={<ProtectedPage><HostProfile /></ProtectedPage>} />
 
       <Route
         path="/verification"

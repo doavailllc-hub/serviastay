@@ -17,9 +17,6 @@ import {
 import api from "../api/api";
 import { AMENITY_GROUPS } from "../data/amenityData";
 
-const BRAND = "#3b71e6";
-const BRAND_HOVER = "#2f5fc2";
-
 const steps = [
   "basic",
   "location",
@@ -214,7 +211,10 @@ export default function BecomeHost() {
 
       if (!user || !token) {
         window.alert("Please login first.");
-        navigate("/login", { replace: true });
+        navigate("/login", {
+          replace: true,
+          state: { from: { pathname: "/become-a-host" } },
+        });
         return;
       }
 

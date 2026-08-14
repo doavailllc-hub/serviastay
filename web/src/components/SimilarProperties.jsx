@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MapPin, Star } from "lucide-react";
 
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 
 export default function SimilarProperties({ propertyId }) {
   const navigate = useNavigate();
@@ -11,24 +12,22 @@ export default function SimilarProperties({ propertyId }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (propertyId) loadSimilarProperties();
+    if (!propertyId) return undefined;
+    let active = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get(`/properties/${propertyId}/similar`);
+        if (active) setProperties(res.data || []);
+      } catch (err) {
+        console.log("Similar properties load failed:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
   }, [propertyId]);
-
-  const formatINR = (amount) =>
-    `₹${Number(amount || 0).toLocaleString("en-IN")}`;
-
-  const loadSimilarProperties = async () => {
-    try {
-      setLoading(true);
-
-      const res = await api.get(`/properties/${propertyId}/similar`);
-      setProperties(res.data || []);
-    } catch (err) {
-      console.log("Similar properties load failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -107,7 +106,7 @@ export default function SimilarProperties({ propertyId }) {
               </p>
 
               <p className="mt-4 font-bold text-gray-900">
-                {formatINR(item.price)}{" "}
+                {formatCurrency(item.price)}{" "}
                 <span className="font-normal text-gray-500">/ night</span>
               </p>
             </div>

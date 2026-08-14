@@ -10,6 +10,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -36,7 +37,7 @@ export default function ServiceBookingDetails() {
       setBooking(res.data);
     } catch (err) {
       console.log("Service booking details failed:", err);
-      alert("Service booking details failed to load");
+      toast.error("Service booking details failed to load");
       navigate("/trips");
     } finally {
       setLoading(false);
@@ -57,11 +58,11 @@ export default function ServiceBookingDetails() {
         reason: "Cancelled by user",
       });
 
-      alert("Service booking cancelled successfully");
+      toast.success("Service booking cancelled successfully");
       loadBooking();
     } catch (err) {
       console.log("Service booking cancel failed:", err);
-      alert(err.response?.data?.message || "Cancellation failed");
+      toast.error(err.response?.data?.message || "Cancellation failed");
     } finally {
       setCancelling(false);
     }

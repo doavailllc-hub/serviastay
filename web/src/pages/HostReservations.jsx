@@ -41,12 +41,13 @@ export default function HostReservations() {
   const loadReservations = async () => {
     try {
       setLoading(true);
-
-      const user = JSON.parse(localStorage.getItem("user") || "null");
-      const token = localStorage.getItem("token");
-
+      const user =
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        JSON.parse(sessionStorage.getItem("user") || "null");
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
       if (!user?.id || !token) {
-        navigate("/");
+        navigate("/login", { replace: true, state: { from: { pathname: "/host-reservations" } } });
         return;
       }
 

@@ -14,6 +14,7 @@ import {
   Star,
   User,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -87,7 +88,7 @@ export default function Profile() {
       }
     } catch (err) {
       console.log("Profile load failed:", err);
-      alert("Profile failed to load");
+      toast.error("Profile failed to load");
       navigate("/");
     } finally {
       setLoading(false);
@@ -451,7 +452,7 @@ function AccountTab({ navigate, logout }) {
         <AccountAction
           icon={<Bell size={18} />}
           title="Notifications"
-          text="View alerts and booking updates."
+          text="View toast.errors and booking updates."
           onClick={() => navigate("/notifications")}
         />
 

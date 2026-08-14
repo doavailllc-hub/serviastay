@@ -11,9 +11,10 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-
+import toast from "react-hot-toast";
 
 import api from "../../api/api";
+import Navbar from "../../components/Navbar";
 
 export default function Analytics() {
   const navigate = useNavigate();
@@ -52,12 +53,12 @@ if (user.role !== "admin") {
       console.log("Analytics load failed:", err);
 
       if (err.response?.status === 403) {
-        alert("Admin access only");
+        toast.error("Admin access only");
         navigate("/home");
         return;
       }
 
-      alert("Analytics failed to load");
+      toast.error("Analytics failed to load");
     } finally {
       setLoading(false);
     }

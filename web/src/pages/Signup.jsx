@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import api from "../api/api";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
@@ -11,6 +13,7 @@ export default function Signup() {
 
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
     try {
@@ -26,16 +29,19 @@ export default function Signup() {
         return;
       }
 
-      await axios.post("https://stay.dovail.com/api/register", {
-        fullname,
-        email,
+      setLoading(true);
+      await api.post("/register", {
+        fullname: fullname.trim(),
+        email: email.trim().toLowerCase(),
         password,
       });
 
-      alert("Account created successfully");
-      navigate("/");
+      toast.success("Account created successfully. Please sign in.");
+      navigate("/login", { replace: true, state: location.state });
     } catch (err) {
-      setError("Signup failed. Email may already exist.");
+      setError(err?.response?.data?.message || "Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,16 +103,18 @@ export default function Signup() {
 
               <button
                 onClick={handleSignup}
+                disabled={loading}
                 className="w-full h-14 rounded-xl bg-[#3b71e6] hover:bg-[#7152E8] text-white font-semibold text-lg shadow-lg transition"
               >
-                Create Account
+                {loading ? "Creating account..." : "Create Account"}
               </button>
             </div>
 
             <p className="text-center text-gray-500 mt-6">
               Already have an account?{" "}
               <Link
-                to="/"
+                to="/login"
+                state={location.state}
                 className="text-[#3b71e6] font-semibold hover:underline"
               >
                 Login

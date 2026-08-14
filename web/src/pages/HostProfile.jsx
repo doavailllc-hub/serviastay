@@ -11,6 +11,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -18,6 +19,10 @@ import api from "../api/api";
 export default function HostProfile() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const storedUser =
+    JSON.parse(localStorage.getItem("user") || "null") ||
+    JSON.parse(sessionStorage.getItem("user") || "null");
+  const hostId = id || storedUser?.id;
 
   const [host, setHost] = useState(null);
   const [properties, setProperties] = useState([]);
@@ -27,7 +32,7 @@ export default function HostProfile() {
 
   useEffect(() => {
     loadHostProfile();
-  }, [id]);
+  }, [hostId]);
 
   const formatINR = (amount) =>
     `₹${Number(amount || 0).toLocaleString("en-IN")}`;
@@ -37,9 +42,9 @@ export default function HostProfile() {
       setLoading(true);
 
       const [hostRes, propertiesRes, reviewsRes] = await Promise.allSettled([
-        api.get(`/host/${id}`),
-        api.get(`/host/${id}/properties`),
-        api.get(`/host/${id}/reviews`),
+        api.get(`/host/${hostId}`),
+        api.get(`/host/${hostId}/properties`),
+        api.get(`/host/${hostId}/reviews`),
       ]);
 
       if (hostRes.status === "fulfilled") {
@@ -55,7 +60,7 @@ export default function HostProfile() {
       }
     } catch (err) {
       console.log("Host profile failed:", err);
-      alert("Host profile failed to load");
+      toast.error("Host profile failed to load");
       navigate("/home");
     } finally {
       setLoading(false);
@@ -84,8 +89,8 @@ export default function HostProfile() {
         return;
       }
 
-      if (Number(user.id) === Number(id)) {
-        alert("This is your own host profile");
+      if (Number(user.id) === Number(hostId)) {
+        toast.error("This is your own host profile");
         return;
       }
 
@@ -93,7 +98,7 @@ export default function HostProfile() {
 
       await api.post("/messages", {
         sender_id: user.id,
-        receiver_id: id,
+        receiver_id: hostId,
         property_id: properties[0]?.id || null,
         message: "Hi, I would like to know more about your listings.",
       });
@@ -101,7 +106,7 @@ export default function HostProfile() {
       navigate("/messages");
     } catch (err) {
       console.log("Contact host failed:", err);
-      alert("Unable to contact host");
+      toast.error("Unable to contact host");
     } finally {
       setChatLoading(false);
     }

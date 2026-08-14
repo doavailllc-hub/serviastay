@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CreditCard,
   FileText,
+  Eye,
   Loader2,
   Lock,
   RefreshCw,

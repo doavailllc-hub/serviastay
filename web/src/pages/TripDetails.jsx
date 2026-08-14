@@ -10,6 +10,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -123,7 +124,7 @@ export default function TripDetails() {
       await loadTrip();
     } catch (err) {
       console.error("Cancel failed:", err);
-      alert(err.response?.data?.message || "Cancel booking failed");
+      toast.error(err.response?.data?.message || "Cancel booking failed");
     } finally {
       setCancelling(false);
     }
@@ -135,7 +136,7 @@ export default function TripDetails() {
     const win = window.open("", "_blank");
 
     if (!win) {
-      alert("Please allow popups to download invoice.");
+      toast.error("Please allow popups to download invoice.");
       return;
     }
 
@@ -208,7 +209,7 @@ export default function TripDetails() {
       }
 
       if (!data?.hostId) {
-        alert("Host details unavailable.");
+        toast.error("Host details unavailable.");
         return;
       }
 
@@ -222,7 +223,7 @@ export default function TripDetails() {
       navigate("/messages");
     } catch (err) {
       console.error("Chat host failed:", err);
-      alert("Unable to contact host");
+      toast.error("Unable to contact host");
     }
   };
 

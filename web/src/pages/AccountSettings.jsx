@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   Bell,
   ChevronRight,
@@ -76,7 +77,7 @@ export default function AccountSettings() {
       updateStoredUser(res.data);
     } catch (err) {
       console.log("User load failed:", err);
-      alert("Account details failed to load");
+      toast.error("Account details failed to load");
       navigate("/");
     } finally {
       setLoading(false);
@@ -105,7 +106,7 @@ export default function AccountSettings() {
     const error = validateForm();
 
     if (error) {
-      alert(error);
+      toast.error(error);
       return;
     }
 
@@ -118,12 +119,12 @@ export default function AccountSettings() {
         phone: form.phone.trim(),
       });
 
-      alert("Profile updated successfully");
+      toast.success("Profile updated successfully");
       setEditOpen(false);
       loadUser();
     } catch (err) {
       console.log("Profile update failed:", err);
-      alert(err.response?.data?.message || "Profile update failed");
+      toast.error(err.response?.data?.message || "Profile update failed");
     } finally {
       setSaving(false);
     }
@@ -159,7 +160,7 @@ export default function AccountSettings() {
     {
       icon: <Bell size={24} className="text-[#3b71e6]" />,
       title: "Notifications",
-      desc: "Booking, payment and message alerts",
+      desc: "Booking, payment and message toast.errors",
       action: () => navigate("/notifications"),
     },
     {

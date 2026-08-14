@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, KeyRound, Mail } from "lucide-react";
+import toast from "react-hot-toast";
 
 import api from "../api/api";
 import logo from "../assets/logo.png";
@@ -61,8 +62,8 @@ export default function ForgotPassword() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
@@ -77,8 +78,8 @@ export default function ForgotPassword() {
         newPassword,
       });
 
-      alert("Password reset successful. Please login.");
-      navigate("/");
+      toast.success("Password reset successful. Please login.");
+      navigate("/login", { replace: true });
     } catch (err) {
       console.log("Reset password failed:", err);
       setError(err.response?.data?.message || "Password reset failed");

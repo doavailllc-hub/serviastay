@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import api from "../../api/api";
 
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
       loadAdminData();
     } catch (err) {
       console.log("Role update failed:", err);
-      alert("Role update failed");
+      toast.error("Role update failed");
     }
   };
 
@@ -98,7 +99,7 @@ export default function AdminDashboard() {
       loadAdminData();
     } catch (err) {
       console.log("Property delete failed:", err);
-      alert("Property delete failed");
+      toast.error("Property delete failed");
     }
   };
 

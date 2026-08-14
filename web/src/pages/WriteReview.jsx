@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Send, Star } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -29,7 +30,7 @@ export default function WriteReview() {
       setBooking(res.data.booking);
     } catch (err) {
       console.log("Review access failed:", err);
-      alert("Unable to open review page");
+      toast.error("Unable to open review page");
       navigate("/trips");
     } finally {
       setLoading(false);
@@ -48,7 +49,7 @@ export default function WriteReview() {
       }
 
       if (!review.trim()) {
-        alert("Please write your review");
+        toast.error("Please write your review");
         return;
       }
 
@@ -61,11 +62,11 @@ export default function WriteReview() {
         review: review.trim(),
       });
 
-      alert("Review submitted successfully");
+      toast.success("Review submitted successfully");
       navigate(`/trip/${bookingId}`);
     } catch (err) {
       console.log("Review submit failed:", err);
-      alert("Review submit failed");
+      toast.error("Review submit failed");
     } finally {
       setSubmitting(false);
     }

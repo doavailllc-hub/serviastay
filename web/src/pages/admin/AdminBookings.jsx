@@ -11,6 +11,7 @@ import {
   CreditCard,
   Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../../api/api";
 
 export default function AdminBookings() {
@@ -26,7 +27,7 @@ export default function AdminBookings() {
       const res = await api.get("/admin/bookings");
       setBookings(res.data || []);
     } catch (err) {
-      alert(err.response?.data?.message || "Bookings load failed");
+      toast.error(err.response?.data?.message || "Bookings load failed");
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,7 @@ export default function AdminBookings() {
       await api.put(`/admin/bookings/${id}/status`, { status: "Cancelled" });
       loadBookings();
     } catch (err) {
-      alert(err.response?.data?.message || "Booking cancellation failed");
+      toast.error(err.response?.data?.message || "Booking cancellation failed");
     }
   };
 

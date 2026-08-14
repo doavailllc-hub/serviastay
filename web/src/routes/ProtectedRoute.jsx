@@ -9,17 +9,12 @@ export default function ProtectedRoute({ children }) {
   const userRaw =
     localStorage.getItem("user") || sessionStorage.getItem("user");
 
-  let user = null;
-
   try {
-    user = userRaw ? JSON.parse(userRaw) : null;
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    if (token && user?.id) return children;
   } catch {
-    user = null;
+    // Corrupt or stale session data is treated as signed out.
   }
 
-  if (!token || !user?.id) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
-  return children;
+  return <Navigate to="/login" replace state={{ from: location }} />;
 }

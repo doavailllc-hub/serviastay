@@ -9,6 +9,7 @@ import {
   Search,
   Wallet,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -49,7 +50,7 @@ export default function Refunds() {
       setRefunds(res.data || []);
     } catch (err) {
       console.log("Refunds load failed:", err);
-      alert("Refunds failed to load");
+      toast.error("Refunds failed to load");
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,7 @@ export default function Refunds() {
           />
 
           <StatCard
-            icon={<AlertCircle />}
+            icon={<toast.errorCircle />}
             title="Approved"
             value={stats.approved}
             color="text-blue-600"

@@ -10,8 +10,11 @@ export function addDaysISO(dateString, days) {
   return toLocalISO(date);
 }
 
+import { formatCurrency } from "./currency";
+
+// Backward-compatible export while existing pages migrate to formatCurrency.
 export function formatINR(amount) {
-  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+  return formatCurrency(amount);
 }
 
 export function safeNumber(value, fallback = 0) {

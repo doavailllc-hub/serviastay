@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import toast from "react-hot-toast";
 
 import api from "../../api/api";
 
@@ -53,7 +54,7 @@ export default function AdminSignup() {
         secretKey: form.secretKey.trim(),
       });
 
-      alert("Admin account created successfully");
+      toast.success("Admin account created successfully");
       navigate("/admin/login", { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Admin signup failed");

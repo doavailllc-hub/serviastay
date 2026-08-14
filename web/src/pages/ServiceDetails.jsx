@@ -12,6 +12,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import api from "../api/api";
 import Navbar from "../components/Navbar";
@@ -108,7 +109,7 @@ export default function ServiceDetails() {
       localStorage.getItem("token") || sessionStorage.getItem("token");
 
     if (!user || !token) {
-      alert("Please login first");
+      toast.error("Please login first");
       navigate("/");
       return null;
     }
@@ -118,7 +119,7 @@ export default function ServiceDetails() {
 
   const bookService = async () => {
     if (!date) {
-      alert("Please select service date");
+      toast.error("Please select service date");
       return;
     }
 
@@ -127,7 +128,7 @@ export default function ServiceDetails() {
     today.setHours(0, 0, 0, 0);
 
     if (selectedDate < today) {
-      alert("Please select today or a future date");
+      toast.error("Please select today or a future date");
       return;
     }
 
@@ -137,7 +138,7 @@ export default function ServiceDetails() {
     try {
       setSaving(true);
 
-      await api.post("/service-bookings", {
+      const response = await api.post("/service-bookings", {
         user_id: user.id,
         service_id: service.id,
         service_title: service.title,
@@ -147,11 +148,11 @@ export default function ServiceDetails() {
         total,
       });
 
-      alert("Service booked successfully");
-      navigate("/trips");
+      toast.success("Service booked successfully");
+      navigate(`/service-booking/${response.data.bookingId}`);
     } catch (err) {
       console.log("Service booking failed:", err);
-      alert(err.response?.data?.message || "Service booking failed");
+      toast.error(err.response?.data?.message || "Service booking failed");
     } finally {
       setSaving(false);
     }

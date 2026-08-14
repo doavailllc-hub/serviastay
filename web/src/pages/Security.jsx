@@ -8,6 +8,7 @@ import {
   Lock,
   ShieldCheck,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
 import api from "../api/api";
@@ -26,17 +27,17 @@ export default function Security() {
 
   const changePassword = async () => {
     if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
-      alert("All password fields are required");
+      toast.error("All password fields are required");
       return;
     }
 
     if (form.newPassword.length < 6) {
-      alert("New password must be at least 6 characters");
+      toast.error("New password must be at least 6 characters");
       return;
     }
 
     if (form.newPassword !== form.confirmPassword) {
-      alert("New password and confirm password do not match");
+      toast.error("New password and confirm password do not match");
       return;
     }
 
@@ -52,7 +53,7 @@ export default function Security() {
         newPassword: form.newPassword,
       });
 
-      alert("Password updated successfully");
+      toast.success("Password updated successfully");
 
       setForm({
         currentPassword: "",
@@ -61,7 +62,7 @@ export default function Security() {
       });
     } catch (err) {
       console.log("Password update failed:", err);
-      alert(err.response?.data?.message || "Password update failed");
+      toast.error(err.response?.data?.message || "Password update failed");
     } finally {
       setSaving(false);
     }

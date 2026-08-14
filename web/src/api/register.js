@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function Signup() {
         password,
       });
 
-      alert("Account created successfully");
+      toast.success("Account created successfully");
       navigate("/");
     } catch (err) {
       setError("Signup failed. Email may already exist.");
