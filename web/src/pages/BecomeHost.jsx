@@ -28,17 +28,29 @@ const steps = [
   "pricing",
 ];
 
+const HOST_DRAFT_KEY = "dovail_host_property_draft_v1";
+const HOST_SUBMISSION_KEY = "dovail_host_property_submission_id";
+
+function newSubmissionId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function readHostDraft() {
+  try { return JSON.parse(localStorage.getItem(HOST_DRAFT_KEY) || "null"); } catch { return null; }
+}
+
 export default function BecomeHost() {
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(0);
+  const savedDraft = useMemo(() => readHostDraft(), []);
+  const [step, setStep] = useState(() => Math.min(steps.length - 1, Math.max(0, Number(savedDraft?.step || 0))));
   const [uploadModal, setUploadModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [amenitySearch, setAmenitySearch] = useState("");
   const previewsRef = useRef([]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     title: "",
     description: "",
     location: "",
@@ -52,17 +64,23 @@ export default function BecomeHost() {
     dedicatedBath: 0,
     sharedBath: 0,
     amenities: [],
-    images: [],
-    previews: [],
     weekdayPrice: 150,
     weekendPrice: 155,
-  });
+    ...(savedDraft?.form || {}),
+    images: [],
+    previews: [],
+  }));
 
   const progress = ((step + 1) / steps.length) * 100;
 
   useEffect(() => {
     previewsRef.current = form.previews;
   }, [form.previews]);
+
+  useEffect(() => {
+    const serializableForm = { ...form, images: undefined, previews: undefined };
+    localStorage.setItem(HOST_DRAFT_KEY, JSON.stringify({ step, form: serializableForm }));
+  }, [form, step]);
 
   useEffect(
     () => () => {
@@ -238,6 +256,12 @@ export default function BecomeHost() {
       data.append("weekendPrice", form.weekendPrice);
       data.append("status", "pending");
       data.append("is_verified", "0");
+      let submissionId = localStorage.getItem(HOST_SUBMISSION_KEY);
+      if (!submissionId) {
+        submissionId = newSubmissionId();
+        localStorage.setItem(HOST_SUBMISSION_KEY, submissionId);
+      }
+      data.append("client_submission_id", submissionId);
 
       form.images.forEach((file) => {
         data.append("images", file);
@@ -251,6 +275,8 @@ export default function BecomeHost() {
       });
 
       form.previews.forEach((url) => URL.revokeObjectURL(url));
+      localStorage.removeItem(HOST_DRAFT_KEY);
+      localStorage.removeItem(HOST_SUBMISSION_KEY);
       window.alert(
         "Listing submitted for verification. It will show publicly after admin approval."
       );
@@ -862,7 +888,7 @@ function LocationMapPicker({ location, latitude, longitude, onChange }) {
       clickListener?.remove();
       idleListener?.remove();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialize the map once; refs receive later values
 
   const searchAddress = () => {
     if (!query.trim() || !geocoderRef.current) return;

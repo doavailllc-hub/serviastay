@@ -262,7 +262,7 @@ io.on("connection", (socket) => {
   });
 });
 
-function verifyToken(req, res, next) {
+async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -271,9 +271,21 @@ function verifyToken(req, res, next) {
 
   try {
     const token = authHeader.split(" ")[1];
-    req.user = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const rows = await query(
+      "SELECT id, email, role, is_active, kyc_status FROM servia_users WHERE id=? LIMIT 1",
+      [decoded.id]
+    );
+    const user = rows[0];
+    if (!user || Number(user.is_active ?? 1) !== 1) {
+      return res.status(401).json({ message: "Account is disabled or no longer exists", code: "SESSION_REVOKED" });
+    }
+    req.user = { ...decoded, id: user.id, email: user.email, role: user.role || "guest", kyc_status: user.kyc_status };
     next();
-  } catch {
+  } catch (err) {
+    if (err?.name !== "JsonWebTokenError" && err?.name !== "TokenExpiredError") {
+      console.log("SESSION CHECK ERROR:", err.message);
+    }
     return res.status(401).json({ message: "Invalid token" });
   }
 }
@@ -350,6 +362,82 @@ function publicUser(user) {
   };
 }
 
+function hashAuthCode(email, purpose, code) {
+  return crypto.createHmac("sha256", JWT_SECRET)
+    .update(`${email}:${purpose}:${code}`)
+    .digest("hex");
+}
+
+async function saveAuthCode(email, purpose, code) {
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await query("DELETE FROM servia_auth_codes WHERE email=? AND purpose=?", [email, purpose]);
+  await query(
+    `INSERT INTO servia_auth_codes (email, purpose, code_hash, attempts, expires_at)
+     VALUES (?, ?, ?, 0, ?)`,
+    [email, purpose, hashAuthCode(email, purpose, code), expiresAt]
+  );
+}
+
+async function consumeAuthCode(email, purpose, code) {
+  const connection = await db.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      `SELECT * FROM servia_auth_codes
+       WHERE email=? AND purpose=? AND expires_at>NOW() LIMIT 1 FOR UPDATE`,
+      [email, purpose]
+    );
+    const record = rows[0];
+    if (!record || Number(record.attempts || 0) >= 5) {
+      if (record) await connection.query("DELETE FROM servia_auth_codes WHERE id=?", [record.id]);
+      await connection.commit();
+      return false;
+    }
+    const supplied = Buffer.from(hashAuthCode(email, purpose, code), "hex");
+    const stored = Buffer.from(String(record.code_hash), "hex");
+    const valid = supplied.length === stored.length && crypto.timingSafeEqual(supplied, stored);
+    if (!valid) {
+      await connection.query("UPDATE servia_auth_codes SET attempts=attempts+1 WHERE id=?", [record.id]);
+      await connection.commit();
+      return false;
+    }
+    await connection.query("DELETE FROM servia_auth_codes WHERE id=?", [record.id]);
+    await connection.commit();
+    return true;
+  } catch (err) {
+    try { await connection.rollback(); } catch {}
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function requireApprovedHost(req, res, next) {
+  try {
+    if (req.user?.role === "admin") return next();
+    const rows = await query(
+      "SELECT role, kyc_status, is_active FROM servia_users WHERE id=? LIMIT 1",
+      [req.user?.id]
+    );
+    const user = rows[0];
+    if (!user || Number(user.is_active ?? 1) !== 1) {
+      return res.status(403).json({ message: "Host account is disabled" });
+    }
+    if (user.role !== "host" || user.kyc_status !== "Approved") {
+      return res.status(403).json({
+        message: "Approved host verification is required",
+        code: "HOST_VERIFICATION_REQUIRED",
+        kyc_status: user.kyc_status || "Not submitted",
+      });
+    }
+    req.host = user;
+    next();
+  } catch (err) {
+    console.log("HOST PERMISSION ERROR:", err.message);
+    res.status(500).json({ message: "Host permission check failed" });
+  }
+}
+
 app.post("/api/register", async (req, res) => {
   try {
     const { fullname, email, password } = req.body;
@@ -396,7 +484,7 @@ app.post("/api/login", authLimiter, async (req, res) => {
     if (!user.password) return res.status(400).json({ message: "Use email verification or Google to sign in" });
     const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch && password !== "demopassword") {
+    if (!isMatch) {
       return res.status(401).json({ message: "Wrong password" });
     }
 
@@ -634,7 +722,7 @@ app.get("/api/properties/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to load property" });
   }
 });
-app.post("/api/properties", verifyToken, async (req, res) => {
+app.post("/api/properties", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const {
       user_id,
@@ -655,15 +743,18 @@ app.post("/api/properties", verifyToken, async (req, res) => {
     if (!user_id || !title || !location || !price || !image) {
       return res.status(400).json({ message: "Required property fields missing" });
     }
+    if (Number(user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "You can only create listings for your own account" });
+    }
 
     const result = await query(
       `
       INSERT INTO servia_properties
-      (user_id, title, description, category, location, price, guests, bedrooms, bathrooms, image, host_whatsapp)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (user_id, title, description, category, location, price, guests, bedrooms, bathrooms, image, host_whatsapp, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
       `,
       [
-        user_id,
+        req.user.id,
         title,
         description || "",
         category || "Home",
@@ -694,7 +785,8 @@ app.post(
   upload.array("images", 10),
   async (req, res) => {
     const connection = await db.promise().getConnection();
-const status = "Pending";
+    const uploadedImages = [];
+    let submissionKey = null;
     try {
       const {
         user_id,
@@ -714,18 +806,46 @@ const status = "Pending";
         amenities,
         weekdayPrice,
         weekendPrice,
+        client_submission_id,
         host_whatsapp,
       } = req.body;
 
-      if (!user_id || !location || !latitude || !longitude) {
-        connection.release();
+      submissionKey = String(client_submission_id || "").trim();
+      if (!/^[a-zA-Z0-9_-]{16,100}$/.test(submissionKey)) {
+        return res.status(400).json({ message: "Invalid submission token. Refresh the form and try again." });
+      }
+
+      const normalizedTitle = String(title || "").trim();
+      const normalizedLocation = String(location || "").trim();
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      const guestCount = Number(guests);
+      const bedroomCount = Number(bedrooms);
+      const bedCount = Number(beds);
+      const weekday = Number(weekdayPrice);
+      const weekend = Number(weekendPrice);
+
+      if (!user_id || normalizedTitle.length < 5 || normalizedTitle.length > 90 ||
+          !normalizedLocation || normalizedLocation.length > 255 ||
+          !Number.isFinite(lat) || lat < -90 || lat > 90 ||
+          !Number.isFinite(lng) || lng < -180 || lng > 180) {
         return res.status(400).json({
-          message: "Location, latitude and longitude are required",
+          message: "Enter a valid title, location and map coordinates",
         });
       }
 
+      if (![guestCount, bedroomCount, bedCount].every(Number.isInteger) ||
+          guestCount < 1 || guestCount > 50 || bedroomCount < 1 || bedroomCount > 30 ||
+          bedCount < 1 || bedCount > 50 || !Number.isFinite(weekday) || weekday <= 0 ||
+          weekday > 10000000 || !Number.isFinite(weekend) || weekend <= 0 || weekend > 10000000) {
+        return res.status(400).json({ message: "Enter valid capacity and pricing details" });
+      }
+
+      if (Number(user_id) !== Number(req.user.id)) {
+        return res.status(403).json({ message: "You can only create listings for your own account" });
+      }
+
       if (!req.files || req.files.length < 5) {
-        connection.release();
         return res.status(400).json({
           message: "Please upload at least 5 photos",
         });
@@ -733,12 +853,32 @@ const status = "Pending";
 
       const [userCheck] = await connection.query(
         "SELECT id FROM servia_users WHERE id=? LIMIT 1",
-        [user_id]
+        [req.user.id]
       );
 
       if (!userCheck.length) {
-        connection.release();
         return res.status(404).json({ message: "User not found" });
+      }
+
+      try {
+        await connection.query(
+          "INSERT INTO servia_host_submissions (submission_key,user_id,submission_type,status) VALUES (?,?,'property','Processing')",
+          [submissionKey, req.user.id]
+        );
+      } catch (error) {
+        if (error.code !== "ER_DUP_ENTRY") throw error;
+        const [prior] = await connection.query(
+          "SELECT status,entity_id,updated_at FROM servia_host_submissions WHERE submission_key=? AND user_id=? AND submission_type='property' LIMIT 1",
+          [submissionKey, req.user.id]
+        );
+        if (prior[0]?.status === "Completed") {
+          return res.status(200).json({ success: true, message: "Listing was already submitted", propertyId: prior[0].entity_id, status: "Pending" });
+        }
+        const [reclaimed] = await connection.query(
+          "UPDATE servia_host_submissions SET updated_at=NOW() WHERE submission_key=? AND user_id=? AND status='Processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)",
+          [submissionKey, req.user.id]
+        );
+        if (!reclaimed.affectedRows) return res.status(409).json({ message: "This listing submission is already being processed" });
       }
 
       let parsedAmenities = [];
@@ -746,7 +886,12 @@ const status = "Pending";
       try {
         parsedAmenities = JSON.parse(amenities || "[]");
       } catch {
-        parsedAmenities = [];
+        return res.status(400).json({ message: "Amenities data is invalid" });
+      }
+
+      if (!Array.isArray(parsedAmenities) || parsedAmenities.length < 3 || parsedAmenities.length > 100 ||
+          parsedAmenities.some((item) => typeof item !== "string" || item.length > 100)) {
+        return res.status(400).json({ message: "Select at least 3 valid amenities" });
       }
 
       const totalBathrooms =
@@ -754,9 +899,9 @@ const status = "Pending";
         Number(dedicatedBath || 0) +
         Number(sharedBath || 0);
 
-     const uploadedImages = await Promise.all(
-  req.files.map((file) => uploadFileToS3(file, "properties"))
-);
+      for (const file of req.files) {
+        uploadedImages.push(await uploadFileToS3(file, "properties"));
+      }
 
 const mainImage = uploadedImages[0].url;
 
@@ -798,28 +943,28 @@ const mainImage = uploadedImages[0].url;
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
-          user_id,
-          propertyTitle,
+          req.user.id,
+          normalizedTitle,
           propertyDescription,
           category || "Home",
-          location,
-          Number(weekdayPrice || 150),
-          Number(guests || 1),
-          Number(bedrooms || 1),
+          normalizedLocation,
+          weekday,
+          guestCount,
+          bedroomCount,
           totalBathrooms || 1,
           mainImage,
           host_whatsapp || null,
-          latitude,
-          longitude,
-          Number(beds || 1),
+          lat,
+          lng,
+          bedCount,
           bedroomLock || null,
           Number(privateAttachedBath || 0),
           Number(dedicatedBath || 0),
           Number(sharedBath || 0),
           JSON.stringify(parsedAmenities),
-          Number(weekdayPrice || 150),
-          Number(weekendPrice || weekdayPrice || 150),
-          "Published",
+          weekday,
+          weekend,
+          "Pending",
         ]
       );
 
@@ -841,16 +986,19 @@ await connection.query(
   `,
   [imageValues]
 );
+      await connection.query("UPDATE servia_host_submissions SET status='Completed',entity_id=? WHERE submission_key=?", [propertyId, submissionKey]);
       await connection.commit();
 
       return res.json({
         success: true,
-        message: "Listing published successfully",
+        message: "Listing submitted for review",
         propertyId,
         image: mainImage,
       });
     } catch (err) {
-      await connection.rollback();
+      try { await connection.rollback(); } catch {}
+      await Promise.allSettled(uploadedImages.map((image) => deleteS3File(image.key)));
+      if (submissionKey) await query("DELETE FROM servia_host_submissions WHERE submission_key=? AND status='Processing'", [submissionKey]).catch(() => {});
 
       console.log("HOST CREATE ERROR:", err.message);
 
@@ -992,8 +1140,11 @@ app.get("/api/notifications/:userId", verifyToken, async (req, res) => {
   }
 });
 
-app.get("/api/host/reservations/:hostId", verifyToken, async (req, res) => {
+app.get("/api/host/reservations/:hostId", verifyToken, requireApprovedHost, async (req, res) => {
   try {
+    if (Number(req.params.hostId) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const rows = await query(
       `
       SELECT 
@@ -1019,7 +1170,7 @@ app.get("/api/host/reservations/:hostId", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Host reservations fetch failed", error: err.message });
   }
 });
-app.get("/api/host/earnings/:hostId", verifyToken, async (req, res) => {
+app.get("/api/host/earnings/:hostId", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const hostId = Number(req.params.hostId);
 
@@ -1091,6 +1242,9 @@ app.get("/api/host/earnings/:hostId", verifyToken, async (req, res) => {
 
 app.get("/api/my-properties/:userId", verifyToken, async (req, res) => {
   try {
+    if (Number(req.params.userId) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const rows = await query(
       "SELECT * FROM servia_properties WHERE user_id=? ORDER BY id DESC",
       [req.params.userId]
@@ -1104,6 +1258,12 @@ app.get("/api/my-properties/:userId", verifyToken, async (req, res) => {
 
 app.put("/api/properties/:id", verifyToken, async (req, res) => {
   try {
+    const propertyId = Number(req.params.id);
+    const ownerRows = await query("SELECT user_id FROM servia_properties WHERE id=? LIMIT 1", [propertyId]);
+    if (!ownerRows.length) return res.status(404).json({ message: "Property not found" });
+    if (Number(ownerRows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const {
       title,
       description,
@@ -1119,7 +1279,8 @@ app.put("/api/properties/:id", verifyToken, async (req, res) => {
     await query(
       `
       UPDATE servia_properties
-      SET title=?, description=?, category=?, location=?, price=?, guests=?, bedrooms=?, bathrooms=?, image=?
+      SET title=?, description=?, category=?, location=?, price=?, guests=?, bedrooms=?, bathrooms=?, image=?,
+          status=CASE WHEN ?='admin' THEN status ELSE 'Pending' END
       WHERE id=?
       `,
       [
@@ -1132,7 +1293,8 @@ app.put("/api/properties/:id", verifyToken, async (req, res) => {
         bedrooms,
         bathrooms,
         image,
-        req.params.id,
+        req.user.role,
+        propertyId,
       ]
     );
 
@@ -1144,7 +1306,12 @@ app.put("/api/properties/:id", verifyToken, async (req, res) => {
 
 app.delete("/api/properties/:id", verifyToken, async (req, res) => {
   try {
-    const propertyId = req.params.id;
+    const propertyId = Number(req.params.id);
+    const ownerRows = await query("SELECT user_id FROM servia_properties WHERE id=? LIMIT 1", [propertyId]);
+    if (!ownerRows.length) return res.status(404).json({ message: "Property not found" });
+    if (Number(ownerRows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     const images = await query(
       "SELECT image_key FROM servia_property_images WHERE property_id=?",
@@ -1200,6 +1367,12 @@ app.post("/api/property-images", verifyToken, upload.single("image"), async (req
       return res.status(400).json({ message: "No image uploaded" });
     }
 
+    const owners = await query("SELECT user_id FROM servia_properties WHERE id=? LIMIT 1", [property_id]);
+    if (!owners.length) return res.status(404).json({ message: "Property not found" });
+    if (Number(owners[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const uploaded = await uploadFileToS3(req.file, "properties");
 
     const result = await query(
@@ -1234,9 +1407,15 @@ app.post("/api/property-images", verifyToken, upload.single("image"), async (req
 app.delete("/api/property-images/:id", verifyToken, async (req, res) => {
   try {
     const rows = await query(
-      "SELECT image_key FROM servia_property_images WHERE id=? LIMIT 1",
+      `SELECT i.image_key, p.user_id FROM servia_property_images i
+       JOIN servia_properties p ON p.id=i.property_id WHERE i.id=? LIMIT 1`,
       [req.params.id]
     );
+
+    if (!rows.length) return res.status(404).json({ message: "Image not found" });
+    if (Number(rows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     if (rows.length && rows[0].image_key) {
       await deleteS3File(rows[0].image_key);
@@ -1340,8 +1519,14 @@ app.post("/api/properties/check-availability", verifyToken, async (req, res) => 
       return res.status(400).json({ message: "Missing availability details" });
     }
 
-    if (checkout <= checkin) {
-      return res.status(400).json({ message: "Invalid checkout date" });
+    const startDate = new Date(`${checkin}T00:00:00Z`);
+    const endDate = new Date(`${checkout}T00:00:00Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(checkin) || !/^\d{4}-\d{2}-\d{2}$/.test(checkout) ||
+        !Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) ||
+        endDate <= startDate || startDate < today) {
+      return res.status(400).json({ message: "Invalid booking dates" });
     }
 
     const rows = await query(
@@ -1462,20 +1647,25 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
     const propertyId = Number(property_id);
 
     if (!userId || !propertyId || !checkin || !checkout) {
-      connection.release();
       return res.status(400).json({ message: "Missing booking details" });
     }
 
-    if (checkout <= checkin) {
-      connection.release();
-      return res.status(400).json({ message: "Invalid checkout date" });
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    const startDate = new Date(`${checkin}T00:00:00Z`);
+    const endDate = new Date(`${checkout}T00:00:00Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (!datePattern.test(checkin) || !datePattern.test(checkout) ||
+        !Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) ||
+        endDate <= startDate || startDate < today) {
+      return res.status(400).json({ message: "Invalid booking dates" });
     }
 
     await connection.beginTransaction();
 
     const [propertyRows] = await connection.query(
       `
-      SELECT id, user_id, title, price, status
+      SELECT id, user_id, title, price, status, guests AS max_guests
       FROM servia_properties
       WHERE id = ?
       LIMIT 1
@@ -1486,7 +1676,6 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
 
     if (!propertyRows.length) {
       await connection.rollback();
-      connection.release();
       return res.status(404).json({ message: "Property not found" });
     }
 
@@ -1494,14 +1683,20 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
 
     if (property.status !== "Published") {
       await connection.rollback();
-      connection.release();
       return res.status(400).json({ message: "Property is not available" });
     }
 
     if (Number(property.user_id) === userId) {
       await connection.rollback();
-      connection.release();
       return res.status(400).json({ message: "You cannot book your own listing" });
+    }
+
+    const guestCount = Math.max(1, Number(guests || 1));
+    if (!Number.isInteger(guestCount) || guestCount > Number(property.max_guests || 1)) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Guest count exceeds this property's capacity",
+      });
     }
 
     const [existing] = await connection.query(
@@ -1520,7 +1715,6 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
 
     if (existing.length) {
       await connection.rollback();
-      connection.release();
       return res.status(409).json({
         message: "This property is already booked for these dates",
       });
@@ -1556,7 +1750,6 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
 
       if (!couponRows.length) {
         await connection.rollback();
-        connection.release();
         return res.status(400).json({ message: "Invalid coupon" });
       }
 
@@ -1567,7 +1760,6 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
 
       if (baseAmount < minimumAmount) {
         await connection.rollback();
-        connection.release();
         return res.status(400).json({
           message: `Minimum booking amount for this coupon is ₹${minimumAmount}`,
         });
@@ -1594,10 +1786,42 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
     if (payment_method === "razorpay") {
       if (!razorpay_order_id || !razorpay_payment_id) {
         await connection.rollback();
-        connection.release();
         return res.status(400).json({
           message: "Payment details missing",
         });
+      }
+
+      if (!razorpay) {
+        await connection.rollback();
+        return res.status(503).json({ message: "Payment gateway not configured" });
+      }
+
+      const [duplicatePayments] = await connection.query(
+        "SELECT id FROM servia_bookings WHERE payment_id=? OR razorpay_order_id=? LIMIT 1 FOR UPDATE",
+        [razorpay_payment_id, razorpay_order_id]
+      );
+      if (duplicatePayments.length) {
+        await connection.rollback();
+        return res.status(409).json({ message: "This payment has already been used" });
+      }
+
+      const [payment, order] = await Promise.all([
+        razorpay.payments.fetch(razorpay_payment_id),
+        razorpay.orders.fetch(razorpay_order_id),
+      ]);
+      const notes = order.notes || {};
+      if (
+        payment.order_id !== razorpay_order_id ||
+        payment.status !== "captured" ||
+        Number(payment.amount) !== Math.round(total * 100) ||
+        order.currency !== "INR" ||
+        String(notes.user_id) !== String(userId) ||
+        String(notes.property_id) !== String(propertyId) ||
+        String(notes.checkin) !== String(checkin) ||
+        String(notes.checkout) !== String(checkout)
+      ) {
+        await connection.rollback();
+        return res.status(400).json({ message: "Payment does not match this booking" });
       }
     }
 
@@ -1615,22 +1839,24 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
         payment_method,
         payment_status,
         razorpay_order_id,
+        payment_id,
         coupon_code,
         discount
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         propertyId,
         userId,
         checkin,
         checkout,
-        Number(guests || 1),
+        guestCount,
         total,
         payment_method === "razorpay" ? "Confirmed" : "Pending",
         payment_method || "razorpay",
         payment_method === "razorpay" ? "Paid" : "Pending",
         razorpay_order_id || null,
+        razorpay_payment_id || null,
         appliedCoupon,
         discount,
       ]
@@ -1966,7 +2192,7 @@ app.post("/api/payments/create-order", paymentLimiter, verifyToken, async (req, 
 
     const properties = await query(
       `
-      SELECT id, price, status
+      SELECT id, user_id, price, status, guests AS max_guests
       FROM servia_properties
       WHERE id = ?
       LIMIT 1
@@ -1980,6 +2206,15 @@ app.post("/api/payments/create-order", paymentLimiter, verifyToken, async (req, 
 
     if (properties[0].status !== "Published") {
       return res.status(400).json({ message: "Property is not available" });
+    }
+
+    if (Number(properties[0].user_id) === userId) {
+      return res.status(400).json({ message: "You cannot book your own listing" });
+    }
+
+    const guestCount = Math.max(1, Number(guests || 1));
+    if (!Number.isInteger(guestCount) || guestCount > Number(properties[0].max_guests || 1)) {
+      return res.status(400).json({ message: "Guest count exceeds this property's capacity" });
     }
 
     const existing = await query(
@@ -2074,7 +2309,7 @@ app.post("/api/payments/create-order", paymentLimiter, verifyToken, async (req, 
         user_id: String(userId),
         checkin,
         checkout,
-        guests: String(guests || 1),
+        guests: String(guestCount),
         adults: String(adults || 1),
         children: String(children || 0),
         infants: String(infants || 0),
@@ -2119,6 +2354,10 @@ app.post("/api/payments/verify", verifyToken, async (req, res) => {
       razorpay_signature,
     } = req.body;
 
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: "Payment verification details are incomplete" });
+    }
+
     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
     const expectedSignature = crypto
@@ -2126,19 +2365,38 @@ app.post("/api/payments/verify", verifyToken, async (req, res) => {
       .update(body)
       .digest("hex");
 
-    if (expectedSignature !== razorpay_signature) {
+    const signatureBuffer = Buffer.from(String(razorpay_signature));
+    const expectedBuffer = Buffer.from(expectedSignature);
+    if (
+      signatureBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
+    ) {
       return res.status(400).json({ message: "Payment verification failed" });
     }
 
+    const [payment, order] = await Promise.all([
+      razorpay.payments.fetch(razorpay_payment_id),
+      razorpay.orders.fetch(razorpay_order_id),
+    ]);
+    if (
+      payment.order_id !== razorpay_order_id ||
+      payment.status !== "captured" ||
+      String(order.notes?.user_id) !== String(req.user.id)
+    ) {
+      return res.status(400).json({ message: "Payment ownership verification failed" });
+    }
+
     if (booking_id) {
-      await query(
+      const result = await query(
         `
         UPDATE servia_bookings
         SET razorpay_order_id=?, payment_id=?, payment_status=?, status=?
-        WHERE id=?
+        WHERE id=? AND user_id=?
+          AND (payment_id IS NULL OR payment_id=?)
         `,
-        [razorpay_order_id, razorpay_payment_id, "Paid", "Confirmed", booking_id]
+        [razorpay_order_id, razorpay_payment_id, "Paid", "Confirmed", booking_id, req.user.id, razorpay_payment_id]
       );
+      if (!result.affectedRows) return res.status(404).json({ message: "Booking not found or payment already used" });
     }
 
     res.json({ success: true, message: "Payment verified" });
@@ -2189,7 +2447,7 @@ app.get("/api/trip/:id", verifyToken, async (req, res) => {
   }
 });
 /* START */
-app.post("/api/auth/send-otp", async (req, res) => {
+app.post("/api/auth/send-otp", authLimiter, async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
 
@@ -2198,14 +2456,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await query("DELETE FROM servia_otps WHERE email=?", [email]);
-
-    await query(
-      "INSERT INTO servia_otps (email, otp, expires_at) VALUES (?, ?, ?)",
-      [email, otp, expiresAt]
-    );
+    await saveAuthCode(email, "login", otp);
 
     await transporter.sendMail({
       from: process.env.MAIL_FROM,
@@ -2226,7 +2477,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
   }
 });
 
-app.post("/api/auth/verify-otp", async (req, res) => {
+app.post("/api/auth/verify-otp", authLimiter, async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
     const otp = String(req.body.otp || "").trim();
@@ -2235,12 +2486,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
       return res.status(400).json({ message: "Email and OTP are required" });
     }
 
-    const rows = await query(
-      "SELECT * FROM servia_otps WHERE email=? AND otp=? AND expires_at > NOW() LIMIT 1",
-      [email, otp]
-    );
-
-    if (!rows.length) {
+    if (!/^\d{6}$/.test(otp) || !(await consumeAuthCode(email, "login", otp))) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
@@ -2263,8 +2509,6 @@ app.post("/api/auth/verify-otp", async (req, res) => {
 
     user = users[0];
     if (user.is_active === 0) return res.status(403).json({ message: "This account is suspended" });
-
-    await query("DELETE FROM servia_otps WHERE email=?", [email]);
 
     const token = jwt.sign(
       {
@@ -2604,7 +2848,28 @@ app.get("/api/reviews/:propertyId", async (req, res) => {
   }
 });
 
-app.put("/api/reviews/:id/reply", verifyToken, async (req, res) => {
+app.get("/api/host/reviews/:hostId", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const hostId = Number(req.params.hostId);
+    if (hostId !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    const rows = await query(
+      `SELECT r.*, u.fullname AS guest_name, u.profile_image AS guest_image,
+              p.title AS property_title, p.image AS property_image
+       FROM servia_reviews r
+       JOIN servia_properties p ON p.id=r.property_id
+       LEFT JOIN servia_users u ON u.id=r.user_id
+       WHERE p.user_id=? ORDER BY r.id DESC`,
+      [hostId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Host reviews failed to load" });
+  }
+});
+
+app.put("/api/reviews/:id/reply", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const reviewId = Number(req.params.id);
     const hostReply = String(req.body.host_reply || "").trim();
@@ -3044,7 +3309,7 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
   }
 });
 
-app.put("/api/host/bookings/:bookingId/status", verifyToken, async (req, res) => {
+app.put("/api/host/bookings/:bookingId/status", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const bookingId = Number(req.params.bookingId);
     const hostId = Number(req.user.id);
@@ -3384,10 +3649,11 @@ app.put("/api/admin/kyc/:userId/status", verifyToken, async (req, res) => {
     await query(
       `
       UPDATE servia_users
-      SET kyc_status = ?, kyc_note = ?
+      SET kyc_status = ?, kyc_note = ?,
+          role = CASE WHEN ?='Approved' THEN 'host' WHEN role='admin' THEN role ELSE 'guest' END
       WHERE id = ?
       `,
-      [status, note || null, req.params.userId]
+      [status, note || null, status, req.params.userId]
     );
 
     await query(
@@ -3410,7 +3676,7 @@ app.put("/api/admin/kyc/:userId/status", verifyToken, async (req, res) => {
     res.status(500).json({ message: "KYC update failed", error: err.message });
   }
 });
-app.get("/api/host/calendar/:propertyId", verifyToken, async (req, res) => {
+app.get("/api/host/calendar/:propertyId", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const propertyId = Number(req.params.propertyId);
     const userId = Number(req.user.id);
@@ -3440,7 +3706,7 @@ app.get("/api/host/calendar/:propertyId", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/api/host/calendar", verifyToken, async (req, res) => {
+app.post("/api/host/calendar", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const userId = Number(req.user.id);
     const { property_id, calendar_date, status, custom_price, note } = req.body;
@@ -3766,15 +4032,40 @@ app.post("/api/experience-payments/create-order", verifyToken, paymentLimiter, a
   try {
     if (!razorpay) return res.status(503).json({ message: "Online payments are not configured" });
     const experienceId = Number(req.body.experience_id);
-    const guests = Math.max(1, Number(req.body.guests || 1));
-    const rows = await query("SELECT id, title, price, status FROM experiences WHERE id=? LIMIT 1", [experienceId]);
+    const guests = Number(req.body.guests || 0);
+    const bookingDate = String(req.body.booking_date || "");
+    const departureId = Number(req.body.departure_id || 0) || null;
+    const rows = await query("SELECT id, title, price, status, max_people FROM experiences WHERE id=? LIMIT 1", [experienceId]);
     if (!rows.length || rows[0].status !== "active") return res.status(400).json({ message: "Package is not available" });
+    if (!Number.isInteger(guests) || guests < 1 || guests > Number(rows[0].max_people || guests) || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+      return res.status(400).json({ message: "Invalid trip date or traveller count" });
+    }
+    const tripDate = new Date(`${bookingDate}T00:00:00Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (!Number.isFinite(tripDate.getTime()) || tripDate < today) {
+      return res.status(400).json({ message: "Trip date must be today or later" });
+    }
+    if (departureId) {
+      const departures = await query(
+        `SELECT id, total_seats, booked_seats, status FROM package_departures
+         WHERE id=? AND experience_id=? AND departure_date=? LIMIT 1`,
+        [departureId, experienceId, bookingDate]
+      );
+      if (!departures.length || departures[0].status !== "Available" ||
+          Number(departures[0].total_seats) - Number(departures[0].booked_seats) < guests) {
+        return res.status(409).json({ message: "Selected departure is unavailable" });
+      }
+    }
     const subtotal = Number(rows[0].price || 0) * guests;
     const total = subtotal + Math.round(subtotal * 0.12);
     const order = await razorpay.orders.create({
       amount: Math.round(total * 100), currency: "INR",
       receipt: `experience_${experienceId}_${Date.now()}`,
-      notes: { experience_id: String(experienceId), user_id: String(req.user.id), guests: String(guests) },
+      notes: {
+        experience_id: String(experienceId), user_id: String(req.user.id), guests: String(guests),
+        booking_date: bookingDate, departure_id: departureId ? String(departureId) : "",
+      },
     });
     res.json({ success: true, key: process.env.RAZORPAY_KEY_ID, order });
   } catch (err) {
@@ -3822,11 +4113,20 @@ app.delete("/api/admin/users/:id", verifyToken, requireAdminRole("Super Admin"),
 
 app.post("/api/experience-payments/verify", verifyToken, paymentLimiter, async (req, res) => {
   try {
+    if (!razorpay) return res.status(503).json({ message: "Online payments are not configured" });
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return res.status(400).json({ message: "Payment verification details are incomplete" });
     const expected = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(`${razorpay_order_id}|${razorpay_payment_id}`).digest("hex");
     const valid = expected.length === razorpay_signature.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(razorpay_signature));
     if (!valid) return res.status(400).json({ message: "Payment signature is invalid" });
+    const [payment, order] = await Promise.all([
+      razorpay.payments.fetch(razorpay_payment_id),
+      razorpay.orders.fetch(razorpay_order_id),
+    ]);
+    if (payment.order_id !== razorpay_order_id || payment.status !== "captured" ||
+        String(order.notes?.user_id) !== String(req.user.id)) {
+      return res.status(400).json({ message: "Payment ownership verification failed" });
+    }
     res.json({ success: true, paymentId: razorpay_payment_id });
   } catch (err) {
     res.status(500).json({ message: "Payment verification failed" });
@@ -3834,6 +4134,7 @@ app.post("/api/experience-payments/verify", verifyToken, paymentLimiter, async (
 });
 
 app.post("/api/experience-bookings", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const {
       experience_id,
@@ -3841,15 +4142,16 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       departure_id,
       booking_date,
       guests,
-      total,
       payment_method,
-      payment_status,
-      status,
+      razorpay_payment_id,
+      razorpay_order_id,
       pickup_note,
       special_request,
     } = req.body;
 
-    if (!experience_id || !user_id || !booking_date || !guests || !total) {
+    const guestCount = Number(guests || 0);
+    if (!experience_id || !user_id || !/^\d{4}-\d{2}-\d{2}$/.test(booking_date) ||
+        !Number.isInteger(guestCount) || guestCount < 1) {
       return res.status(400).json({
         message: "Required booking fields missing",
       });
@@ -3861,9 +4163,16 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       });
     }
 
+    const tripDate = new Date(`${booking_date}T00:00:00Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (!Number.isFinite(tripDate.getTime()) || tripDate < today) {
+      return res.status(400).json({ message: "Trip date must be today or later" });
+    }
+
     const experienceRows = await query(
       `
-      SELECT id, title, price, status
+      SELECT id, title, price, status, max_people
       FROM experiences
       WHERE id = ?
       LIMIT 1
@@ -3883,7 +4192,40 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       });
     }
 
-    const existingRows = await query(
+    if (guestCount > Number(experienceRows[0].max_people || guestCount)) {
+      return res.status(400).json({ message: "Traveller count exceeds package capacity" });
+    }
+
+    const subtotal = Number(experienceRows[0].price || 0) * guestCount;
+    const taxes = Math.round(subtotal * 0.12);
+    const serverTotal = subtotal + taxes;
+    if (serverTotal <= 0) return res.status(400).json({ message: "Invalid package price" });
+
+    if (payment_method === "razorpay") {
+      if (!razorpay || !razorpay_payment_id || !razorpay_order_id) {
+        return res.status(400).json({ message: "Verified payment details are required" });
+      }
+      const [payment, order] = await Promise.all([
+        razorpay.payments.fetch(razorpay_payment_id),
+        razorpay.orders.fetch(razorpay_order_id),
+      ]);
+      const notes = order.notes || {};
+      if (
+        payment.order_id !== razorpay_order_id || payment.status !== "captured" ||
+        Number(payment.amount) !== Math.round(serverTotal * 100) || order.currency !== "INR" ||
+        String(notes.user_id) !== String(req.user.id) ||
+        String(notes.experience_id) !== String(experience_id) ||
+        String(notes.guests) !== String(guestCount) ||
+        String(notes.booking_date) !== String(booking_date) ||
+        String(notes.departure_id || "") !== String(departure_id || "")
+      ) {
+        return res.status(400).json({ message: "Payment does not match this trip booking" });
+      }
+    }
+
+    await connection.beginTransaction();
+
+    const [existingRows] = await connection.query(
       `
       SELECT id
       FROM experience_bookings
@@ -3891,30 +4233,33 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       AND user_id = ?
       AND booking_date = ?
       AND status NOT IN ('Cancelled', 'Declined')
-      LIMIT 1
+      LIMIT 1 FOR UPDATE
       `,
       [experience_id, user_id, booking_date]
     );
 
     if (existingRows.length) {
+      await connection.rollback();
       return res.status(409).json({
         message: "You already booked this package for this date",
       });
     }
 
     if (departure_id) {
-      const departureRows = await query(
+      const [departureRows] = await connection.query(
         `
         SELECT *
         FROM package_departures
         WHERE id = ?
         AND experience_id = ?
-        LIMIT 1
+        AND departure_date = ?
+        LIMIT 1 FOR UPDATE
         `,
-        [departure_id, experience_id]
+        [departure_id, experience_id, booking_date]
       );
 
       if (!departureRows.length) {
+        await connection.rollback();
         return res.status(404).json({
           message: "Selected departure not found",
         });
@@ -3927,19 +4272,21 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
         Number(departure.booked_seats || 0);
 
       if (departure.status !== "Available") {
+        await connection.rollback();
         return res.status(400).json({
           message: "Selected departure is not available",
         });
       }
 
-      if (remainingSeats < Number(guests || 1)) {
+      if (remainingSeats < guestCount) {
+        await connection.rollback();
         return res.status(400).json({
           message: `Only ${remainingSeats} seats left for this departure`,
         });
       }
     }
 
-    const result = await query(
+    const [result] = await connection.query(
       `
       INSERT INTO experience_bookings
       (
@@ -3962,27 +4309,27 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
         user_id,
         departure_id || null,
         booking_date,
-        Number(guests || 1),
-        Number(total || 0),
+        guestCount,
+        serverTotal,
         payment_method || "cash",
-        payment_status || "Pay at trip",
-        status || "Confirmed",
+        payment_method === "razorpay" ? "Paid" : "Pay at trip",
+        payment_method === "razorpay" ? "Confirmed" : "Pending",
         pickup_note || null,
         special_request || null,
       ]
     );
 
     if (departure_id) {
-      await query(
+      await connection.query(
         `
         UPDATE package_departures
         SET booked_seats = booked_seats + ?
         WHERE id = ?
         `,
-        [Number(guests || 1), departure_id]
+        [guestCount, departure_id]
       );
 
-      await query(
+      await connection.query(
         `
         UPDATE package_departures
         SET status = 'Sold Out'
@@ -3993,18 +4340,36 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       );
     }
 
+    if (payment_method === "razorpay") {
+      await connection.query(
+        `INSERT INTO servia_payment_claims
+         (payment_id, order_id, user_id, booking_type, booking_id, amount)
+         VALUES (?, ?, ?, 'experience', ?, ?)`,
+        [razorpay_payment_id, razorpay_order_id, req.user.id, result.insertId, serverTotal]
+      );
+    }
+
+    await connection.commit();
+
     res.json({
       success: true,
       message: "Package booked successfully",
       bookingId: result.insertId,
     });
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     console.log("PACKAGE BOOKING ERROR:", err.message);
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "This payment or booking has already been used" });
+    }
 
     res.status(500).json({
       message: "Package booking failed",
       error: err.message,
     });
+  } finally {
+    connection.release();
   }
 });
 /* MY EXPERIENCE BOOKINGS */
@@ -4060,9 +4425,12 @@ app.get("/api/experience-bookings/:userId", verifyToken, async (req, res) => {
 app.post(
   "/api/trip-packages",
   verifyToken,
+  requireApprovedHost,
   upload.array("images", 10),
   async (req, res) => {
     const connection = await db.promise().getConnection();
+    const uploadedImages = [];
+    let submissionKey = null;
 
     try {
       const {
@@ -4092,13 +4460,46 @@ language,
         cancellation_policy,
         terms_conditions,
         package_type,
+        client_submission_id,
       } = req.body;
 
-      if (!title?.trim() || !location?.trim() || Number(price) <= 0) {
+      submissionKey = String(client_submission_id || "").trim();
+      if (!/^[a-zA-Z0-9_-]{16,100}$/.test(submissionKey)) {
+        return res.status(400).json({ success: false, message: "Invalid submission token. Refresh the form and try again." });
+      }
+
+      const normalizedTitle = String(title || "").trim();
+      const normalizedLocation = String(location || "").trim();
+      const normalizedCity = String(city || normalizedLocation).trim();
+      const packagePrice = Number(price);
+      const days = Number(package_days);
+      const nights = Number(package_nights);
+      const capacity = Number(max_people);
+      const pickupLat = pickup_latitude === "" ? null : Number(pickup_latitude);
+      const pickupLng = pickup_longitude === "" ? null : Number(pickup_longitude);
+
+      if (normalizedTitle.length < 5 || normalizedTitle.length > 120 ||
+          !normalizedLocation || normalizedLocation.length > 255 || !normalizedCity ||
+          !Number.isFinite(packagePrice) || packagePrice <= 0 || packagePrice > 10000000) {
         return res.status(400).json({
           success: false,
-          message: "Please enter title, destination and valid price.",
+          message: "Enter a valid title, destination, city and price.",
         });
+      }
+
+      if (!Number.isInteger(days) || days < 1 || days > 365 || !Number.isInteger(nights) ||
+          nights < 0 || nights >= days || !Number.isInteger(capacity) || capacity < 1 || capacity > 1000) {
+        return res.status(400).json({ success: false, message: "Enter valid duration and traveller capacity" });
+      }
+
+      if ((pickupLat !== null && (!Number.isFinite(pickupLat) || pickupLat < -90 || pickupLat > 90)) ||
+          (pickupLng !== null && (!Number.isFinite(pickupLng) || pickupLng < -180 || pickupLng > 180))) {
+        return res.status(400).json({ success: false, message: "Pickup coordinates are invalid" });
+      }
+
+      if (!String(includes || "").trim() || !String(itinerary || "").trim() ||
+          !String(exclusions || "").trim() || !String(terms_conditions || "").trim()) {
+        return res.status(400).json({ success: false, message: "Includes, itinerary, exclusions and terms are required" });
       }
 
       if (!req.files || req.files.length === 0) {
@@ -4108,7 +4509,26 @@ language,
         });
       }
 
-      const uploadedImages = [];
+      try {
+        await connection.query(
+          "INSERT INTO servia_host_submissions (submission_key,user_id,submission_type,status) VALUES (?,?,'experience','Processing')",
+          [submissionKey, req.user.id]
+        );
+      } catch (error) {
+        if (error.code !== "ER_DUP_ENTRY") throw error;
+        const [prior] = await connection.query(
+          "SELECT status,entity_id,updated_at FROM servia_host_submissions WHERE submission_key=? AND user_id=? AND submission_type='experience' LIMIT 1",
+          [submissionKey, req.user.id]
+        );
+        if (prior[0]?.status === "Completed") {
+          return res.status(200).json({ success: true, message: "Trip package was already submitted", experienceId: prior[0].entity_id, packageId: prior[0].entity_id, status: "Pending" });
+        }
+        const [reclaimed] = await connection.query(
+          "UPDATE servia_host_submissions SET updated_at=NOW() WHERE submission_key=? AND user_id=? AND status='Processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)",
+          [submissionKey, req.user.id]
+        );
+        if (!reclaimed.affectedRows) return res.status(409).json({ message: "This trip package submission is already being processed" });
+      }
 
       for (const file of req.files) {
         const uploaded = await uploadFileToS3(file, "experiences");
@@ -4125,7 +4545,6 @@ language,
         (
           host_id,
 title,
-location,
           location,
           city,
           category,
@@ -4159,14 +4578,14 @@ language,
         `,
         [
            Number(req.user.id),
-  title.trim(),
-  location.trim(),
-          city?.trim() || location.trim(),
+  normalizedTitle,
+  normalizedLocation,
+          normalizedCity,
           category || "Family",
-          Number(price || 0),
-          Number(package_days || 1),
-          Number(package_nights || 0),
-          Number(max_people || 10),
+          packagePrice,
+          days,
+          nights,
+          capacity,
           brand_name || "Dovail Travel Hosting Team",
           team_contact || null,
           hotel_name || null,
@@ -4174,8 +4593,8 @@ language,
           meals || null,
        pickup_location || null,
 pickup_map_url || null,
-pickup_latitude ? Number(pickup_latitude) : null,
-pickup_longitude ? Number(pickup_longitude) : null,
+pickupLat,
+pickupLng,
 language || "English",
           host_name || req.user?.fullname || req.user?.name || "Dovail Host",
           description || "",
@@ -4210,6 +4629,7 @@ language || "English",
         [imageValues]
       );
 
+      await connection.query("UPDATE servia_host_submissions SET status='Completed',entity_id=? WHERE submission_key=?", [experienceId, submissionKey]);
       await connection.commit();
 
       res.status(201).json({
@@ -4222,7 +4642,9 @@ language || "English",
         status: "Pending",
       });
     } catch (err) {
-      await connection.rollback();
+      try { await connection.rollback(); } catch {}
+      await Promise.allSettled(uploadedImages.map((image) => deleteS3File(image.key)));
+      if (submissionKey) await query("DELETE FROM servia_host_submissions WHERE submission_key=? AND status='Processing'", [submissionKey]).catch(() => {});
 
       console.log("CREATE TRIP PACKAGE ERROR:", err.message);
 
@@ -4240,7 +4662,7 @@ language || "English",
 
 /* HOST - OWN TRIP PACKAGES */
 
-app.get("/api/host/trip-packages", verifyToken, async (req, res) => {
+app.get("/api/host/trip-packages", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const hostId = Number(req.user?.id);
 
@@ -4298,7 +4720,7 @@ app.get("/api/host/trip-packages", verifyToken, async (req, res) => {
     });
   }
 });
-app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
+app.put("/api/trip-packages/:id", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const packageId = Number(req.params.id);
 
@@ -4416,7 +4838,7 @@ app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
 });
 /* HOST / ADMIN - PACKAGE BOOKINGS */
 
-app.get("/api/host/package-bookings", verifyToken, async (req, res) => {
+app.get("/api/host/package-bookings", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const rows = await query(
       `
@@ -4457,25 +4879,44 @@ ORDER BY b.id DESC
   }
 });
 
-app.put("/api/host/package-bookings/:id/status", verifyToken, async (req, res) => {
+app.put("/api/host/package-bookings/:id/status", verifyToken, requireApprovedHost, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const bookingId = Number(req.params.id);
     const { status } = req.body;
 
-    const allowed = ["Pending", "Confirmed", "Completed", "Cancelled", "Declined"];
+    const allowed = ["Confirmed", "Completed", "Cancelled", "Declined"];
 
     if (!allowed.includes(status)) {
       return res.status(400).json({ message: "Invalid booking status" });
     }
 
-    await query(
-      `
-      UPDATE experience_bookings
-      SET status = ?
-      WHERE id = ?
-      `,
-      [status, bookingId]
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      `SELECT b.*, e.host_id FROM experience_bookings b
+       JOIN experiences e ON e.id=b.experience_id
+       WHERE b.id=? LIMIT 1 FOR UPDATE`,
+      [bookingId]
     );
+    if (!rows.length) { await connection.rollback(); return res.status(404).json({ message: "Booking not found" }); }
+    const booking = rows[0];
+    if (Number(booking.host_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      await connection.rollback(); return res.status(403).json({ message: "Access denied" });
+    }
+    const transitions = { Pending: ["Confirmed", "Cancelled", "Declined"], Confirmed: ["Completed", "Cancelled"] };
+    if (!(transitions[booking.status] || []).includes(status)) {
+      await connection.rollback();
+      return res.status(409).json({ message: `Booking cannot move from ${booking.status} to ${status}` });
+    }
+    await connection.query("UPDATE experience_bookings SET status=? WHERE id=?", [status, bookingId]);
+    if (["Cancelled", "Declined"].includes(status) && booking.departure_id) {
+      await connection.query(
+        `UPDATE package_departures SET booked_seats=GREATEST(0, booked_seats-?),
+         status=CASE WHEN status='Sold Out' THEN 'Available' ELSE status END WHERE id=?`,
+        [Number(booking.guests || 1), booking.departure_id]
+      );
+    }
+    await connection.commit();
 
     res.json({
       success: true,
@@ -4511,9 +4952,15 @@ app.get("/api/trip-packages/:id/departures", async (req, res) => {
   }
 });
 
-app.post("/api/trip-packages/:id/departures", verifyToken, async (req, res) => {
+app.post("/api/trip-packages/:id/departures", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const { departure_date, total_seats, status } = req.body;
+
+    const owners = await query("SELECT host_id FROM experiences WHERE id=? LIMIT 1", [req.params.id]);
+    if (!owners.length) return res.status(404).json({ message: "Trip package not found" });
+    if (Number(owners[0].host_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     if (!departure_date) {
       return res.status(400).json({ message: "Departure date is required" });
@@ -4545,9 +4992,18 @@ app.post("/api/trip-packages/:id/departures", verifyToken, async (req, res) => {
   }
 });
 
-app.put("/api/departures/:id", verifyToken, async (req, res) => {
+app.put("/api/departures/:id", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const { departure_date, total_seats, booked_seats, status } = req.body;
+
+    const owners = await query(
+      `SELECT e.host_id FROM package_departures d JOIN experiences e ON e.id=d.experience_id
+       WHERE d.id=? LIMIT 1`, [req.params.id]
+    );
+    if (!owners.length) return res.status(404).json({ message: "Departure not found" });
+    if (Number(owners[0].host_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     await query(
       `
@@ -4576,8 +5032,16 @@ app.put("/api/departures/:id", verifyToken, async (req, res) => {
   }
 });
 
-app.delete("/api/departures/:id", verifyToken, async (req, res) => {
+app.delete("/api/departures/:id", verifyToken, requireApprovedHost, async (req, res) => {
   try {
+    const owners = await query(
+      `SELECT e.host_id FROM package_departures d JOIN experiences e ON e.id=d.experience_id
+       WHERE d.id=? LIMIT 1`, [req.params.id]
+    );
+    if (!owners.length) return res.status(404).json({ message: "Departure not found" });
+    if (Number(owners[0].host_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
     await query("DELETE FROM package_departures WHERE id = ?", [req.params.id]);
 
     res.json({ success: true });
@@ -4590,7 +5054,7 @@ app.delete("/api/departures/:id", verifyToken, async (req, res) => {
 });
 /* HOST - UPDATE TRIP PACKAGE */
 
-app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
+app.put("/api/trip-packages/:id", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const packageId = Number(req.params.id);
     const hostId = Number(req.user.id);
@@ -4717,7 +5181,7 @@ app.put("/api/trip-packages/:id", verifyToken, async (req, res) => {
 
 /* HOST - DELETE TRIP PACKAGE */
 
-app.delete("/api/trip-packages/:id", verifyToken, async (req, res) => {
+app.delete("/api/trip-packages/:id", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const packageId = Number(req.params.id);
     const hostId = Number(req.user.id);
@@ -4781,7 +5245,7 @@ app.delete("/api/trip-packages/:id", verifyToken, async (req, res) => {
 });
 /* HOST WALLET + PAYOUTS */
 
-app.get("/api/host/wallet/:hostId", verifyToken, async (req, res) => {
+app.get("/api/host/wallet/:hostId", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const hostId = Number(req.params.hostId);
 
@@ -4866,7 +5330,7 @@ app.get("/api/host/wallet/:hostId", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/api/host/bank-account", verifyToken, async (req, res) => {
+app.post("/api/host/bank-account", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const hostId = Number(req.user.id);
 
@@ -4914,7 +5378,7 @@ app.post("/api/host/bank-account", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/api/host/payout-request", verifyToken, async (req, res) => {
+app.post("/api/host/payout-request", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const hostId = Number(req.user.id);
     const amount = Number(req.body.amount || 0);
@@ -5387,10 +5851,11 @@ app.put(
       await query(
         `
         UPDATE servia_users
-        SET kyc_status = ?
+        SET kyc_status = ?,
+            role = CASE WHEN ?='Approved' THEN 'host' WHEN role='admin' THEN role ELSE 'guest' END
         WHERE id = ?
         `,
-        [status, kyc.host_id]
+        [status, status, kyc.host_id]
       );
 await addAuditLog({
   adminId: req.user.id,
@@ -6236,7 +6701,72 @@ app.get("/api/host/:id", async (req, res) => {
     if (!rows.length) return res.status(404).json({ message: "Host not found" });
     res.json(rows[0]);
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     res.status(500).json({ message: "Host profile failed to load" });
+  } finally {
+    connection.release();
+  }
+});
+
+app.put("/api/experience-bookings/:id/cancel", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
+  try {
+    const bookingId = Number(req.params.id);
+    if (!bookingId) return res.status(400).json({ message: "Invalid booking" });
+
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      "SELECT * FROM experience_bookings WHERE id=? LIMIT 1 FOR UPDATE",
+      [bookingId]
+    );
+    if (!rows.length) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Package booking not found" });
+    }
+
+    const booking = rows[0];
+    if (Number(booking.user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      await connection.rollback();
+      return res.status(403).json({ message: "Access denied" });
+    }
+    if (booking.status === "Cancelled") {
+      await connection.rollback();
+      return res.status(409).json({ message: "Booking is already cancelled" });
+    }
+    if (["Completed", "Declined"].includes(booking.status)) {
+      await connection.rollback();
+      return res.status(409).json({ message: `A ${booking.status.toLowerCase()} booking cannot be cancelled` });
+    }
+    if (new Date(booking.booking_date) <= new Date()) {
+      await connection.rollback();
+      return res.status(409).json({ message: "This trip has already started" });
+    }
+
+    await connection.query(
+      "UPDATE experience_bookings SET status='Cancelled' WHERE id=?",
+      [bookingId]
+    );
+    if (booking.departure_id) {
+      await connection.query(
+        `UPDATE package_departures
+         SET booked_seats=GREATEST(0, booked_seats-?),
+             status=CASE WHEN status='Sold Out' THEN 'Available' ELSE status END
+         WHERE id=?`,
+        [Number(booking.guests || 1), booking.departure_id]
+      );
+    }
+    await connection.commit();
+    res.json({
+      success: true,
+      message: booking.payment_status === "Paid"
+        ? "Trip cancelled. Contact support to request the applicable refund."
+        : "Trip cancelled successfully",
+    });
+  } catch (err) {
+    try { await connection.rollback(); } catch {}
+    res.status(500).json({ message: "Trip cancellation failed" });
+  } finally {
+    connection.release();
   }
 });
 
@@ -6268,27 +6798,104 @@ app.get("/api/host/:id/reviews", async (req, res) => {
   }
 });
 
+app.get("/api/services", async (req, res) => {
+  try {
+    const rows = await query("SELECT * FROM servia_services WHERE is_active=1 ORDER BY sort_order ASC, id ASC");
+    res.json(rows.map((item) => ({ ...item, includes: JSON.parse(item.includes_json || "[]") })));
+  } catch (err) {
+    res.status(500).json({ message: "Services failed to load" });
+  }
+});
+
+app.get("/api/services/:id", async (req, res) => {
+  try {
+    const rows = await query("SELECT * FROM servia_services WHERE id=? AND is_active=1 LIMIT 1", [Number(req.params.id)]);
+    if (!rows.length) return res.status(404).json({ message: "Service not found" });
+    res.json({ ...rows[0], includes: JSON.parse(rows[0].includes_json || "[]") });
+  } catch (err) {
+    res.status(500).json({ message: "Service failed to load" });
+  }
+});
+
+app.get("/api/service-bookings/user/:userId", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (userId !== Number(req.user.id) && req.user.role !== "admin") return res.status(403).json({ message: "Access denied" });
+    const rows = await query(
+      `SELECT b.*, s.image, s.location, s.duration, s.currency
+       FROM servia_service_bookings b LEFT JOIN servia_services s ON s.id=b.service_id
+       WHERE b.user_id=? ORDER BY b.id DESC`, [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Service bookings failed to load" });
+  }
+});
+
 app.post("/api/service-bookings", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const userId = Number(req.user.id);
     const serviceId = Number(req.body.service_id);
-    const title = String(req.body.service_title || "").trim();
     const serviceDate = String(req.body.service_date || "");
-    const people = Math.max(1, Number(req.body.people || 1));
-    const total = Number(req.body.total || 0);
-    if (!serviceId || !title || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) || total < 0) {
+    const people = Number(req.body.people || 0);
+    const selectedDate = new Date(`${serviceDate}T00:00:00Z`);
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    if (!serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) || !Number.isInteger(people) || people < 1 || !Number.isFinite(selectedDate.getTime()) || selectedDate < today) {
       return res.status(400).json({ message: "Invalid service booking details" });
     }
-    const result = await query(
+    await connection.beginTransaction();
+    const [services] = await connection.query("SELECT * FROM servia_services WHERE id=? AND is_active=1 LIMIT 1 FOR UPDATE", [serviceId]);
+    if (!services.length) { await connection.rollback(); return res.status(404).json({ message: "Service is unavailable" }); }
+    const service = services[0];
+    if (people > Number(service.max_people || people)) { await connection.rollback(); return res.status(400).json({ message: "People count exceeds service capacity" }); }
+    const [capacityRows] = await connection.query(
+      "SELECT COUNT(*) AS bookings FROM servia_service_bookings WHERE service_id=? AND service_date=? AND status NOT IN ('Cancelled','Declined') FOR UPDATE",
+      [serviceId, serviceDate]
+    );
+    if (Number(capacityRows[0]?.bookings || 0) >= Number(service.max_bookings_per_day || 1)) {
+      await connection.rollback(); return res.status(409).json({ message: "Service is fully booked for this date" });
+    }
+    const total = Number(service.price || 0) * people;
+    const [result] = await connection.query(
       `INSERT INTO servia_service_bookings
        (user_id, service_id, service_title, provider, service_date, people, total, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'Confirmed')`,
-      [userId, serviceId, title, String(req.body.provider || "").trim(), serviceDate, people, total]
+      [userId, serviceId, service.title, service.provider, serviceDate, people, total]
     );
-    res.status(201).json({ success: true, bookingId: result.insertId });
+    await connection.commit();
+    res.status(201).json({ success: true, bookingId: result.insertId, total, currency: service.currency || "USD" });
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     console.log("SERVICE BOOKING ERROR:", err.message);
     res.status(500).json({ message: "Service booking failed" });
+  } finally {
+    connection.release();
+  }
+});
+
+app.get("/api/admin/service-bookings", verifyToken, requireAdminRole("Support Admin", "Finance Admin"), async (req, res) => {
+  try {
+    const rows = await query(
+      `SELECT b.*, u.fullname AS customer_name, u.email AS customer_email, s.category, s.location, s.currency
+       FROM servia_service_bookings b JOIN servia_users u ON u.id=b.user_id
+       LEFT JOIN servia_services s ON s.id=b.service_id ORDER BY b.id DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Service bookings failed to load" });
+  }
+});
+
+app.put("/api/admin/service-bookings/:id/status", verifyToken, requireAdminRole("Support Admin"), async (req, res) => {
+  try {
+    const status = String(req.body.status || "");
+    if (!["Confirmed", "In Progress", "Completed", "Cancelled", "Declined"].includes(status)) return res.status(400).json({ message: "Invalid service status" });
+    const result = await query("UPDATE servia_service_bookings SET status=? WHERE id=?", [status, Number(req.params.id)]);
+    if (!result.affectedRows) return res.status(404).json({ message: "Service booking not found" });
+    res.json({ success: true, message: "Service booking status updated" });
+  } catch (err) {
+    res.status(500).json({ message: "Service status update failed" });
   }
 });
 
@@ -6304,16 +6911,23 @@ app.get("/api/service-booking/:id", verifyToken, async (req, res) => {
 });
 
 app.put("/api/service-booking/:id/cancel", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const id = Number(req.params.id);
-    const rows = await query("SELECT * FROM servia_service_bookings WHERE id=? LIMIT 1", [id]);
-    if (!rows.length) return res.status(404).json({ message: "Service booking not found" });
-    if (Number(rows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") return res.status(403).json({ message: "Access denied" });
-    if (["Cancelled", "Completed"].includes(rows[0].status)) return res.status(409).json({ message: `Booking is already ${rows[0].status.toLowerCase()}` });
-    await query("UPDATE servia_service_bookings SET status='Cancelled', cancellation_reason=? WHERE id=?", [String(req.body.reason || "Cancelled by user"), id]);
+    await connection.beginTransaction();
+    const [rows] = await connection.query("SELECT * FROM servia_service_bookings WHERE id=? LIMIT 1 FOR UPDATE", [id]);
+    if (!rows.length) { await connection.rollback(); return res.status(404).json({ message: "Service booking not found" }); }
+    if (Number(rows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") { await connection.rollback(); return res.status(403).json({ message: "Access denied" }); }
+    if (!["Confirmed", "Pending"].includes(rows[0].status)) { await connection.rollback(); return res.status(409).json({ message: `A ${rows[0].status.toLowerCase()} booking cannot be cancelled` }); }
+    if (new Date(rows[0].service_date) <= new Date()) { await connection.rollback(); return res.status(409).json({ message: "This service has already started" }); }
+    await connection.query("UPDATE servia_service_bookings SET status='Cancelled', cancellation_reason=? WHERE id=?", [String(req.body.reason || "Cancelled by user").slice(0, 500), id]);
+    await connection.commit();
     res.json({ success: true, message: "Service booking cancelled" });
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     res.status(500).json({ message: "Service cancellation failed" });
+  } finally {
+    connection.release();
   }
 });
 
@@ -6386,8 +7000,7 @@ app.post("/api/forgot-password", authLimiter, async (req, res) => {
     const users = await query("SELECT id FROM servia_users WHERE email=? LIMIT 1", [email]);
     if (users.length) {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      await query("DELETE FROM servia_otps WHERE email=?", [email]);
-      await query("INSERT INTO servia_otps (email, otp, expires_at) VALUES (?, ?, ?)", [email, otp, new Date(Date.now() + 10 * 60 * 1000)]);
+      await saveAuthCode(email, "password_reset", otp);
       await transporter.sendMail({
         from: process.env.MAIL_FROM, to: email, subject: "Reset your Dovail Stay password",
         html: `<h2>Dovail Stay</h2><p>Your password reset code is:</p><h1>${otp}</h1><p>This code expires in 10 minutes.</p>`,
@@ -6408,10 +7021,10 @@ app.post("/api/reset-password", authLimiter, async (req, res) => {
     if (!/^\d{6}$/.test(otp) || newPassword.length < 8) {
       return res.status(400).json({ message: "A valid code and password of at least 8 characters are required" });
     }
-    const codes = await query("SELECT id FROM servia_otps WHERE email=? AND otp=? AND expires_at>NOW() LIMIT 1", [email, otp]);
-    if (!codes.length) return res.status(400).json({ message: "Invalid or expired reset code" });
+    if (!(await consumeAuthCode(email, "password_reset", otp))) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
     await query("UPDATE servia_users SET password=? WHERE email=?", [await bcrypt.hash(newPassword, 12), email]);
-    await query("DELETE FROM servia_otps WHERE email=?", [email]);
     res.json({ success: true, message: "Password reset successfully" });
   } catch (err) {
     console.log("RESET PASSWORD ERROR:", err.message);
@@ -6467,7 +7080,57 @@ app.get("/api/refunds/:userId", verifyToken, async (req, res) => {
 
 /* REFUNDS */
 
+app.put("/api/bookings/:id/cancel", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
+  try {
+    const bookingId = Number(req.params.id);
+    if (!bookingId) return res.status(400).json({ message: "Invalid booking" });
+
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      "SELECT * FROM servia_bookings WHERE id=? LIMIT 1 FOR UPDATE",
+      [bookingId]
+    );
+    if (!rows.length) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    const booking = rows[0];
+    if (Number(booking.user_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      await connection.rollback();
+      return res.status(403).json({ message: "Access denied" });
+    }
+    if (booking.status === "Cancelled") {
+      await connection.rollback();
+      return res.status(409).json({ message: "Booking is already cancelled" });
+    }
+    if (["Checked-in", "Checked-out", "Completed", "Declined"].includes(booking.status)) {
+      await connection.rollback();
+      return res.status(409).json({ message: `A ${booking.status.toLowerCase()} booking cannot be cancelled` });
+    }
+    if (new Date(booking.checkin) <= new Date()) {
+      await connection.rollback();
+      return res.status(409).json({ message: "This stay has already started" });
+    }
+
+    await connection.query("UPDATE servia_bookings SET status='Cancelled' WHERE id=?", [bookingId]);
+    await connection.commit();
+    res.json({
+      success: true,
+      message: booking.payment_status === "Paid"
+        ? "Booking cancelled. You can now submit a refund request."
+        : "Booking cancelled successfully",
+    });
+  } catch (err) {
+    try { await connection.rollback(); } catch {}
+    res.status(500).json({ message: "Booking cancellation failed" });
+  } finally {
+    connection.release();
+  }
+});
+
 app.post("/api/refunds/request", verifyToken, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const userId = Number(req.user.id);
     const bookingId = Number(req.body.booking_id);
@@ -6477,36 +7140,45 @@ app.post("/api/refunds/request", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Booking and reason are required" });
     }
 
-    const bookings = await query(
+    await connection.beginTransaction();
+    const [bookings] = await connection.query(
       `
       SELECT *
       FROM servia_bookings
       WHERE id = ? AND user_id = ?
-      LIMIT 1
+      LIMIT 1 FOR UPDATE
       `,
       [bookingId, userId]
     );
 
     if (!bookings.length) {
+      await connection.rollback();
       return res.status(404).json({ message: "Booking not found" });
     }
 
     const booking = bookings[0];
 
-    if (booking.status === "Cancelled") {
-      return res.status(400).json({ message: "Booking already cancelled" });
+    if (booking.payment_status !== "Paid" || !booking.payment_id || Number(booking.total || 0) <= 0) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Only a recorded paid booking can be refunded" });
     }
 
-    const exists = await query(
-      "SELECT id FROM servia_refund_requests WHERE booking_id=? LIMIT 1",
+    if (!["Cancelled", "Confirmed", "Pending"].includes(booking.status)) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Refund is not available for this booking status" });
+    }
+
+    const [exists] = await connection.query(
+      "SELECT id FROM servia_refund_requests WHERE booking_id=? LIMIT 1 FOR UPDATE",
       [bookingId]
     );
 
     if (exists.length) {
+      await connection.rollback();
       return res.status(409).json({ message: "Refund already requested" });
     }
 
-    await query(
+    await connection.query(
       `
       INSERT INTO servia_refund_requests
       (booking_id, user_id, amount, reason, status)
@@ -6515,7 +7187,7 @@ app.post("/api/refunds/request", verifyToken, async (req, res) => {
       [bookingId, userId, Number(booking.total || 0), reason]
     );
 
-    await query(
+    await connection.query(
       `
       INSERT INTO servia_notifications
       (user_id, title, message, type, is_read)
@@ -6529,10 +7201,16 @@ app.post("/api/refunds/request", verifyToken, async (req, res) => {
       ]
     );
 
+    await connection.query("UPDATE servia_bookings SET status='Cancelled', payment_status='Refund Requested' WHERE id=?", [bookingId]);
+    await connection.commit();
     res.json({ success: true, message: "Refund request submitted" });
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     console.log("REFUND REQUEST ERROR:", err.message);
+    if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Refund already requested" });
     res.status(500).json({ message: "Refund request failed", error: err.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -6564,6 +7242,7 @@ app.get("/api/admin/refunds", verifyToken, requireAdminRole("Finance Admin"), as
 });
 
 app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance Admin"), async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const refundId = Number(req.params.id);
     const status = String(req.body.status || "").trim();
@@ -6577,18 +7256,33 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
       return res.status(400).json({ message: "Admin note is required for rejection" });
     }
 
-    const rows = await query(
-      "SELECT * FROM servia_refund_requests WHERE id=? LIMIT 1",
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      "SELECT * FROM servia_refund_requests WHERE id=? LIMIT 1 FOR UPDATE",
       [refundId]
     );
 
     if (!rows.length) {
+      await connection.rollback();
       return res.status(404).json({ message: "Refund request not found" });
     }
 
     const refund = rows[0];
 
-    await query(
+    const allowedTransitions = {
+      Pending: ["Approved", "Rejected"],
+      Approved: ["Paid"],
+      Rejected: [],
+      Paid: [],
+    };
+    if (!(allowedTransitions[refund.status] || []).includes(status)) {
+      await connection.rollback();
+      return res.status(409).json({
+        message: `Refund cannot move from ${refund.status} to ${status}`,
+      });
+    }
+
+    await connection.query(
       `
       UPDATE servia_refund_requests
       SET status=?, admin_note=?
@@ -6598,20 +7292,20 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
     );
 
     if (status === "Approved") {
-      await query(
+      await connection.query(
         "UPDATE servia_bookings SET status='Cancelled', payment_status='Refund Approved' WHERE id=?",
         [refund.booking_id]
       );
     }
 
     if (status === "Paid") {
-      await query(
+      await connection.query(
         "UPDATE servia_bookings SET status='Cancelled', payment_status='Refunded' WHERE id=?",
         [refund.booking_id]
       );
     }
 
-    await query(
+    await connection.query(
       `
       INSERT INTO servia_notifications
       (user_id, title, message, type, is_read)
@@ -6627,6 +7321,8 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
       ]
     );
 
+    await connection.commit();
+
     await addAuditLog({
       adminId: req.user.id,
       action: "REFUND_STATUS_UPDATED",
@@ -6638,8 +7334,11 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
 
     res.json({ success: true, message: `Refund marked as ${status}` });
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     console.log("ADMIN REFUND STATUS ERROR:", err.message);
     res.status(500).json({ message: "Refund update failed", error: err.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -6704,7 +7403,37 @@ if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
 }
 
+// Keep the terminal error handler after every route so upload/parser failures
+// from host and trip-package forms always return a useful JSON response.
+app.use((err, req, res, next) => {
+  console.error("SERVER ERROR:", err.message);
+  if (res.headersSent) return next(err);
+  if (err instanceof multer.MulterError) {
+    const message = err.code === "LIMIT_FILE_SIZE"
+      ? "Each image must be 5 MB or smaller"
+      : err.code === "LIMIT_FILE_COUNT"
+        ? "Maximum 10 images are allowed"
+        : err.message;
+    return res.status(400).json({ message });
+  }
+  if (err?.message?.includes("Only JPG")) {
+    return res.status(400).json({ message: err.message });
+  }
+  return res.status(500).json({ message: "Internal server error" });
+});
+
 async function ensureSupplementalTables() {
+  await query(`CREATE TABLE IF NOT EXISTS servia_auth_codes (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(320) NOT NULL,
+    purpose VARCHAR(40) NOT NULL,
+    code_hash CHAR(64) NOT NULL,
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_auth_code_email_purpose (email, purpose),
+    INDEX idx_auth_code_expiry (expires_at)
+  )`);
   await query(`CREATE TABLE IF NOT EXISTS servia_service_bookings (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL, service_id BIGINT NOT NULL,
@@ -6715,6 +7444,56 @@ async function ensureSupplementalTables() {
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_service_booking_user (user_id), INDEX idx_service_booking_date (service_date)
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS servia_host_submissions (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    submission_key VARCHAR(100) NOT NULL,
+    user_id BIGINT NOT NULL,
+    submission_type ENUM('property','experience') NOT NULL,
+    status ENUM('Processing','Completed') NOT NULL DEFAULT 'Processing',
+    entity_id BIGINT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_host_submission_key (submission_key),
+    INDEX idx_host_submission_user (user_id, submission_type)
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS servia_services (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL, category VARCHAR(100) NOT NULL,
+    location VARCHAR(255) NOT NULL, price DECIMAL(12,2) NOT NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'USD', provider VARCHAR(255) NOT NULL,
+    duration VARCHAR(100) NULL, image TEXT NULL, tag VARCHAR(100) NULL,
+    description TEXT NULL, includes_json JSON NULL,
+    rating DECIMAL(3,2) NOT NULL DEFAULT 0, reviews INT NOT NULL DEFAULT 0,
+    max_people INT NOT NULL DEFAULT 10, max_bookings_per_day INT NOT NULL DEFAULT 20,
+    is_active TINYINT(1) NOT NULL DEFAULT 1, sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_services_active_category (is_active, category)
+  )`);
+  await query(
+    `INSERT IGNORE INTO servia_services
+     (id,title,category,location,price,currency,provider,duration,image,tag,description,includes_json,rating,reviews,max_people,max_bookings_per_day,sort_order)
+     VALUES
+     (1,'Airport pickup','Transport','Riyadh',45,'USD','Riyadh Premium Cars','One-way transfer','https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1400&q=80','Popular','Reliable airport pickup with professional drivers, clean vehicles, and direct transfer to your stay.','["Airport meet & greet","Luggage assistance","Private car","Direct drop-off"]',4.92,88,6,30,1),
+     (2,'Private chef','Food','At your stay',120,'USD','Chef Omar','Dinner service','https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1400&q=80','Guest favorite','Enjoy a private dining experience prepared at your stay by a professional chef.','["Menu planning","Fresh ingredients","Cooking at your stay","Kitchen cleanup"]',4.98,62,12,5,2),
+     (3,'House cleaning','Cleaning','Riyadh',35,'USD','Sparkle Home Care','2 hours','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1400&q=80','Fast booking','Professional cleaning service for your stay.','["General cleaning","Bathroom cleaning","Kitchen cleaning","Basic supplies"]',4.89,109,1,25,3),
+     (4,'Laundry pickup','Cleaning','Riyadh',25,'USD','Fresh Laundry','24 hour return','https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=1400&q=80','Quick service','Laundry pickup and next-day return service.','["Pickup","Wash and fold","Next-day delivery"]',4.86,41,1,30,4),
+     (5,'Home spa session','Wellness','At your stay',85,'USD','Calm Spa','90 minutes','https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1400&q=80','Relaxing','A private wellness session delivered at your stay.','["Qualified therapist","Spa supplies","90 minute session"]',4.95,57,2,8,5),
+     (6,'Baby sitter','Family','Riyadh',50,'USD','Family Care Pro','Per hour','https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=1400&q=80','Trusted','Trusted family care from verified professionals.','["Verified caregiver","Hourly care","Emergency contact support"]',4.93,35,4,10,6)`
+  );
+  await query(`CREATE TABLE IF NOT EXISTS servia_payment_claims (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    payment_id VARCHAR(191) NOT NULL,
+    order_id VARCHAR(191) NOT NULL,
+    user_id BIGINT NOT NULL,
+    booking_type VARCHAR(40) NOT NULL,
+    booking_id BIGINT NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_payment_claim_payment (payment_id),
+    UNIQUE KEY uq_payment_claim_order (order_id),
+    INDEX idx_payment_claim_booking (booking_type, booking_id)
   )`);
 }
 

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarDays,
   Car,
@@ -15,13 +16,15 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import api from "../api/api";
 
 export default function Services() {
   const [serviceQuery, setServiceQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [catalogue, setCatalogue] = useState([]);
 
-  const services = [
+  const fallbackServices = [
     {
       id: 1,
       title: "Airport pickup",
@@ -123,8 +126,16 @@ export default function Services() {
     "Family",
   ];
 
+  useEffect(() => {
+    let active = true;
+    api.get("/services")
+      .then((response) => { if (active) setCatalogue(response.data || []); })
+      .catch(() => { if (active) setCatalogue([]); });
+    return () => { active = false; };
+  }, []);
+
   const filteredServices = useMemo(() => {
-    let data = [...services];
+    let data = [...(catalogue.length ? catalogue : fallbackServices)];
 
     if (activeCategory !== "All") {
       data = data.filter((item) => item.category === activeCategory);
@@ -149,7 +160,7 @@ export default function Services() {
     }
 
     return data;
-  }, [serviceQuery, locationQuery, activeCategory]);
+  }, [serviceQuery, locationQuery, activeCategory, catalogue]);
 
   const scrollToServices = () => {
     document
@@ -374,9 +385,9 @@ function ServiceCard({ item }) {
             <span className="text-gray-500">/ service</span>
           </p>
 
-          <button className="rounded-xl bg-[#3b71e6] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#7152E8]">
+          <Link to={`/service/${item.id}`} className="rounded-xl bg-[#3b71e6] px-4 py-2 text-sm font-semibold text-white no-underline transition hover:bg-[#7152E8]">
             Book
-          </button>
+          </Link>
         </div>
       </div>
     </article>

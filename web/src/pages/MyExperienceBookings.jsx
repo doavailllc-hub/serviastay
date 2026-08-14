@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   CalendarDays,
   Clock3,
@@ -8,6 +9,7 @@ import {
   MapPin,
   Star,
   Users,
+  XCircle,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -23,14 +25,11 @@ export default function MyExperienceBookings() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancellingId, setCancellingId] = useState(null);
 
   const filters = ["All", "Confirmed", "Pending", "Cancelled"];
 
-  useEffect(() => {
-    loadBookings();
-  }, []);
-
-  const loadBookings = async () => {
+  async function loadBookings() {
     try {
       setLoading(true);
       setError("");
@@ -67,6 +66,26 @@ export default function MyExperienceBookings() {
         activeFilter.toLowerCase()
     );
   }, [bookings, activeFilter]);
+
+  const cancelBooking = async (booking) => {
+    if (!window.confirm("Cancel this trip package booking?")) return;
+    try {
+      setCancellingId(booking.id);
+      const { data } = await api.put(`/experience-bookings/${booking.id}/cancel`);
+      toast.success(data.message || "Trip cancelled");
+      await loadBookings();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Cancellation failed");
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  useEffect(() => {
+    // Initial authenticated bookings fetch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadBookings();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
@@ -156,6 +175,8 @@ export default function MyExperienceBookings() {
                   key={booking.id}
                   booking={booking}
                   onView={() => navigate(`/experiences/${booking.experience_id}`)}
+                  onCancel={() => cancelBooking(booking)}
+                  cancelling={cancellingId === booking.id}
                 />
               ))}
             </div>
@@ -168,7 +189,7 @@ export default function MyExperienceBookings() {
   );
 }
 
-function BookingCard({ booking, onView }) {
+function BookingCard({ booking, onView, onCancel, cancelling }) {
   const image =
     booking.image ||
     "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
@@ -262,6 +283,17 @@ function BookingCard({ booking, onView }) {
             <Eye size={17} />
             View package
           </button>
+          {!['cancelled', 'completed', 'declined'].includes(String(status).toLowerCase()) && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={cancelling}
+              className="mt-3 flex items-center justify-center gap-2 rounded-full border border-red-200 px-5 py-3 text-sm font-bold text-red-600 disabled:opacity-50"
+            >
+              {cancelling ? <Loader2 className="animate-spin" size={17} /> : <XCircle size={17} />}
+              Cancel trip
+            </button>
+          )}
         </div>
       </div>
     </article>

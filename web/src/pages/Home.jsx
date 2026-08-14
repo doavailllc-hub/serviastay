@@ -18,8 +18,8 @@ import Navbar from "../components/Navbar";
 import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
 
-const BRAND = "#3b71e6";
-const API_URL = "https://stay.dovail.com/api/properties";
+
+const API_URL = `${import.meta.env.VITE_API_BASE_URL}/properties`;
 
 function toISO(date) {
   if (!date) return "";
@@ -491,7 +491,7 @@ function DateRangeDropdown({
   const nextMonth = addMonths(viewMonth, 1);
 
   return (
-    <div className="absolute left-1/2 top-[78px] z-50 w-[760px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
+  <div className="absolute left-1/2 top-[78px] z-50 w-[min(760px,calc(100vw-32px))] -translate-x-1/2 rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
       <div className="mb-5 flex items-center justify-between">
         <button
           type="button"
@@ -557,28 +557,30 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
 
   return (
     <div>
-      <h3 className="mb-4 text-center text-base font-semibold text-gray-950">
+      <h3 className="mb-5 text-center text-base font-semibold text-gray-950">
         {monthDate.toLocaleString("en-IN", {
           month: "long",
           year: "numeric",
         })}
       </h3>
 
-      <div className="mb-3 grid grid-cols-7 text-center text-xs font-medium text-gray-500">
+      <div className="mb-3 grid grid-cols-7 text-center text-xs font-semibold text-gray-400">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
           <div key={`${d}-${i}`}>{d}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-y-2 text-center">
+      <div className="grid grid-cols-7 gap-y-1 text-center">
         {days.map((day, index) => {
-          if (!day) return <div key={`blank-${index}`} className="h-10" />;
+          if (!day) return <div key={`blank-${index}`} className="h-11" />;
 
           const iso = toISO(day);
           const past = iso < todayISO;
-          const selected =
-            (checkin && iso === toISO(checkin)) ||
-            (checkout && iso === toISO(checkout));
+          const isToday = iso === todayISO;
+
+          const isCheckin = checkin && iso === toISO(checkin);
+          const isCheckout = checkout && iso === toISO(checkout);
+          const selected = isCheckin || isCheckout;
 
           const inRange =
             checkin &&
@@ -587,23 +589,31 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
             iso < toISO(checkout);
 
           return (
-            <button
+            <div
               key={iso}
-              type="button"
-              disabled={past}
-              onClick={() => onDateClick(day)}
-              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition active:scale-[0.95] ${
-                selected
-                  ? "bg-[#3b71e6] text-white"
-                  : inRange
-                  ? "bg-[#eef4ff] text-[#3b71e6]"
-                  : past
-                  ? "cursor-not-allowed text-gray-300"
-                  : "hover:bg-gray-100"
+              className={`flex h-11 items-center justify-center ${
+                inRange ? "bg-[#eef4ff]" : ""
+              } ${isCheckin && checkout ? "rounded-l-full bg-[#eef4ff]" : ""} ${
+                isCheckout ? "rounded-r-full bg-[#eef4ff]" : ""
               }`}
             >
-              {day.getDate()}
-            </button>
+              <button
+                type="button"
+                disabled={past}
+                onClick={() => onDateClick(day)}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition active:scale-95 ${
+                  selected
+                    ? "bg-[#3b71e6] text-white shadow-sm"
+                    : past
+                    ? "cursor-not-allowed text-gray-300"
+                    : isToday
+                    ? "border border-[#3b71e6] text-[#3b71e6] hover:bg-[#eef4ff]"
+                    : "text-gray-800 hover:bg-gray-100"
+                }`}
+              >
+                {day.getDate()}
+              </button>
+            </div>
           );
         })}
       </div>

@@ -15,7 +15,16 @@ import {
 
 import api from "../api/api";
 
-const BRAND = "#3b71e6";
+const TRIP_DRAFT_KEY = "dovail_host_trip_draft_v1";
+const TRIP_SUBMISSION_KEY = "dovail_host_trip_submission_id";
+
+function newSubmissionId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function readTripDraft() {
+  try { return JSON.parse(localStorage.getItem(TRIP_DRAFT_KEY) || "null"); } catch { return null; }
+}
 
 const steps = [
   "basic",
@@ -73,12 +82,14 @@ function getAuthSession() {
 
 export default function AddTripPackage() {
   const navigate = useNavigate();
+  const savedDraft = useMemo(() => readTripDraft(), []);
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => Math.min(steps.length - 1, Math.max(0, Number(savedDraft?.step || 0))));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [checkingEligibility, setCheckingEligibility] = useState(true);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     title: "",
     category: "Family",
     location: "",
@@ -110,16 +121,17 @@ export default function AddTripPackage() {
       "The itinerary, pickup schedule, accommodation, transportation, and activity timings may be adjusted due to weather conditions, traffic, government regulations, safety concerns, or other unforeseen operational circumstances. Dovail Travel Hosting Team will make every reasonable effort to provide a comparable experience while ensuring the safety and comfort of all guests.",
 
     package_type: "Trip Package",
-  });
+    ...(savedDraft?.form || {}),
+  }));
 
-  const [selectedIncludes, setSelectedIncludes] = useState([
+  const [selectedIncludes, setSelectedIncludes] = useState(savedDraft?.selectedIncludes || [
     "Hotel stay",
     "Private transport",
     "Local guide",
     "Breakfast",
   ]);
 
-  const [itinerary, setItinerary] = useState([
+  const [itinerary, setItinerary] = useState(savedDraft?.itinerary || [
     {
       title: "Arrival and check-in",
       description: "Pickup from airport or hotel and start the first day plan.",
@@ -136,6 +148,24 @@ export default function AddTripPackage() {
 
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem(TRIP_DRAFT_KEY, JSON.stringify({ step, form, selectedIncludes, itinerary }));
+  }, [form, itinerary, selectedIncludes, step]);
+
+  useEffect(() => {
+    api.get("/host/kyc")
+      .then(({ data }) => {
+        if (data?.kyc?.status !== "Approved") {
+          navigate("/host-verification", {
+            replace: true,
+            state: { message: "Complete host verification before adding a trip package." },
+          });
+        }
+      })
+      .catch((err) => setError(err.response?.data?.message || "Unable to verify host eligibility."))
+      .finally(() => setCheckingEligibility(false));
+  }, [navigate]);
 
   const progress = Math.round(((step + 1) / steps.length) * 100);
 
@@ -184,10 +214,14 @@ export default function AddTripPackage() {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const validFiles = files.filter((file) => file.type.startsWith("image/"));
+    const validFiles = files.filter((file) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 5 * 1024 * 1024
+    );
 
+    if (validFiles.length !== files.length) {
+      setError("Only JPG, PNG or WEBP images up to 5 MB each are allowed.");
+    }
     if (!validFiles.length) {
-      setError("Please upload valid image files only.");
       return;
     }
 
@@ -301,6 +335,12 @@ export default function AddTripPackage() {
       body.append("host_id", user.id);
       body.append("status", "Pending");
       body.append("is_verified", "0");
+      let submissionId = localStorage.getItem(TRIP_SUBMISSION_KEY);
+      if (!submissionId) {
+        submissionId = newSubmissionId();
+        localStorage.setItem(TRIP_SUBMISSION_KEY, submissionId);
+      }
+      body.append("client_submission_id", submissionId);
       body.append("includes", selectedIncludes.join(","));
       body.append(
         "itinerary",
@@ -322,6 +362,8 @@ export default function AddTripPackage() {
         },
       });
 
+      localStorage.removeItem(TRIP_DRAFT_KEY);
+      localStorage.removeItem(TRIP_SUBMISSION_KEY);
       navigate("/host-dashboard", {
         replace: true,
         state: {
@@ -348,6 +390,10 @@ export default function AddTripPackage() {
       setSubmitting(false);
     }
   };
+
+  if (checkingEligibility) {
+    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="animate-spin text-[#3b71e6]" size={36} /></div>;
+  }
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
@@ -1185,7 +1231,7 @@ function MapLocationPicker({ latitude, longitude, onLocationChange }) {
       cancelled = true;
       mapClickListener?.remove();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialize the map once; callbacks use current refs
 
   const searchLocation = () => {
     if (!search.trim() || !geocoderInstance.current) return;

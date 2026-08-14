@@ -28,11 +28,11 @@ function formatDate(value) {
   }).format(date);
 }
 
-function canRequestRefund(status) {
+function canRequestRefund(status, paymentStatus, paymentId) {
   const normalized = String(status || "").toLowerCase();
+  const paid = String(paymentStatus || "").toLowerCase() === "paid" && Boolean(paymentId);
 
-  return ![
-    "cancelled",
+  return paid && ![
     "refunded",
     "refund requested",
     "refund_requested",
@@ -71,8 +71,10 @@ export default function RefundRequest() {
   };
 
   useEffect(() => {
+    // Fetch the booking whenever the route booking id changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBooking();
-  }, [bookingId]);
+  }, [bookingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submitRefund = async () => {
     const cleanedReason = reason.trim();
@@ -92,7 +94,7 @@ export default function RefundRequest() {
       return;
     }
 
-    if (!booking || !canRequestRefund(booking.status)) {
+    if (!booking || !canRequestRefund(booking.status, booking.payment_status, booking.payment_id)) {
       toast.error("Refund is not available for this booking");
       return;
     }
@@ -126,7 +128,7 @@ export default function RefundRequest() {
     );
   }
 
-  const refundAvailable = canRequestRefund(booking?.status);
+  const refundAvailable = canRequestRefund(booking?.status, booking?.payment_status, booking?.payment_id);
 
   return (
     <>

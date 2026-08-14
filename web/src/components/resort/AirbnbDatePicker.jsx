@@ -320,7 +320,7 @@ function DateButton({ label, value, active, onClick, bordered = false }) {
         min-w-0 px-5 py-4 text-left transition
         hover:bg-gray-50
         ${bordered ? "border-l border-gray-200" : ""}
-        ${active ? "bg-[#eef4ff]" : "bg-white"}
+        ${active ? "border border-[#3b71e6] bg-[#eef4ff]" : "bg-white"}
       `}
     >
       <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">

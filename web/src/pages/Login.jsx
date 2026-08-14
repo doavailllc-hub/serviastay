@@ -52,12 +52,15 @@ export default function Login() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const requestedPath = location.state?.from;
+  const queryDestination = new URLSearchParams(location.search).get("from");
   const destination =
     requestedPath &&
     requestedPath.pathname?.startsWith("/") &&
     !requestedPath.pathname.startsWith("//")
       ? `${requestedPath.pathname}${requestedPath.search || ""}${requestedPath.hash || ""}`
-      : "/home";
+      : queryDestination?.startsWith("/") && !queryDestination.startsWith("//")
+        ? queryDestination
+        : "/home";
 
   const saveSession = (data) => {
     if (!data?.token || !data?.user) {

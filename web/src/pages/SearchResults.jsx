@@ -17,12 +17,26 @@ export default function SearchResults() {
   const location = useLocation();
 
   const searchData = location.state || {};
-  const selectedDestination = searchData.destination || "";
-  const selectedDate = searchData.date || "";
-  const selectedGuests = searchData.guests || 0;
+  const queryParams = new URLSearchParams(location.search);
+
+  const selectedDestination =
+    searchData.destination || queryParams.get("location") || "";
+
+  const selectedCheckin =
+    searchData.checkin || queryParams.get("checkin") || "";
+
+  const selectedCheckout =
+    searchData.checkout || queryParams.get("checkout") || "";
+
+  const selectedGuests =
+    Number(searchData.guests || queryParams.get("guests") || 0);
+
+  const selectedDate =
+    selectedCheckin && selectedCheckout
+      ? `${selectedCheckin} - ${selectedCheckout}`
+      : "";
 
   const [properties, setProperties] = useState([]);
-
   const [destination, setDestination] = useState(selectedDestination);
   const [date, setDate] = useState(selectedDate);
   const [guests, setGuests] = useState(selectedGuests);
@@ -36,7 +50,6 @@ export default function SearchResults() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [rating, setRating] = useState("");
-
   const keralaPlaces = [
     { name: "Kochi", icon: "🌊" },
     { name: "Munnar", icon: "⛰️" },

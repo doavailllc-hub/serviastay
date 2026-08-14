@@ -24,8 +24,18 @@ export default function AdminBookings() {
   const loadBookings = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/admin/bookings");
-      setBookings(res.data || []);
+      const [stayRes, serviceRes] = await Promise.all([
+        api.get("/admin/bookings"),
+        api.get("/admin/service-bookings"),
+      ]);
+      setBookings([
+        ...(stayRes.data || []).map((item) => ({ ...item, booking_type: "stay" })),
+        ...(serviceRes.data || []).map((item) => ({
+          ...item, booking_type: "service", property_title: item.service_title,
+          guest_name: item.customer_name, checkin: item.service_date, checkout: item.service_date,
+          guests: item.people, payment_method: item.payment_method || "pay on service",
+        })),
+      ]);
     } catch (err) {
       toast.error(err.response?.data?.message || "Bookings load failed");
     } finally {
@@ -49,11 +59,14 @@ export default function AdminBookings() {
     });
   }, [bookings, search, status, payment]);
 
-  const cancelBooking = async (id) => {
+  const cancelBooking = async (booking) => {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
-      await api.put(`/admin/bookings/${id}/status`, { status: "Cancelled" });
+      const endpoint = booking?.booking_type === "service"
+        ? `/admin/service-bookings/${booking.id}/status`
+        : `/admin/bookings/${booking.id}/status`;
+      await api.put(endpoint, { status: "Cancelled" });
       loadBookings();
     } catch (err) {
       toast.error(err.response?.data?.message || "Booking cancellation failed");
@@ -136,9 +149,9 @@ export default function AdminBookings() {
           <div className="divide-y divide-gray-100">
             {filtered.map((booking) => (
               <BookingRow
-                key={booking.id}
+                key={`${booking.booking_type}-${booking.id}`}
                 booking={booking}
-                onCancel={() => cancelBooking(booking.id)}
+                onCancel={() => cancelBooking(booking)}
               />
             ))}
           </div>

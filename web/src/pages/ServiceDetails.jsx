@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -88,11 +88,23 @@ export default function ServiceDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const service = SERVICES.find((item) => Number(item.id) === Number(id));
+  const [service, setService] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const [date, setDate] = useState("");
   const [guests, setGuests] = useState(1);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api.get(`/services/${id}`)
+      .then((response) => { if (active) setService(response.data); })
+      .catch(() => {
+        if (active) setService(SERVICES.find((item) => Number(item.id) === Number(id)) || null);
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [id]);
 
   const total = useMemo(() => {
     return Number(service?.price || 0) * Number(guests || 1);
@@ -157,6 +169,10 @@ export default function ServiceDetails() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return <div className="min-h-screen bg-white"><Navbar /><main className="mx-auto max-w-7xl px-4 py-20 md:px-8">Loading service...</main></div>;
+  }
 
   if (!service) {
     return (

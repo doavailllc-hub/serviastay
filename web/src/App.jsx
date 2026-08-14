@@ -47,9 +47,9 @@ import HostProfile from "./pages/HostProfile";
 import Verification from "./pages/Verification";
 import ServiceDetails from "./pages/ServiceDetails";
 import ServiceBookingDetails from "./pages/ServiceBookingDetails";
+import MyServiceBookings from "./pages/MyServiceBookings";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtectedRoute from "./routes/AdminProtectedRoute";
-import AdminSignup from "./pages/admin/AdminSignup";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProperties from "./pages/admin/AdminProperties";
@@ -127,9 +127,10 @@ export default function App() {
 
       <Route
         path="/service-booking/:id"
-        element={<ServiceBookingDetails />}
+        element={<ProtectedPage><ServiceBookingDetails /></ProtectedPage>}
       />
-<Route path="/experience-bookings" element={<MyExperienceBookings />} />
+      <Route path="/service-bookings" element={<ProtectedPage><MyServiceBookings /></ProtectedPage>} />
+<Route path="/experience-bookings" element={<ProtectedPage><MyExperienceBookings /></ProtectedPage>} />
       <Route path="/experiences" element={<Experience />} />
       <Route path="/services" element={<Services />} />
       <Route path="/help" element={<HelpCenter />} />
@@ -368,7 +369,6 @@ export default function App() {
 
       <Route path="/experiences/:id" element={<ExperienceDetails />} />
 <Route path="/admin/login" element={<AdminLogin />} />
-<Route path="/admin/signup" element={<AdminSignup />} />
 
 <Route
   path="/admin"
