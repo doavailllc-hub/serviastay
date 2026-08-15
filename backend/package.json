@@ -6,7 +6,8 @@
   "scripts": {
     "migrate": "node scripts/migrate.js",
     "start": "npm run migrate && node server.js",
-    "test": "node --test tests/validation.test.js"
+    "test": "node --test tests/validation.test.js tests/productionRules.test.js tests/databaseConcurrency.test.js",
+    "test:integration": "node --test tests/databaseConcurrency.test.js"
   },
   "keywords": [],
   "author": "",

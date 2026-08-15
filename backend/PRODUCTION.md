@@ -18,6 +18,10 @@ At least quarterly, restore the latest snapshot into an isolated database, run `
 
 Use `GET /health` for process liveness and `GET /ready` for database readiness. Alert on readiness failures, HTTP 5xx rate, failed webhook rows, failed gateway refunds, email delivery failures, database saturation, and S3 upload errors.
 
+## Tests
+
+Run `npm test` on every change. Database concurrency/idempotency tests are opt-in and refuse databases whose name does not clearly contain `test`. Configure `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, `TEST_DB_PASSWORD`, and `TEST_DB_NAME`, set `RUN_INTEGRATION_TESTS=1`, then run `npm run test:integration`. Never point integration tests at production.
+
 ## Razorpay
 
 Configure the webhook URL as `/api/payments/razorpay-webhook` and subscribe to payment captured/failed and refund processed/failed events. Use the exact same webhook secret configured in the environment.

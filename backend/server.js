@@ -13,6 +13,7 @@ const PDFDocument = require("pdfkit");
 require("dotenv").config();
 const Sentry = require("@sentry/node");
 const deleteS3File = require("./utils/deleteS3File");
+const { canTransitionBooking, verifyHmacSignature, getWebhookEventId } = require("./utils/productionRules");
 const app = express();
 
 const server = http.createServer(app);
@@ -1283,6 +1284,7 @@ app.put("/api/properties/:id", verifyToken, async (req, res) => {
     if (Number(ownerRows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
     }
+
     const {
       title,
       description,
@@ -1330,6 +1332,14 @@ app.delete("/api/properties/:id", verifyToken, async (req, res) => {
     if (!ownerRows.length) return res.status(404).json({ message: "Property not found" });
     if (Number(ownerRows[0].user_id) !== Number(req.user.id) && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    const activeBookings = await query(
+      "SELECT id FROM servia_bookings WHERE property_id=? AND status NOT IN ('Cancelled','Declined','Checked-out') LIMIT 1",
+      [propertyId]
+    );
+    if (activeBookings.length) {
+      return res.status(409).json({ message: "A property with active bookings cannot be deleted" });
     }
 
     const images = await query(
@@ -1599,10 +1609,11 @@ async function sendBookingConfirmation({
   total,
   bookingId,
 }) {
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+  await enqueueEmail({
     to: email,
     subject: `Booking Confirmed - ${propertyTitle}`,
+    type: "booking_confirmation",
+    dedupeKey: `booking_confirmation:${bookingId}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px">
         <h2>Booking Confirmed 🎉</h2>
@@ -2174,6 +2185,13 @@ app.use((err, req, res, next) => {
 });
 app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
+    const activeBookings = await query(
+      "SELECT id FROM servia_bookings WHERE property_id=? AND status NOT IN ('Cancelled','Declined','Checked-out') LIMIT 1",
+      [req.params.id]
+    );
+    if (activeBookings.length) {
+      return res.status(409).json({ message: "Archive this property after its active bookings are completed" });
+    }
     await query("DELETE FROM servia_property_images WHERE property_id=?", [
       req.params.id,
     ]);
@@ -2182,11 +2200,12 @@ app.delete("/api/admin/properties/:id", verifyToken, verifyAdmin, async (req, re
       req.params.id,
     ]);
 
-    await query("DELETE FROM servia_bookings WHERE property_id=?", [
-      req.params.id,
-    ]);
-
     await query("DELETE FROM servia_properties WHERE id=?", [req.params.id]);
+
+    await addAuditLog({
+      adminId: req.user.id, action: "PROPERTY_DELETED", entityType: "property",
+      entityId: Number(req.params.id), message: `Property #${req.params.id} deleted by admin`,
+    });
 
     res.json({
       success: true,
@@ -2909,6 +2928,70 @@ app.get("/api/host/reviews/:hostId", verifyToken, requireApprovedHost, async (re
   }
 });
 
+async function enqueueEmail({ to, subject, html, type = "transactional", dedupeKey = null }) {
+  if (!to || !subject || !html) return null;
+  try {
+    const result = await query(
+      `INSERT INTO servia_email_outbox
+       (recipient,subject,html_body,email_type,dedupe_key,status,next_attempt_at)
+       VALUES (?,?,?,?,?,'Pending',NOW())`,
+      [String(to).trim().toLowerCase(), String(subject).slice(0, 255), html, type, dedupeKey]
+    );
+    return result.insertId;
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY" && dedupeKey) return null;
+    throw error;
+  }
+}
+
+let emailWorkerBusy = false;
+async function processEmailOutbox() {
+  if (emailWorkerBusy) return;
+  emailWorkerBusy = true;
+  try {
+    for (let count = 0; count < 10; count += 1) {
+      const connection = await db.promise().getConnection();
+      let email = null;
+      try {
+        await connection.beginTransaction();
+        const [rows] = await connection.query(
+          `SELECT * FROM servia_email_outbox
+           WHERE status IN ('Pending','Retry') AND next_attempt_at <= NOW()
+           ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED`
+        );
+        if (!rows.length) { await connection.rollback(); break; }
+        email = rows[0];
+        await connection.query("UPDATE servia_email_outbox SET status='Sending',attempts=attempts+1 WHERE id=?", [email.id]);
+        await connection.commit();
+      } finally { connection.release(); }
+
+      try {
+        await transporter.sendMail({ from: process.env.MAIL_FROM, to: email.recipient, subject: email.subject, html: email.html_body });
+        await query("UPDATE servia_email_outbox SET status='Sent',sent_at=NOW(),last_error=NULL WHERE id=?", [email.id]);
+      } catch (error) {
+        const exhausted = Number(email.attempts || 0) + 1 >= Number(email.max_attempts || 5);
+        const delayMinutes = Math.min(60, 2 ** Math.max(1, Number(email.attempts || 0) + 1));
+        await query(
+          `UPDATE servia_email_outbox SET status=?,last_error=?,
+           next_attempt_at=DATE_ADD(NOW(),INTERVAL ? MINUTE) WHERE id=?`,
+          [exhausted ? "Failed" : "Retry", String(error.message).slice(0, 1000), delayMinutes, email.id]
+        );
+      }
+    }
+  } catch (error) {
+    console.log("EMAIL OUTBOX ERROR:", error.message);
+  } finally { emailWorkerBusy = false; }
+}
+
+async function startEmailWorker() {
+  await query(
+    "UPDATE servia_email_outbox SET status='Retry',next_attempt_at=NOW(),last_error='Recovered after worker restart' WHERE status='Sending' AND updated_at < DATE_SUB(NOW(),INTERVAL 10 MINUTE)"
+  );
+  processEmailOutbox();
+  const timer = setInterval(processEmailOutbox, 15000);
+  timer.unref();
+}
+
 app.get("/health", (req, res) => res.json({ status: "ok", uptime_seconds: Math.round(process.uptime()) }));
 app.get("/ready", async (req, res) => {
   try {
@@ -3311,19 +3394,12 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
 
     const signature = req.headers["x-razorpay-signature"];
 
-    const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(req.body)
-      .digest("hex");
-
-    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
-    const receivedBuffer = Buffer.from(String(signature || ""), "utf8");
-    if (expectedBuffer.length !== receivedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)) {
+    if (!verifyHmacSignature(req.body, signature, webhookSecret)) {
       return res.status(400).json({ message: "Invalid webhook signature" });
     }
 
     const event = JSON.parse(req.body.toString());
-    eventId = String(req.headers["x-razorpay-event-id"] || crypto.createHash("sha256").update(req.body).digest("hex"));
+    eventId = getWebhookEventId(req.body, req.headers["x-razorpay-event-id"]);
     try {
       await query(
         "INSERT INTO servia_webhook_events (provider,event_id,event_type,status,payload,attempts) VALUES ('razorpay',?,?, 'Processing',?,1)",
@@ -3399,14 +3475,7 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, requireApprovedHost
     const hostId = Number(req.user.id);
     const { status } = req.body;
 
-    const allowedStatuses = [
-      "Pending",
-      "Confirmed",
-      "Checked-in",
-      "Checked-out",
-      "Cancelled",
-      "Declined",
-    ];
+    const allowedStatuses = ["Confirmed", "Checked-in", "Checked-out", "Cancelled", "Declined"];
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid booking status" });
@@ -3420,6 +3489,7 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, requireApprovedHost
         b.checkin,
         b.checkout,
         b.total,
+        b.status AS current_status,
         p.user_id AS host_id,
         p.title,
         u.fullname,
@@ -3441,6 +3511,12 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, requireApprovedHost
 
     if (Number(booking.host_id) !== hostId && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    if (!canTransitionBooking(booking.current_status, status)) {
+      return res.status(409).json({
+        message: `Booking cannot move from ${booking.current_status} to ${status}`,
+      });
     }
 
     await query(
@@ -3468,10 +3544,11 @@ app.put("/api/host/bookings/:bookingId/status", verifyToken, requireApprovedHost
     );
 
     try {
-      await transporter.sendMail({
-        from: process.env.MAIL_FROM,
+      await enqueueEmail({
         to: booking.email,
         subject: `Booking ${status} - ${booking.title}`,
+        type: "booking_status",
+        dedupeKey: `booking_status:${booking.id}:${status}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;border:1px solid #eee;border-radius:18px">
             <h2 style="color:#3b71e6;margin-bottom:8px">Booking ${status}</h2>
@@ -5317,6 +5394,14 @@ app.delete("/api/trip-packages/:id", verifyToken, requireApprovedHost, async (re
       return res.status(403).json({ message: "Access denied" });
     }
 
+    const activeBookings = await query(
+      "SELECT id FROM experience_bookings WHERE experience_id=? AND status NOT IN ('Cancelled','Declined','Completed') LIMIT 1",
+      [packageId]
+    );
+    if (activeBookings.length) {
+      return res.status(409).json({ message: "A trip package with active bookings cannot be deleted" });
+    }
+
     await query("DELETE FROM package_departures WHERE experience_id = ?", [
       packageId,
     ]);
@@ -5334,6 +5419,13 @@ app.delete("/api/trip-packages/:id", verifyToken, requireApprovedHost, async (re
     ]);
 
     await query("DELETE FROM experiences WHERE id = ?", [packageId]);
+
+    await addAuditLog({
+      adminId: req.user.role === "admin" ? req.user.id : null,
+      action: "TRIP_PACKAGE_DELETED", entityType: "experience", entityId: packageId,
+      message: `Trip package #${packageId} deleted by ${req.user.role === "admin" ? "admin" : "host"}`,
+      metadata: { actorUserId: req.user.id },
+    });
 
     res.json({
       success: true,
@@ -6428,7 +6520,8 @@ app.put("/api/admin/properties/:id/moderation", verifyToken,requireAdminRole("Mo
     }
 
     const rows = await query(
-      "SELECT id, user_id, title FROM servia_properties WHERE id=? LIMIT 1",
+      `SELECT p.id,p.user_id,p.title,u.email FROM servia_properties p
+       JOIN servia_users u ON u.id=p.user_id WHERE p.id=? LIMIT 1`,
       [propertyId]
     );
 
@@ -6481,6 +6574,11 @@ await addAuditLog({
         "property",
       ]
     );
+    await enqueueEmail({
+      to: property.email, subject: `Listing review: ${property.title}`,
+      type: "property_moderation", dedupeKey: `property_moderation:${propertyId}:${status}`,
+      html: `<h2>Listing review updated</h2><p>Your listing <b>${property.title}</b> is now <b>${status}</b>.</p>${reason ? `<p>Admin note: ${reason}</p>` : ""}`,
+    });
 
     res.json({
       success: true,
@@ -6834,6 +6932,7 @@ app.put("/api/experience-bookings/:id/cancel", verifyToken, async (req, res) => 
       await connection.rollback();
       return res.status(403).json({ message: "Access denied" });
     }
+
     if (booking.status === "Cancelled") {
       await connection.rollback();
       return res.status(409).json({ message: "Booking is already cancelled" });
@@ -7519,13 +7618,27 @@ app.get("/api/admin/trip-packages", verifyToken, verifyAdmin, async (req, res) =
 
 app.put("/api/admin/trip-packages/:id/status", verifyToken, verifyAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status, admin_note } = req.body;
+    const id = Number(req.params.id);
+    const status = String(req.body.status || "");
+    const adminNote = String(req.body.admin_note || "").trim();
 
     const allowed = ["Pending", "active", "Rejected", "Suspended"];
 
     if (!allowed.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
+    }
+
+    if (["Rejected", "Suspended"].includes(status) && !adminNote) {
+      return res.status(400).json({ message: "An admin note is required" });
+    }
+
+    const rows = await query(`SELECT e.id,e.host_id,e.title,e.status,u.email FROM experiences e
+      JOIN servia_users u ON u.id=e.host_id WHERE e.id=? LIMIT 1`, [id]);
+    if (!rows.length) return res.status(404).json({ message: "Trip package not found" });
+    const trip = rows[0];
+    const transitions = { Pending: ["active", "Rejected"], active: ["Suspended"], Rejected: ["Pending"], Suspended: ["active"] };
+    if (!(transitions[trip.status] || []).includes(status)) {
+      return res.status(409).json({ message: `Trip package cannot move from ${trip.status} to ${status}` });
     }
 
     await query(
@@ -7534,13 +7647,56 @@ app.put("/api/admin/trip-packages/:id/status", verifyToken, verifyAdmin, async (
       SET status = ?, admin_note = ?
       WHERE id = ?
       `,
-      [status, admin_note || null, id]
+      [status, adminNote || null, id]
     );
+
+    await query(
+      "INSERT INTO servia_notifications (user_id,title,message,type,is_read) VALUES (?,?,?,?,0)",
+      [trip.host_id, "Trip package review updated", status === "active" ? `Your trip package \"${trip.title}\" is now published.` : `Your trip package \"${trip.title}\" is now ${status}. ${adminNote}`.trim(), "trip_package"]
+    );
+    await enqueueEmail({
+      to: trip.email, subject: `Trip package review: ${trip.title}`,
+      type: "trip_moderation", dedupeKey: `trip_moderation:${id}:${status}`,
+      html: `<h2>Trip package review updated</h2><p>Your package <b>${trip.title}</b> is now <b>${status}</b>.</p>${adminNote ? `<p>Admin note: ${adminNote}</p>` : ""}`,
+    });
+    await addAuditLog({
+      adminId: req.user.id, action: "TRIP_PACKAGE_STATUS_CHANGED", entityType: "experience",
+      entityId: id, message: `Trip package \"${trip.title}\" changed from ${trip.status} to ${status}`,
+      metadata: { previousStatus: trip.status, status, adminNote },
+    });
 
     res.json({ message: "Trip package status updated" });
   } catch (err) {
     console.log("ADMIN TRIP STATUS ERROR:", err.message);
     res.status(500).json({ message: "Failed to update trip package" });
+  }
+});
+
+app.get("/api/admin/email-outbox", verifyToken, requireAdminRole("Support Admin"), async (req, res) => {
+  try {
+    const status = String(req.query.status || "");
+    const allowed = ["Pending", "Sending", "Retry", "Sent", "Failed"];
+    const rows = status && allowed.includes(status)
+      ? await query("SELECT id,recipient,subject,email_type,status,attempts,max_attempts,last_error,next_attempt_at,sent_at,created_at FROM servia_email_outbox WHERE status=? ORDER BY id DESC LIMIT 200", [status])
+      : await query("SELECT id,recipient,subject,email_type,status,attempts,max_attempts,last_error,next_attempt_at,sent_at,created_at FROM servia_email_outbox ORDER BY id DESC LIMIT 200");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Email outbox failed to load" });
+  }
+});
+
+app.put("/api/admin/email-outbox/:id/retry", verifyToken, requireAdminRole("Support Admin"), async (req, res) => {
+  try {
+    const result = await query(
+      "UPDATE servia_email_outbox SET status='Retry',attempts=0,last_error=NULL,next_attempt_at=NOW() WHERE id=? AND status='Failed'",
+      [Number(req.params.id)]
+    );
+    if (!result.affectedRows) return res.status(409).json({ message: "Only failed emails can be retried" });
+    await addAuditLog({ adminId: req.user.id, action: "EMAIL_RETRY_REQUESTED", entityType: "email", entityId: Number(req.params.id), message: `Email #${req.params.id} queued for retry` });
+    processEmailOutbox();
+    res.json({ success: true, message: "Email queued for retry" });
+  } catch (err) {
+    res.status(500).json({ message: "Email retry failed" });
   }
 });
 
@@ -7574,6 +7730,17 @@ app.use((err, req, res, next) => {
 });
 
 async function ensureSupplementalTables() {
+  await query(`CREATE TABLE IF NOT EXISTS servia_email_outbox (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    recipient VARCHAR(320) NOT NULL, subject VARCHAR(255) NOT NULL, html_body MEDIUMTEXT NOT NULL,
+    email_type VARCHAR(60) NOT NULL DEFAULT 'transactional', dedupe_key VARCHAR(191) NULL,
+    status ENUM('Pending','Sending','Retry','Sent','Failed') NOT NULL DEFAULT 'Pending',
+    attempts INT UNSIGNED NOT NULL DEFAULT 0, max_attempts INT UNSIGNED NOT NULL DEFAULT 5,
+    last_error VARCHAR(1000) NULL, next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at DATETIME NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_email_outbox_dedupe (dedupe_key), INDEX idx_email_outbox_delivery (status,next_attempt_at)
+  )`);
   await query(`CREATE TABLE IF NOT EXISTS servia_auth_codes (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(320) NOT NULL,
@@ -7648,9 +7815,12 @@ async function ensureSupplementalTables() {
   )`);
 }
 
-ensureSupplementalTables().then(() => server.listen(PORT, "0.0.0.0", () => {
+ensureSupplementalTables().then(async () => {
+  await startEmailWorker();
+  server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} 🚀`);
-})).catch((err) => {
+  });
+}).catch((err) => {
   console.error("Database initialization failed:", err.message);
   process.exitCode = 1;
 });
