@@ -4599,11 +4599,13 @@ app.post(
   requireApprovedHost,
   upload.array("images", 10),
   async (req, res) => {
-    const connection = await db.promise().getConnection();
+    let connection;
     const uploadedImages = [];
     let submissionKey = null;
+    let createPhase = "database_connection";
 
     try {
+      connection = await db.promise().getConnection();
       const {
         title,
         category,
@@ -4681,6 +4683,7 @@ language,
       }
 
       try {
+        createPhase = "submission_reservation";
         await connection.query(
           "INSERT INTO servia_host_submissions (submission_key,user_id,submission_type,status) VALUES (?,?,'experience','Processing')",
           [submissionKey, req.user.id]
@@ -4702,6 +4705,7 @@ language,
       }
 
       for (const file of req.files) {
+        createPhase = "image_upload";
         const uploaded = await uploadFileToS3(file, "experiences");
         uploadedImages.push(uploaded);
       }
@@ -4710,6 +4714,7 @@ language,
 
       await connection.beginTransaction();
 
+      createPhase = "package_insert";
       const [result] = await connection.query(
         `
         INSERT INTO experiences
@@ -4791,6 +4796,7 @@ language || "English",
         index,
       ]);
 
+      createPhase = "image_record_insert";
       await connection.query(
         `
         INSERT INTO experience_images
@@ -4800,6 +4806,7 @@ language || "English",
         [imageValues]
       );
 
+      createPhase = "submission_completion";
       await connection.query("UPDATE servia_host_submissions SET status='Completed',entity_id=? WHERE submission_key=?", [experienceId, submissionKey]);
       await connection.commit();
 
@@ -4813,19 +4820,25 @@ language || "English",
         status: "Pending",
       });
     } catch (err) {
-      try { await connection.rollback(); } catch {}
+      try { await connection?.rollback(); } catch {}
       await Promise.allSettled(uploadedImages.map((image) => deleteS3File(image.key)));
       if (submissionKey) await query("DELETE FROM servia_host_submissions WHERE submission_key=? AND status='Processing'", [submissionKey]).catch(() => {});
 
-      console.log("CREATE TRIP PACKAGE ERROR:", err.message);
+      console.error("CREATE TRIP PACKAGE ERROR:", {
+        requestId: req.requestId,
+        phase: createPhase,
+        code: err.code,
+        message: err.message,
+      });
 
       res.status(500).json({
         success: false,
         message: "Trip package create failed",
         request_id: req.requestId,
+        phase: createPhase,
       });
     } finally {
-      connection.release();
+      connection?.release();
     }
   }
 );

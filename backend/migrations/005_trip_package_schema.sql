@@ -1,0 +1,10 @@
+ALTER TABLE experiences ADD COLUMN host_id BIGINT NULL;
+ALTER TABLE experiences ADD COLUMN brand_name VARCHAR(255) NULL;
+ALTER TABLE experiences ADD COLUMN team_contact VARCHAR(255) NULL;
+ALTER TABLE experiences ADD COLUMN exclusions TEXT NULL;
+ALTER TABLE experiences ADD COLUMN terms_conditions TEXT NULL;
+ALTER TABLE experiences ADD COLUMN pickup_map_url TEXT NULL;
+ALTER TABLE experiences ADD COLUMN pickup_latitude DECIMAL(10,7) NULL;
+ALTER TABLE experiences ADD COLUMN pickup_longitude DECIMAL(10,7) NULL;
+ALTER TABLE experience_images ADD COLUMN image_key VARCHAR(1024) NULL;
+ALTER TABLE experiences ADD INDEX idx_experiences_host_id (host_id);
