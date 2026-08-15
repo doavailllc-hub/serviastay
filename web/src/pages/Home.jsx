@@ -12,14 +12,10 @@ import {
   Users,
   MapPin,
 } from "lucide-react";
-import axios from "axios";
-
 import Navbar from "../components/Navbar";
 import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
-
-
-const API_URL = `${import.meta.env.VITE_API_BASE_URL}/properties`;
+import api from "../api/api";
 
 function toISO(date) {
   if (!date) return "";
@@ -47,6 +43,7 @@ export default function Home() {
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [activePanel, setActivePanel] = useState(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
@@ -83,8 +80,10 @@ export default function Home() {
   }, [destination]);
 
   useEffect(() => {
+    // Initial public listing fetch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProperties();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -103,18 +102,20 @@ export default function Home() {
     }
   }, [activePanel]);
 
-  const loadProperties = async () => {
+  async function loadProperties() {
     try {
       setLoading(true);
-      const res = await axios.get(API_URL);
+      setLoadError("");
+      const res = await api.get("/properties");
       setProperties(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.log("Properties load failed:", err);
       setProperties([]);
+      setLoadError(err.response?.data?.message || "Properties could not be loaded. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const dateLabel =
     checkin && checkout
@@ -400,6 +401,8 @@ export default function Home() {
 
         {loading ? (
           <PropertyGridSkeleton />
+        ) : loadError ? (
+          <LoadError message={loadError} onRetry={loadProperties} />
         ) : properties.length === 0 ? (
           <EmptyState />
         ) : (
@@ -949,4 +952,16 @@ function EmptyState() {
 
 function Divider() {
   return <div className="h-7 w-px shrink-0 bg-gray-200" />;
+}
+
+function LoadError({ message, onRetry }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-10 text-center">
+      <h2 className="text-xl font-semibold text-red-700">Unable to load properties</h2>
+      <p className="mt-2 text-sm text-red-600">{message}</p>
+      <button type="button" onClick={onRetry} className="mt-5 rounded-xl bg-[#3b71e6] px-5 py-2.5 text-sm font-semibold text-white">
+        Try again
+      </button>
+    </div>
+  );
 }
