@@ -358,7 +358,6 @@ export default function AddTripPackage() {
       await api.post("/trip-packages", body, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
         },
       });
 
@@ -382,8 +381,19 @@ export default function AddTripPackage() {
         return;
       }
 
+      if (err.response?.status === 403) {
+        setError(err.response?.data?.message || "Your host verification must be approved before submitting packages.");
+        return;
+      }
+
+      if (!err.response) {
+        setError("The server could not be reached. Check your connection and try again; your draft is saved.");
+        return;
+      }
+
       setError(
-        err.response?.data?.message ||
+        [err.response?.data?.message, err.response?.data?.request_id ? `Reference: ${err.response.data.request_id}` : ""]
+          .filter(Boolean).join(" ") ||
           "Unable to create trip package. Please try again."
       );
     } finally {

@@ -4745,7 +4745,7 @@ language || "English",
       res.status(500).json({
         success: false,
         message: "Trip package create failed",
-        error: err.message,
+        request_id: req.requestId,
       });
     } finally {
       connection.release();
