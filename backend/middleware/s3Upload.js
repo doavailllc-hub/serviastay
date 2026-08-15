@@ -3,6 +3,7 @@ const path = require("path");
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const { v4: uuidv4 } = require("uuid");
 const s3 = require("../config/s3");
+const { matchesImageSignature } = require("../utils/validation");
 
 const storage = multer.memoryStorage();
 
@@ -28,6 +29,10 @@ const getFolder = (type = "temp") => {
 };
 
 const uploadFileToS3 = async (file, folder = "temp") => {
+  if (!matchesImageSignature(file?.buffer, file?.mimetype)) {
+    throw new Error("Uploaded file content does not match a supported image format");
+  }
+
   const ext = path.extname(file.originalname).toLowerCase();
   const key = `${getFolder(folder)}/${Date.now()}-${uuidv4()}${ext}`;
 

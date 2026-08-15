@@ -18,7 +18,10 @@ const app = express();
 const server = http.createServer(app);
 const rateLimit = require("express-rate-limit");
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "servia_super_secret_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be configured with at least 32 characters");
+}
 const API_BASE_URL = process.env.API_BASE_URL || "https://stay.dovail.com";
 
 const allowedOrigins = [
@@ -33,9 +36,22 @@ const allowedOrigins = [
   "http://stay.dovail.com",
   "https://stay.dovail.com",
   process.env.CLIENT_URL,
+  ...(process.env.CORS_ORIGINS || "").split(",").map((value) => value.trim()),
 ].filter(Boolean);
 
-Sentry.setupExpressErrorHandler(app);
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+app.use((req, res, next) => {
+  const requestId = String(req.headers["x-request-id"] || crypto.randomUUID()).slice(0, 100);
+  req.requestId = requestId;
+  res.setHeader("X-Request-Id", requestId);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  next();
+});
 app.use(
   cors({
     origin(origin, callback) {
@@ -1491,15 +1507,25 @@ app.post("/api/check-availability", async (req, res) => {
   try {
     const { property_id, checkin, checkout } = req.body;
 
+    const propertyId = Number(property_id);
+    const startDate = new Date(`${checkin}T00:00:00Z`);
+    const endDate = new Date(`${checkout}T00:00:00Z`);
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    if (!propertyId || !/^\d{4}-\d{2}-\d{2}$/.test(checkin) || !/^\d{4}-\d{2}-\d{2}$/.test(checkout) ||
+        !Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate || startDate < today) {
+      return res.status(400).json({ available: false, message: "Invalid booking dates" });
+    }
+
     const rows = await query(
       `
-      SELECT id FROM servia_bookings
-      WHERE property_id = ?
-      AND status != 'Cancelled'
-      AND checkin < ?
-      AND checkout > ?
+      SELECT 'booking' AS conflict_type FROM servia_bookings
+      WHERE property_id = ? AND status NOT IN ('Cancelled','Declined') AND checkin < ? AND checkout > ?
+      UNION ALL
+      SELECT 'calendar' AS conflict_type FROM servia_property_calendar
+      WHERE property_id = ? AND status='Blocked' AND calendar_date >= ? AND calendar_date < ?
+      LIMIT 1
       `,
-      [property_id, checkout, checkin]
+      [propertyId, checkout, checkin, propertyId, checkin, checkout]
     );
 
     res.json({
@@ -1531,14 +1557,14 @@ app.post("/api/properties/check-availability", verifyToken, async (req, res) => 
 
     const rows = await query(
       `
-      SELECT id FROM servia_bookings
-      WHERE property_id = ?
-      AND status != 'Cancelled'
-      AND checkin < ?
-      AND checkout > ?
+      SELECT 'booking' AS conflict_type FROM servia_bookings
+      WHERE property_id = ? AND status NOT IN ('Cancelled','Declined') AND checkin < ? AND checkout > ?
+      UNION ALL
+      SELECT 'calendar' AS conflict_type FROM servia_property_calendar
+      WHERE property_id = ? AND status='Blocked' AND calendar_date >= ? AND calendar_date < ?
       LIMIT 1
       `,
-      [property_id, checkout, checkin]
+      [property_id, checkout, checkin, property_id, checkin, checkout]
     );
 
     if (rows.length) {
@@ -1718,6 +1744,17 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
       return res.status(409).json({
         message: "This property is already booked for these dates",
       });
+    }
+
+    const [blockedDates] = await connection.query(
+      `SELECT calendar_date FROM servia_property_calendar
+       WHERE property_id=? AND status='Blocked' AND calendar_date >= ? AND calendar_date < ?
+       LIMIT 1 FOR UPDATE`,
+      [propertyId, checkin, checkout]
+    );
+    if (blockedDates.length) {
+      await connection.rollback();
+      return res.status(409).json({ message: "The host has blocked one or more selected dates" });
     }
 
     const start = new Date(`${checkin}T00:00:00`);
@@ -2869,6 +2906,16 @@ app.get("/api/host/reviews/:hostId", verifyToken, requireApprovedHost, async (re
   }
 });
 
+app.get("/health", (req, res) => res.json({ status: "ok", uptime_seconds: Math.round(process.uptime()) }));
+app.get("/ready", async (req, res) => {
+  try {
+    await query("SELECT 1 AS ready");
+    res.json({ status: "ready" });
+  } catch {
+    res.status(503).json({ status: "not_ready" });
+  }
+});
+
 app.put("/api/reviews/:id/reply", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const reviewId = Number(req.params.id);
@@ -3251,6 +3298,7 @@ app.get("/api/bookings/:bookingId/receipt", verifyToken, async (req, res) => {
 });
 
 app.post("/api/payments/razorpay-webhook", async (req, res) => {
+  let eventId = null;
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -3265,11 +3313,23 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
       .update(req.body)
       .digest("hex");
 
-    if (expectedSignature !== signature) {
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+    const receivedBuffer = Buffer.from(String(signature || ""), "utf8");
+    if (expectedBuffer.length !== receivedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)) {
       return res.status(400).json({ message: "Invalid webhook signature" });
     }
 
     const event = JSON.parse(req.body.toString());
+    eventId = String(req.headers["x-razorpay-event-id"] || crypto.createHash("sha256").update(req.body).digest("hex"));
+    try {
+      await query(
+        "INSERT INTO servia_webhook_events (provider,event_id,event_type,status,payload,attempts) VALUES ('razorpay',?,?, 'Processing',?,1)",
+        [eventId, String(event.event || "unknown"), JSON.stringify(event)]
+      );
+    } catch (error) {
+      if (error.code === "ER_DUP_ENTRY") return res.json({ success: true, duplicate: true });
+      throw error;
+    }
 
     if (event.event === "payment.captured") {
       const payment = event.payload.payment.entity;
@@ -3299,9 +3359,30 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
       );
     }
 
+    if (["refund.processed", "refund.failed"].includes(event.event)) {
+      const refund = event.payload?.refund?.entity;
+      if (refund?.id) {
+        const gatewayStatus = event.event === "refund.processed" ? "Processed" : "Failed";
+        const requests = await query(
+          "SELECT refund_request_id,booking_id FROM servia_gateway_refunds WHERE gateway_refund_id=? LIMIT 1",
+          [refund.id]
+        );
+        await query(
+          "UPDATE servia_gateway_refunds SET status=?,error_message=? WHERE gateway_refund_id=?",
+          [gatewayStatus, refund.error_description || null, refund.id]
+        );
+        if (requests.length) {
+          await query("UPDATE servia_refund_requests SET status=? WHERE id=?", [gatewayStatus === "Processed" ? "Paid" : "Approved", requests[0].refund_request_id]);
+          await query("UPDATE servia_bookings SET status='Cancelled',payment_status=? WHERE id=?", [gatewayStatus === "Processed" ? "Refunded" : "Refund Failed", requests[0].booking_id]);
+        }
+      }
+    }
+
+    await query("UPDATE servia_webhook_events SET status='Processed',error_message=NULL WHERE provider='razorpay' AND event_id=?", [eventId]);
     res.json({ success: true });
   } catch (err) {
     console.log("RAZORPAY WEBHOOK ERROR:", err.message);
+    if (eventId) await query("UPDATE servia_webhook_events SET status='Failed',error_message=? WHERE provider='razorpay' AND event_id=?", [String(err.message).slice(0, 1000), eventId]).catch(() => {});
     res.status(500).json({
       message: "Webhook failed",
       error: err.message,
@@ -3707,51 +3788,61 @@ app.get("/api/host/calendar/:propertyId", verifyToken, requireApprovedHost, asyn
 });
 
 app.post("/api/host/calendar", verifyToken, requireApprovedHost, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const userId = Number(req.user.id);
-    const { property_id, calendar_date, status, custom_price, note } = req.body;
+    const propertyId = Number(req.body.property_id);
+    const calendarDate = String(req.body.calendar_date || "");
+    const status = String(req.body.status || "");
+    const selectedDate = new Date(`${calendarDate}T00:00:00Z`);
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    const customPrice = req.body.custom_price === "" || req.body.custom_price == null
+      ? null : Number(req.body.custom_price);
 
-    const allowed = ["Available", "Blocked"];
-
-    if (!property_id || !calendar_date) {
-      return res.status(400).json({ message: "Property and date are required" });
+    if (!propertyId || !/^\d{4}-\d{2}-\d{2}$/.test(calendarDate) ||
+        !Number.isFinite(selectedDate.getTime()) || selectedDate < today) {
+      return res.status(400).json({ message: "Enter a valid future calendar date" });
     }
-
-    if (!allowed.includes(status)) {
+    if (!["Available", "Blocked"].includes(status)) {
       return res.status(400).json({ message: "Invalid calendar status" });
     }
-
-    const ownerRows = await query(
-      "SELECT id FROM servia_properties WHERE id = ? AND user_id = ? LIMIT 1",
-      [property_id, userId]
-    );
-
-    if (!ownerRows.length && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied" });
+    if (customPrice !== null && (!Number.isFinite(customPrice) || customPrice <= 0 || customPrice > 10000000)) {
+      return res.status(400).json({ message: "Custom price is invalid" });
     }
 
-    await query(
-      `
-      INSERT INTO servia_property_calendar
-      (property_id, calendar_date, status, custom_price, note)
-      VALUES (?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        status = VALUES(status),
-        custom_price = VALUES(custom_price),
-        note = VALUES(note)
-      `,
-      [
-        property_id,
-        calendar_date,
-        status,
-        custom_price || null,
-        note || null,
-      ]
+    await connection.beginTransaction();
+    const [properties] = await connection.query(
+      "SELECT id,user_id FROM servia_properties WHERE id=? LIMIT 1 FOR UPDATE", [propertyId]
     );
+    if (!properties.length) { await connection.rollback(); return res.status(404).json({ message: "Property not found" }); }
+    if (Number(properties[0].user_id) !== userId && req.user.role !== "admin") {
+      await connection.rollback(); return res.status(403).json({ message: "Access denied" });
+    }
 
+    if (status === "Blocked") {
+      const [reservations] = await connection.query(
+        `SELECT id FROM servia_bookings WHERE property_id=?
+         AND status NOT IN ('Cancelled','Declined') AND checkin <= ? AND checkout > ? LIMIT 1 FOR UPDATE`,
+        [propertyId, calendarDate, calendarDate]
+      );
+      if (reservations.length) {
+        await connection.rollback();
+        return res.status(409).json({ message: "This date already has an active reservation" });
+      }
+    }
+
+    await connection.query(
+      `INSERT INTO servia_property_calendar (property_id,calendar_date,status,custom_price,note)
+       VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE status=VALUES(status),custom_price=VALUES(custom_price),note=VALUES(note)`,
+      [propertyId, calendarDate, status, customPrice, String(req.body.note || "").trim().slice(0, 500) || null]
+    );
+    await connection.commit();
     res.json({ success: true, message: "Calendar updated" });
   } catch (err) {
+    try { await connection.rollback(); } catch {}
     res.status(500).json({ message: "Calendar update failed", error: err.message });
+  } finally {
+    connection.release();
   }
 });
 app.post("/api/coupons/validate", verifyToken, async (req, res) => {
@@ -4955,6 +5046,9 @@ app.get("/api/trip-packages/:id/departures", async (req, res) => {
 app.post("/api/trip-packages/:id/departures", verifyToken, requireApprovedHost, async (req, res) => {
   try {
     const { departure_date, total_seats, status } = req.body;
+    const seats = Number(total_seats);
+    const departureDate = new Date(`${departure_date}T00:00:00Z`);
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
 
     const owners = await query("SELECT host_id FROM experiences WHERE id=? LIMIT 1", [req.params.id]);
     if (!owners.length) return res.status(404).json({ message: "Trip package not found" });
@@ -4962,8 +5056,11 @@ app.post("/api/trip-packages/:id/departures", verifyToken, requireApprovedHost, 
       return res.status(403).json({ message: "Access denied" });
     }
 
-    if (!departure_date) {
-      return res.status(400).json({ message: "Departure date is required" });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(departure_date || "")) ||
+        !Number.isFinite(departureDate.getTime()) || departureDate < today ||
+        !Number.isInteger(seats) || seats < 1 || seats > 10000 ||
+        !["Available", "Cancelled"].includes(status || "Available")) {
+      return res.status(400).json({ message: "Enter a valid future departure and seat capacity" });
     }
 
     const result = await query(
@@ -4975,7 +5072,7 @@ app.post("/api/trip-packages/:id/departures", verifyToken, requireApprovedHost, 
       [
         req.params.id,
         departure_date,
-        Number(total_seats || 20),
+        seats,
         status || "Available",
       ]
     );
@@ -4993,54 +5090,59 @@ app.post("/api/trip-packages/:id/departures", verifyToken, requireApprovedHost, 
 });
 
 app.put("/api/departures/:id", verifyToken, requireApprovedHost, async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
-    const { departure_date, total_seats, booked_seats, status } = req.body;
+    const departureId = Number(req.params.id);
+    const departureDate = String(req.body.departure_date || "");
+    const totalSeats = Number(req.body.total_seats);
+    const requestedStatus = String(req.body.status || "Available");
+    if (!departureId || !/^\d{4}-\d{2}-\d{2}$/.test(departureDate) || !Number.isInteger(totalSeats) ||
+        totalSeats < 1 || totalSeats > 10000 || !["Available", "Sold Out", "Cancelled"].includes(requestedStatus)) {
+      return res.status(400).json({ message: "Invalid departure details" });
+    }
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      `SELECT d.*,e.host_id FROM package_departures d JOIN experiences e ON e.id=d.experience_id
+       WHERE d.id=? LIMIT 1 FOR UPDATE`, [departureId]
+    );
+    if (!rows.length) { await connection.rollback(); return res.status(404).json({ message: "Departure not found" }); }
+    const departure = rows[0];
+    if (Number(departure.host_id) !== Number(req.user.id) && req.user.role !== "admin") {
+      await connection.rollback(); return res.status(403).json({ message: "Access denied" });
+    }
+    if (totalSeats < Number(departure.booked_seats || 0)) {
+      await connection.rollback();
+      return res.status(409).json({ message: `Capacity cannot be below ${departure.booked_seats} booked seats` });
+    }
+    if (requestedStatus === "Cancelled" && Number(departure.booked_seats || 0) > 0) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Cancel active bookings before cancelling this departure" });
+    }
+    const status = totalSeats === Number(departure.booked_seats || 0) ? "Sold Out" : requestedStatus === "Sold Out" ? "Available" : requestedStatus;
+    await connection.query(
+      "UPDATE package_departures SET departure_date=?,total_seats=?,status=? WHERE id=?",
+      [departureDate, totalSeats, status, departureId]
+    );
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err) {
+    try { await connection.rollback(); } catch {}
+    res.status(500).json({ message: "Departure update failed", error: err.message });
+  } finally { connection.release(); }
+});
 
+app.delete("/api/departures/:id", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
     const owners = await query(
-      `SELECT e.host_id FROM package_departures d JOIN experiences e ON e.id=d.experience_id
+      `SELECT e.host_id,d.booked_seats FROM package_departures d JOIN experiences e ON e.id=d.experience_id
        WHERE d.id=? LIMIT 1`, [req.params.id]
     );
     if (!owners.length) return res.status(404).json({ message: "Departure not found" });
     if (Number(owners[0].host_id) !== Number(req.user.id) && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
     }
-
-    await query(
-      `
-      UPDATE package_departures
-      SET departure_date = ?,
-          total_seats = ?,
-          booked_seats = ?,
-          status = ?
-      WHERE id = ?
-      `,
-      [
-        departure_date,
-        Number(total_seats || 20),
-        Number(booked_seats || 0),
-        status || "Available",
-        req.params.id,
-      ]
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({
-      message: "Departure update failed",
-      error: err.message,
-    });
-  }
-});
-
-app.delete("/api/departures/:id", verifyToken, requireApprovedHost, async (req, res) => {
-  try {
-    const owners = await query(
-      `SELECT e.host_id FROM package_departures d JOIN experiences e ON e.id=d.experience_id
-       WHERE d.id=? LIMIT 1`, [req.params.id]
-    );
-    if (!owners.length) return res.status(404).json({ message: "Departure not found" });
-    if (Number(owners[0].host_id) !== Number(req.user.id) && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied" });
+    if (Number(owners[0].booked_seats || 0) > 0) {
+      return res.status(409).json({ message: "A departure with active bookings cannot be deleted" });
     }
     await query("DELETE FROM package_departures WHERE id = ?", [req.params.id]);
 
@@ -7258,7 +7360,8 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
 
     await connection.beginTransaction();
     const [rows] = await connection.query(
-      "SELECT * FROM servia_refund_requests WHERE id=? LIMIT 1 FOR UPDATE",
+      `SELECT r.*,b.payment_id,b.total AS booking_total FROM servia_refund_requests r
+       JOIN servia_bookings b ON b.id=r.booking_id WHERE r.id=? LIMIT 1 FOR UPDATE`,
       [refundId]
     );
 
@@ -7282,23 +7385,68 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
       });
     }
 
+    let finalStatus = status;
+    let gatewayRefund = null;
+    if (status === "Approved") {
+      if (!razorpay || !refund.payment_id) {
+        await connection.rollback();
+        return res.status(409).json({ message: "A Razorpay payment is required to approve this refund" });
+      }
+      const amount = Number(refund.amount || 0);
+      if (amount <= 0 || amount > Number(refund.booking_total || 0)) {
+        await connection.rollback();
+        return res.status(409).json({ message: "Recorded refund amount is invalid" });
+      }
+      const [existingGateway] = await connection.query(
+        "SELECT * FROM servia_gateway_refunds WHERE refund_request_id=? LIMIT 1 FOR UPDATE", [refundId]
+      );
+      if (existingGateway.length) {
+        await connection.rollback();
+        return res.status(409).json({ message: "This refund has already been sent to the payment gateway" });
+      }
+      gatewayRefund = await razorpay.payments.refund(refund.payment_id, {
+        amount: Math.round(amount * 100),
+        speed: "normal",
+        receipt: `refund_${refundId}`,
+        notes: { refund_request_id: String(refundId), booking_id: String(refund.booking_id) },
+      });
+      const gatewayStatus = gatewayRefund.status === "processed" ? "Processed" : "Pending";
+      await connection.query(
+        `INSERT INTO servia_gateway_refunds
+         (refund_request_id,booking_id,payment_id,gateway_refund_id,amount,status)
+         VALUES (?,?,?,?,?,?)`,
+        [refundId, refund.booking_id, refund.payment_id, gatewayRefund.id, amount, gatewayStatus]
+      );
+      finalStatus = gatewayStatus === "Processed" ? "Paid" : "Approved";
+    }
+
+    if (status === "Paid") {
+      const [gatewayRows] = await connection.query(
+        "SELECT status FROM servia_gateway_refunds WHERE refund_request_id=? LIMIT 1 FOR UPDATE", [refundId]
+      );
+      if (!gatewayRows.length || gatewayRows[0].status !== "Processed") {
+        await connection.rollback();
+        return res.status(409).json({ message: "Refund is not confirmed as processed by Razorpay" });
+      }
+    }
+
     await connection.query(
       `
       UPDATE servia_refund_requests
       SET status=?, admin_note=?
       WHERE id=?
       `,
-      [status, adminNote || null, refundId]
+      [finalStatus, adminNote || null, refundId]
     );
 
-    if (status === "Approved") {
+    if (finalStatus === "Approved") {
       await connection.query(
         "UPDATE servia_bookings SET status='Cancelled', payment_status='Refund Approved' WHERE id=?",
         [refund.booking_id]
       );
     }
 
-    if (status === "Paid") {
+    if (finalStatus === "Paid") {
       await connection.query(
         "UPDATE servia_bookings SET status='Cancelled', payment_status='Refunded' WHERE id=?",
         [refund.booking_id]
@@ -7314,9 +7462,9 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
       [
         refund.user_id,
         "Refund request updated",
-        status === "Rejected"
+        finalStatus === "Rejected"
           ? `Your refund request was rejected. ${adminNote}`
-          : `Your refund request is now ${status}.`,
+          : `Your refund request is now ${finalStatus}.`,
         "refund",
       ]
     );
@@ -7328,11 +7476,11 @@ app.put("/api/admin/refunds/:id/status", verifyToken, requireAdminRole("Finance 
       action: "REFUND_STATUS_UPDATED",
       entityType: "refund",
       entityId: refundId,
-      message: `Refund #${refundId} marked as ${status}`,
-      metadata: { status, adminNote },
+      message: `Refund #${refundId} marked as ${finalStatus}`,
+      metadata: { status: finalStatus, adminNote, gatewayRefundId: gatewayRefund?.id || null },
     });
 
-    res.json({ success: true, message: `Refund marked as ${status}` });
+    res.json({ success: true, message: `Refund marked as ${finalStatus}`, gateway_refund_id: gatewayRefund?.id || null });
   } catch (err) {
     try { await connection.rollback(); } catch {}
     console.log("ADMIN REFUND STATUS ERROR:", err.message);
