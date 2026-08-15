@@ -7665,9 +7665,12 @@ app.put("/api/admin/trip-packages/:id/status", verifyToken, verifyAdmin, async (
       JOIN servia_users u ON u.id=e.host_id WHERE e.id=? LIMIT 1`, [id]);
     if (!rows.length) return res.status(404).json({ message: "Trip package not found" });
     const trip = rows[0];
+    // Older packages may have a NULL/blank status. The admin UI has always
+    // displayed those records as Pending, so treat them the same way here.
+    const currentStatus = String(trip.status || "").trim() || "Pending";
     const transitions = { Pending: ["active", "Rejected"], active: ["Suspended"], Rejected: ["Pending"], Suspended: ["active"] };
-    if (!(transitions[trip.status] || []).includes(status)) {
-      return res.status(409).json({ message: `Trip package cannot move from ${trip.status} to ${status}` });
+    if (!(transitions[currentStatus] || []).includes(status)) {
+      return res.status(409).json({ message: `Trip package cannot move from ${currentStatus} to ${status}` });
     }
 
     await query(
@@ -7690,8 +7693,8 @@ app.put("/api/admin/trip-packages/:id/status", verifyToken, verifyAdmin, async (
     });
     await addAuditLog({
       adminId: req.user.id, action: "TRIP_PACKAGE_STATUS_CHANGED", entityType: "experience",
-      entityId: id, message: `Trip package \"${trip.title}\" changed from ${trip.status} to ${status}`,
-      metadata: { previousStatus: trip.status, status, adminNote },
+      entityId: id, message: `Trip package \"${trip.title}\" changed from ${currentStatus} to ${status}`,
+      metadata: { previousStatus: currentStatus, status, adminNote },
     });
 
     res.json({ message: "Trip package status updated" });

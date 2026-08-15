@@ -5,6 +5,15 @@ import api from "../../api/api";
 
 const filters = ["All", "Pending", "active", "Rejected", "Suspended"];
 
+const normalizeStatus = (status) => String(status || "").trim() || "Pending";
+
+const allowedActions = {
+  Pending: ["active", "Rejected"],
+  active: ["Suspended"],
+  Rejected: ["Pending"],
+  Suspended: ["active"],
+};
+
 export default function AdminTrips() {
   const [trips, setTrips] = useState([]);
   const [filter, setFilter] = useState("All");
@@ -39,6 +48,8 @@ export default function AdminTrips() {
             ? "Approved by admin"
             : status === "Rejected"
             ? "Rejected by admin"
+            : status === "Suspended"
+            ? "Suspended by admin"
             : null,
       });
 
@@ -53,7 +64,7 @@ export default function AdminTrips() {
 
   const filtered = useMemo(() => {
     return trips.filter((trip) => {
-      const statusOk = filter === "All" || trip.status === filter;
+      const statusOk = filter === "All" || normalizeStatus(trip.status) === filter;
       const q = search.toLowerCase().trim();
 
       const searchOk =
@@ -131,7 +142,11 @@ export default function AdminTrips() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {filtered.map((trip) => (
+            {filtered.map((trip) => {
+              const currentStatus = normalizeStatus(trip.status);
+              const permitted = allowedActions[currentStatus] || [];
+
+              return (
               <article
                 key={trip.id}
                 className="rounded-[24px] border border-gray-200 bg-white p-4"
@@ -156,7 +171,7 @@ export default function AdminTrips() {
                         </p>
                       </div>
 
-                      <StatusBadge status={trip.status} />
+                      <StatusBadge status={currentStatus} />
                     </div>
 
                     <p className="mt-3 line-clamp-2 text-sm text-gray-500">
@@ -165,7 +180,7 @@ export default function AdminTrips() {
 
                     <div className="mt-4 flex flex-wrap gap-3">
                       <button
-                        disabled={actionLoading || trip.status === "active"}
+                        disabled={actionLoading || !permitted.includes("active")}
                         onClick={() => updateStatus(trip.id, "active")}
                         className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                       >
@@ -174,7 +189,7 @@ export default function AdminTrips() {
                       </button>
 
                       <button
-                        disabled={actionLoading || trip.status === "Rejected"}
+                        disabled={actionLoading || !permitted.includes("Rejected")}
                         onClick={() => updateStatus(trip.id, "Rejected")}
                         className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                       >
@@ -183,7 +198,7 @@ export default function AdminTrips() {
                       </button>
 
                       <button
-                        disabled={actionLoading || trip.status === "Suspended"}
+                        disabled={actionLoading || !permitted.includes("Suspended")}
                         onClick={() => updateStatus(trip.id, "Suspended")}
                         className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                       >
@@ -193,7 +208,8 @@ export default function AdminTrips() {
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
