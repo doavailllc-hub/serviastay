@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  AlertCircle,
+  toast.errorCircle,
   Banknote,
   CalendarDays,
   Clock,
@@ -49,7 +49,7 @@ export default function Refunds() {
       setRefunds(res.data || []);
     } catch (err) {
       console.log("Refunds load failed:", err);
-      alert("Refunds failed to load");
+      toast.error("Refunds failed to load");
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export default function Refunds() {
           />
 
           <StatCard
-            icon={<AlertCircle />}
+            icon={<toast.errorCircle />}
             title="Approved"
             value={stats.approved}
             color="text-blue-600"

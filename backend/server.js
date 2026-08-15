@@ -3878,6 +3878,10 @@ app.post("/api/host/calendar", verifyToken, requireApprovedHost, async (req, res
     const today = new Date(); today.setUTCHours(0, 0, 0, 0);
     const customPrice = req.body.custom_price === "" || req.body.custom_price == null
       ? null : Number(req.body.custom_price);
+    const minimumStay = req.body.minimum_stay === "" || req.body.minimum_stay == null
+      ? null : Number(req.body.minimum_stay);
+    const maximumStay = req.body.maximum_stay === "" || req.body.maximum_stay == null
+      ? null : Number(req.body.maximum_stay);
 
     if (!propertyId || !/^\d{4}-\d{2}-\d{2}$/.test(calendarDate) ||
         !Number.isFinite(selectedDate.getTime()) || selectedDate < today) {
@@ -3888,6 +3892,15 @@ app.post("/api/host/calendar", verifyToken, requireApprovedHost, async (req, res
     }
     if (customPrice !== null && (!Number.isFinite(customPrice) || customPrice <= 0 || customPrice > 10000000)) {
       return res.status(400).json({ message: "Custom price is invalid" });
+    }
+    if (minimumStay !== null && (!Number.isInteger(minimumStay) || minimumStay < 1 || minimumStay > 365)) {
+      return res.status(400).json({ message: "Minimum stay must be between 1 and 365 nights" });
+    }
+    if (maximumStay !== null && (!Number.isInteger(maximumStay) || maximumStay < 1 || maximumStay > 365)) {
+      return res.status(400).json({ message: "Maximum stay must be between 1 and 365 nights" });
+    }
+    if (minimumStay !== null && maximumStay !== null && minimumStay > maximumStay) {
+      return res.status(400).json({ message: "Maximum stay must be greater than or equal to minimum stay" });
     }
 
     await connection.beginTransaction();
@@ -3912,9 +3925,12 @@ app.post("/api/host/calendar", verifyToken, requireApprovedHost, async (req, res
     }
 
     await connection.query(
-      `INSERT INTO servia_property_calendar (property_id,calendar_date,status,custom_price,note)
-       VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE status=VALUES(status),custom_price=VALUES(custom_price),note=VALUES(note)`,
-      [propertyId, calendarDate, status, customPrice, String(req.body.note || "").trim().slice(0, 500) || null]
+      `INSERT INTO servia_property_calendar
+       (property_id,calendar_date,status,custom_price,note,minimum_stay,maximum_stay)
+       VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE
+       status=VALUES(status),custom_price=VALUES(custom_price),note=VALUES(note),
+       minimum_stay=VALUES(minimum_stay),maximum_stay=VALUES(maximum_stay)`,
+      [propertyId, calendarDate, status, customPrice, String(req.body.note || "").trim().slice(0, 500) || null, minimumStay, maximumStay]
     );
     await connection.commit();
     res.json({ success: true, message: "Calendar updated" });
