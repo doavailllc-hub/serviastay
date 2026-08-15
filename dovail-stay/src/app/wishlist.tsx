@@ -51,6 +51,8 @@ type WishlistItem = {
   guests?: number | string;
   bedrooms?: number | string;
   bathrooms?: number | string;
+  item_type?: "stay" | "trip";
+  package_days?: number | string;
 };
 
 function getPropertyId(item: WishlistItem) {
@@ -96,10 +98,16 @@ export default function WishlistScreen() {
 
       setUser(stored);
 
-      const response = await api.get(`/wishlist/${stored.id}`);
-      const data = Array.isArray(response.data) ? response.data : [];
-
-      setItems(data);
+      const [staysResponse, tripsResponse] = await Promise.all([
+        api.get(`/wishlist/${stored.id}`),
+        api.get("/trip-wishlist"),
+      ]);
+      const stays = Array.isArray(staysResponse.data) ? staysResponse.data : [];
+      const trips = Array.isArray(tripsResponse.data) ? tripsResponse.data : [];
+      setItems([
+        ...stays.map((item) => ({ ...item, item_type: "stay" as const })),
+        ...trips.map((item) => ({ ...item, item_type: "trip" as const })),
+      ]);
     } catch (error: any) {
       console.log("Wishlist load error:", error?.message || error);
 
@@ -122,8 +130,8 @@ export default function WishlistScreen() {
     const propertyId = getPropertyId(item);
 
     Alert.alert(
-      "Remove saved stay?",
-      "This property will be removed from your wishlist.",
+      `Remove saved ${item.item_type === "trip" ? "trip" : "stay"}?`,
+      "This item will be removed from your wishlist.",
       [
         {
           text: "Cancel",
@@ -136,15 +144,10 @@ export default function WishlistScreen() {
             try {
               setRemovingId(propertyId);
 
-              if (wishlistId) {
-                await api.delete(`/wishlist/${wishlistId}`);
-              } else if (user?.id) {
-                await api.delete(
-                  `/wishlist/${user.id}/${propertyId}`
-                );
-              } else {
+              if (!wishlistId) {
                 throw new Error("Wishlist details are missing.");
               }
+              await api.delete(item.item_type === "trip" ? `/trip-wishlist/${wishlistId}` : `/wishlist/${wishlistId}`);
 
               setItems((current) =>
                 current.filter(
@@ -185,7 +188,7 @@ export default function WishlistScreen() {
           styles.card,
           pressed && styles.cardPressed,
         ]}
-        onPress={() => router.push(`/property/${propertyId}`)}
+        onPress={() => router.push(item.item_type === "trip" ? `/experience/${propertyId}` : `/property/${propertyId}`)}
       >
         <View style={styles.imageWrap}>
           <Image
@@ -253,7 +256,9 @@ export default function WishlistScreen() {
             </Text>
           </View>
 
-          {(item.guests || item.bedrooms || item.bathrooms) && (
+          {item.item_type === "trip" && item.package_days ? (
+            <Text numberOfLines={1} style={styles.details}>{Number(item.package_days)} day trip package</Text>
+          ) : (item.guests || item.bedrooms || item.bathrooms) && (
             <Text numberOfLines={1} style={styles.details}>
               {Number(item.guests || 1)} guests ·{" "}
               {Number(item.bedrooms || 1)} bedroom
@@ -268,7 +273,7 @@ export default function WishlistScreen() {
               ₹{price.toLocaleString("en-IN")}
             </Text>
 
-            <Text style={styles.priceSuffix}> / night</Text>
+            <Text style={styles.priceSuffix}>{item.item_type === "trip" ? " / person" : " / night"}</Text>
           </View>
         </View>
       </Pressable>
@@ -332,7 +337,7 @@ export default function WishlistScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) =>
-          String(item.wishlist_id || getPropertyId(item))
+          `${item.item_type || "stay"}-${item.wishlist_id || getPropertyId(item)}`
         }
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
@@ -354,10 +359,8 @@ export default function WishlistScreen() {
 
             <Text style={styles.subtitle}>
               {items.length === 0
-                ? "Saved stays will appear here."
-                : `${items.length} saved ${
-                    items.length === 1 ? "stay" : "stays"
-                  }`}
+                ? "Saved stays and trips will appear here."
+                : `${items.length} saved ${items.length === 1 ? "item" : "items"}`}
             </Text>
           </View>
         }
@@ -374,13 +377,13 @@ export default function WishlistScreen() {
             <Text style={styles.emptyTitle}>
               {loadFailed
                 ? "Could not load wishlist"
-                : "No saved stays yet"}
+                : "No saved stays or trips yet"}
             </Text>
 
             <Text style={styles.emptyText}>
               {loadFailed
                 ? "Check your connection and try loading again."
-                : "Tap the heart on any property to save it here."}
+                : "Tap the heart on a stay or trip to save it here."}
             </Text>
 
             <Pressable

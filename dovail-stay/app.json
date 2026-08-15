@@ -21,15 +21,8 @@
       "package": "com.dovail.stay",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCLHR2G2BHYFm02yjl90XokqcqIQvnBsvM"
-        }
-      }
+      ]
     },
     "web": {
       "output": "static",
@@ -51,7 +44,18 @@
         }
       ],
       "expo-font",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#3b71e6"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Dovail Stay to use your location to show stays near you."
+        }
+      ],
       "expo-web-browser",
       "expo-secure-store"
     ],

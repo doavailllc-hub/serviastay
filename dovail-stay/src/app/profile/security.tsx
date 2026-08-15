@@ -86,6 +86,7 @@ export default function SecurityScreen() {
 
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadSecurityProfile = useCallback(async () => {
     try {
@@ -237,18 +238,42 @@ export default function SecurityScreen() {
     );
   };
 
+  const deleteAccount = async () => {
+    try {
+      setDeleteLoading(true);
+      await api.post("/account/deletion-request", {
+        reason: "Requested from the Dovail Stay mobile app",
+      });
+      await logoutUser();
+      Alert.alert(
+        "Deletion requested",
+        "Your account has been disabled and queued for permanent deletion.",
+        [{ text: "OK", onPress: () => router.replace("/login") }]
+      );
+    } catch (error: any) {
+      Alert.alert(
+        "Request failed",
+        error?.response?.data?.message ||
+          "We could not request account deletion. Please try again."
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const showDeleteAccountInfo = () => {
     Alert.alert(
-      "Delete account",
-      "Permanent account deletion must be reviewed securely. Contact Dovail Stay support to begin the account deletion process.",
+      "Permanently delete account?",
+      "Your account will be disabled immediately. Records that must be retained for legal, payment, or fraud-prevention reasons will only be kept for the required retention period.",
       [
         {
           text: "Cancel",
           style: "cancel",
         },
         {
-          text: "Contact support",
-          onPress: () => router.push("/support"),
+          text: "Delete account",
+          style: "destructive",
+          onPress: deleteAccount,
         },
       ]
     );
@@ -504,6 +529,7 @@ export default function SecurityScreen() {
             title="Delete account"
             subtitle="Request permanent deletion of your Dovail account"
             onPress={showDeleteAccountInfo}
+            loading={deleteLoading}
             danger
           />
         </View>

@@ -332,6 +332,11 @@ function RootNavigation() {
         />
 
         <Tabs.Screen
+          name="profile/verification"
+          options={{ href: null }}
+        />
+
+        <Tabs.Screen
           name="profile/preferences"
           options={{ href: null }}
         />

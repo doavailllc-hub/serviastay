@@ -5,7 +5,6 @@ import {
     ChevronLeft,
     ChevronRight,
     CircleDollarSign,
-    Download,
     Landmark,
     RefreshCw,
     ShieldCheck,
@@ -20,7 +19,6 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Linking,
     Pressable,
     RefreshControl,
     SafeAreaView,
@@ -45,7 +43,7 @@ const SUCCESS = "#177a45";
 const WARNING = "#a96300";
 const DANGER = "#bd3434";
 
-type ScheduleType = "daily" | "weekly" | "monthly";
+type ScheduleType = "weekly" | "monthly";
 type PayoutFilter = "all" | "completed" | "processing" | "failed";
 
 type StoredUser = {
@@ -103,7 +101,6 @@ const FILTERS: PayoutFilter[] = [
 ];
 
 const SCHEDULES: ScheduleType[] = [
-  "daily",
   "weekly",
   "monthly",
 ];
@@ -277,7 +274,7 @@ export default function HostPayoutsScreen() {
   const [updatingSchedule, setUpdatingSchedule] =
     useState(false);
 
-  const [downloading, setDownloading] =
+  const [requesting, setRequesting] =
     useState(false);
 
   const [error, setError] =
@@ -528,56 +525,20 @@ export default function HostPayoutsScreen() {
     }
   };
 
-  const downloadStatement = async () => {
-    if (downloading) return;
-
-    try {
-      setDownloading(true);
-
-      const user =
-        (await getStoredUser()) as StoredUser | null;
-
-      const hostId =
-        user?.id ?? user?.user_id;
-
-      if (!hostId) {
-        throw new Error(
-          "Please sign in again."
-        );
-      }
-
-      const response = await api.get(
-        "/host/payouts/statement",
-        {
-          params: {
-            hostId,
-            format: "pdf",
-          },
-        }
-      );
-
-      const url =
-        response.data?.url ||
-        response.data?.downloadUrl ||
-        response.data?.statement_url;
-
-      if (!url) {
-        throw new Error(
-          "Statement is not available yet."
-        );
-      }
-
-      await Linking.openURL(url);
-    } catch (requestError: any) {
-      Alert.alert(
-        "Statement unavailable",
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          "The statement could not be opened."
-      );
-    } finally {
-      setDownloading(false);
+  const requestPayout = async () => {
+    const amount = toNumber(summary.available_balance);
+    if (amount <= 0 || requesting) {
+      Alert.alert("No balance available", "Completed earnings will appear here when they become eligible for payout.");
+      return;
     }
+    Alert.alert("Request payout", `Request ${formatCurrency(amount)} to your saved payout account?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Request", onPress: async () => {
+        try { setRequesting(true); await api.post("/host/payout-request", { amount }); await loadPayouts(false); Alert.alert("Payout requested", "Your request was submitted for review."); }
+        catch (error: any) { Alert.alert("Request failed", error?.response?.data?.message || "Please try again."); }
+        finally { setRequesting(false); }
+      } },
+    ]);
   };
 
   const bank = summary.bank_account || {};
@@ -723,27 +684,7 @@ export default function HostPayoutsScreen() {
             </Text>
           </View>
 
-          <Pressable
-            onPress={downloadStatement}
-            disabled={downloading}
-            style={({ pressed }) => [
-              styles.headerAction,
-              pressed &&
-                styles.headerActionPressed,
-            ]}
-          >
-            {downloading ? (
-              <ActivityIndicator
-                size="small"
-                color={THEME}
-              />
-            ) : (
-              <Download
-                size={20}
-                color={THEME}
-              />
-            )}
-          </Pressable>
+          <View style={styles.headerAction} />
         </View>
 
         <FlatList
@@ -783,6 +724,10 @@ export default function HostPayoutsScreen() {
                     )
                   )}
                 </Text>
+
+                <Pressable style={[styles.requestButton, requesting && { opacity: 0.5 }]} disabled={requesting} onPress={requestPayout}>
+                  {requesting ? <ActivityIndicator color={THEME} /> : <Text style={styles.requestButtonText}>Request payout</Text>}
+                </Pressable>
 
                 <View style={styles.balanceFooter}>
                   <View>
@@ -1350,6 +1295,19 @@ const styles = StyleSheet.create({
     color: WHITE,
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
+  },
+  requestButton: {
+    marginTop: 18,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  requestButtonText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+    color: THEME,
   },
 
   nextPayoutCard: {

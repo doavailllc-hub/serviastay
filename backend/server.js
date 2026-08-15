@@ -2013,7 +2013,10 @@ app.post("/api/bookings", verifyToken, async (req, res) => {
 
 app.post("/api/wishlist", verifyToken, async (req, res) => {
   try {
-    const { user_id, property_id } = req.body;
+    const user_id = Number(req.user.id);
+    const property_id = Number(req.body.property_id);
+
+    if (!property_id) return res.status(400).json({ message: "Invalid property id" });
 
     const exists = await query(
       "SELECT id FROM servia_wishlist WHERE user_id=? AND property_id=?",
@@ -2039,6 +2042,9 @@ app.post("/api/wishlist", verifyToken, async (req, res) => {
 
 app.get("/api/wishlist/:userId", verifyToken, async (req, res) => {
   try {
+    if (Number(req.params.userId) !== Number(req.user.id) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const rows = await query(
       `
       SELECT w.id AS wishlist_id, p.*
@@ -2091,6 +2097,49 @@ app.delete("/api/wishlist/:wishlistId", verifyToken, async (req, res) => {
       message: "Wishlist delete failed",
       error: err.message,
     });
+  }
+});
+
+app.post("/api/notifications/register-device", verifyToken, async (req, res) => {
+  try {
+    const token = String(req.body.expo_push_token || "").trim();
+    if (!/^ExponentPushToken\[[^\]]+\]$|^ExpoPushToken\[[^\]]+\]$/.test(token)) {
+      return res.status(400).json({ message: "Invalid Expo push token" });
+    }
+    await query(`INSERT INTO servia_push_devices
+      (user_id,expo_push_token,platform,device_name,last_seen_at) VALUES (?,?,?,?,NOW())
+      ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),platform=VALUES(platform),device_name=VALUES(device_name),last_seen_at=NOW()`,
+      [req.user.id, token, String(req.body.platform || "").slice(0, 24) || null, String(req.body.device_name || "").slice(0, 255) || null]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Push device registration failed", error: err.message });
+  }
+});
+
+app.delete("/api/notifications/register-device", verifyToken, async (req, res) => {
+  try {
+    const token = String(req.body.expo_push_token || "").trim();
+    await query("DELETE FROM servia_push_devices WHERE user_id=? AND expo_push_token=?", [req.user.id, token]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Push device removal failed", error: err.message });
+  }
+});
+
+app.post("/api/account/deletion-request", verifyToken, async (req, res) => {
+  try {
+    const reason = String(req.body.reason || "").trim().slice(0, 500) || null;
+    const existing = await query("SELECT id FROM servia_account_deletion_requests WHERE user_id=? AND status='Pending' LIMIT 1", [req.user.id]);
+    if (!existing.length) {
+      await query("INSERT INTO servia_account_deletion_requests (user_id,reason) VALUES (?,?)", [req.user.id, reason]);
+    }
+    await Promise.all([
+      query("UPDATE servia_users SET is_active=0 WHERE id=?", [req.user.id]),
+      query("DELETE FROM servia_push_devices WHERE user_id=?", [req.user.id]),
+    ]);
+    res.json({ success: true, message: "Account deletion request accepted" });
+  } catch (err) {
+    res.status(500).json({ message: "Account deletion request failed", error: err.message });
   }
 });
 /* ADMIN */
@@ -2925,6 +2974,40 @@ app.get("/api/host/reviews/:hostId", verifyToken, requireApprovedHost, async (re
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: "Host reviews failed to load" });
+  }
+});
+app.post("/api/trip-wishlist", verifyToken, async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    const experienceId = Number(req.body.experience_id);
+    if (!experienceId) return res.status(400).json({ message: "Invalid trip package id" });
+    const result = await query(
+      "INSERT INTO servia_trip_wishlist (user_id,experience_id) VALUES (?,?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
+      [userId, experienceId]
+    );
+    res.json({ success: true, wishlistId: result.insertId });
+  } catch (err) {
+    res.status(500).json({ message: "Trip wishlist update failed", error: err.message });
+  }
+});
+app.get("/api/trip-wishlist", verifyToken, async (req, res) => {
+  try {
+    const rows = await query(`SELECT w.id AS wishlist_id,e.*,
+      (SELECT image_url FROM experience_images WHERE experience_id=e.id ORDER BY is_cover DESC,sort_order ASC LIMIT 1) AS image
+      FROM servia_trip_wishlist w JOIN experiences e ON e.id=w.experience_id
+      WHERE w.user_id=? ORDER BY w.id DESC`, [req.user.id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Trip wishlist fetch failed", error: err.message });
+  }
+});
+app.delete("/api/trip-wishlist/:wishlistId", verifyToken, async (req, res) => {
+  try {
+    const result = await query("DELETE FROM servia_trip_wishlist WHERE id=? AND user_id=?", [req.params.wishlistId, req.user.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: "Wishlist item not found" });
+    res.json({ success: true, message: "Removed from wishlist" });
+  } catch (err) {
+    res.status(500).json({ message: "Trip wishlist delete failed", error: err.message });
   }
 });
 
@@ -5553,6 +5636,131 @@ app.get("/api/host/wallet/:hostId", verifyToken, requireApprovedHost, async (req
       message: "Host wallet load failed",
       error: err.message,
     });
+  }
+});
+
+app.get("/api/host/payouts", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const hostId = Number(req.user.id);
+    const earnings = await query(`SELECT
+      COALESCE(SUM(CASE WHEN b.status IN ('Confirmed','Checked-in','Checked-out') THEN b.total ELSE 0 END),0) total_earnings,
+      COALESCE(SUM(CASE WHEN b.status IN ('Confirmed','Checked-in') THEN b.total ELSE 0 END),0) pending_earnings,
+      COALESCE(SUM(CASE WHEN b.status='Checked-out' THEN b.total ELSE 0 END),0) eligible_earnings
+      FROM servia_bookings b JOIN servia_properties p ON p.id=b.property_id WHERE p.user_id=?`, [hostId]);
+    const payoutTotals = await query(`SELECT
+      COALESCE(SUM(CASE WHEN status IN ('Pending','Approved') THEN amount ELSE 0 END),0) pending_payouts,
+      COALESCE(SUM(CASE WHEN status='Paid' THEN amount ELSE 0 END),0) paid_payouts
+      FROM servia_host_payouts WHERE host_id=?`, [hostId]);
+    const preferences = await query("SELECT payout_schedule,tax_name,tax_country,CASE WHEN tax_id IS NULL OR tax_id='' THEN NULL ELSE CONCAT('•••• ',RIGHT(tax_id,4)) END AS tax_id_masked FROM servia_host_preferences WHERE host_id=? LIMIT 1", [hostId]);
+    const bank = await query("SELECT bank_name,account_holder AS account_holder_name,RIGHT(account_number,4) AS account_last4,ifsc_code AS ifsc FROM servia_host_bank_accounts WHERE host_id=? LIMIT 1", [hostId]);
+    const eligible = Number(earnings[0]?.eligible_earnings || 0);
+    const pending = Number(payoutTotals[0]?.pending_payouts || 0);
+    const paid = Number(payoutTotals[0]?.paid_payouts || 0);
+    res.json({ success: true, total_earnings: Number(earnings[0]?.total_earnings || 0), lifetime_earnings: Number(earnings[0]?.total_earnings || 0),
+      pending_earnings: Number(earnings[0]?.pending_earnings || 0), available_balance: Math.max(0, eligible-pending-paid),
+      pending_payouts: pending, pending_amount: pending, paid_payouts: paid, payout_schedule: preferences[0]?.payout_schedule || "weekly",
+      bank_account: bank[0] || null, tax_info: preferences[0] ? { name: preferences[0].tax_name, country: preferences[0].tax_country, pan: preferences[0].tax_id_masked, status: preferences[0].tax_id_masked ? "Saved" : "Not configured" } : null });
+  } catch (err) {
+    res.status(500).json({ message: "Host payouts load failed", error: err.message });
+  }
+});
+
+app.get("/api/host/payouts/history", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    res.json(await query("SELECT * FROM servia_host_payouts WHERE host_id=? ORDER BY id DESC LIMIT 100", [req.user.id]));
+  } catch (err) {
+    res.status(500).json({ message: "Payout history load failed", error: err.message });
+  }
+});
+
+app.put("/api/host/payouts/schedule", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const schedule = String(req.body.schedule || "").toLowerCase();
+    if (!["weekly","biweekly","monthly"].includes(schedule)) return res.status(400).json({ message: "Invalid payout schedule" });
+    await query(`INSERT INTO servia_host_preferences (host_id,payout_schedule) VALUES (?,?)
+      ON DUPLICATE KEY UPDATE payout_schedule=VALUES(payout_schedule)`, [req.user.id, schedule]);
+    res.json({ success: true, payout_schedule: schedule });
+  } catch (err) {
+    res.status(500).json({ message: "Payout schedule update failed", error: err.message });
+  }
+});
+
+app.get("/api/host/payouts/bank", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const rows = await query(`SELECT id,account_holder AS account_holder_name,bank_name,
+      CONCAT('•••• ',RIGHT(account_number,4)) AS account_number_masked,ifsc_code AS ifsc,
+      CASE WHEN id IS NULL THEN 'Not configured' ELSE 'Saved' END AS status
+      FROM servia_host_bank_accounts WHERE host_id=? LIMIT 1`, [req.user.id]);
+    if (!rows.length) return res.status(404).json({ message: "Bank account not found" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "Bank account load failed", error: err.message });
+  }
+});
+
+const saveMobilePayoutBank = async (req, res) => {
+  try {
+    const holder = String(req.body.account_holder_name || req.body.account_holder || "").trim();
+    const bank = String(req.body.bank_name || "").trim();
+    const account = String(req.body.account_number || "").trim();
+    const ifsc = String(req.body.ifsc || req.body.ifsc_code || "").trim().toUpperCase();
+    if (!holder || !bank || !/^\d{8,20}$/.test(account) || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+      return res.status(400).json({ message: "Enter valid bank account details" });
+    }
+    await query(`INSERT INTO servia_host_bank_accounts (host_id,account_holder,bank_name,account_number,ifsc_code)
+      VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE account_holder=VALUES(account_holder),bank_name=VALUES(bank_name),
+      account_number=VALUES(account_number),ifsc_code=VALUES(ifsc_code)`, [req.user.id, holder, bank, account, ifsc]);
+    const rows = await query("SELECT id,account_holder AS account_holder_name,bank_name,ifsc_code AS ifsc FROM servia_host_bank_accounts WHERE host_id=?", [req.user.id]);
+    res.json({ success: true, ...rows[0], account_number_masked: `•••• ${account.slice(-4)}`, status: "Saved" });
+  } catch (err) {
+    res.status(500).json({ message: "Bank account save failed", error: err.message });
+  }
+};
+app.post("/api/host/payouts/bank", verifyToken, requireApprovedHost, saveMobilePayoutBank);
+app.put("/api/host/payouts/bank", verifyToken, requireApprovedHost, saveMobilePayoutBank);
+app.post("/api/host/payouts/bank/verify", verifyToken, requireApprovedHost, async (req, res) => {
+  const rows = await query("SELECT id FROM servia_host_bank_accounts WHERE id=? AND host_id=?", [req.body.bank_account_id, req.user.id]);
+  if (!rows.length) return res.status(404).json({ message: "Bank account not found" });
+  res.json({ success: true, status: "Saved", message: "Bank account is ready for payout review" });
+});
+app.get("/api/host/payouts/:id", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const rows = await query(`SELECT id,amount,status,payout_method,bank_name,account_holder,
+      CONCAT('•••• ',RIGHT(account_number,4)) AS account_number_masked,ifsc_code,upi_id,
+      admin_note,created_at,paid_at FROM servia_host_payouts WHERE id=? AND host_id=? LIMIT 1`,
+      [req.params.id, req.user.id]);
+    if (!rows.length) return res.status(404).json({ message: "Payout not found" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "Payout details load failed", error: err.message });
+  }
+});
+
+app.get("/api/host/tax-profile", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const rows = await query(`SELECT tax_name,tax_country,
+      CASE WHEN tax_id IS NULL OR tax_id='' THEN NULL ELSE CONCAT('•••• ',RIGHT(tax_id,4)) END AS tax_id_masked
+      FROM servia_host_preferences WHERE host_id=? LIMIT 1`, [req.user.id]);
+    res.json(rows[0] || { tax_name: null, tax_country: null, tax_id_masked: null });
+  } catch (err) {
+    res.status(500).json({ message: "Tax profile load failed", error: err.message });
+  }
+});
+
+app.put("/api/host/tax-profile", verifyToken, requireApprovedHost, async (req, res) => {
+  try {
+    const taxName = String(req.body.tax_name || "").trim();
+    const taxId = String(req.body.tax_id || "").trim().toUpperCase();
+    const taxCountry = String(req.body.tax_country || "").trim();
+    if (!taxName || !/^[A-Z0-9-]{5,30}$/.test(taxId) || !taxCountry) {
+      return res.status(400).json({ message: "Enter valid tax profile details" });
+    }
+    await query(`INSERT INTO servia_host_preferences (host_id,tax_name,tax_id,tax_country) VALUES (?,?,?,?)
+      ON DUPLICATE KEY UPDATE tax_name=VALUES(tax_name),tax_id=VALUES(tax_id),tax_country=VALUES(tax_country)`,
+      [req.user.id, taxName, taxId, taxCountry]);
+    res.json({ success: true, tax_name: taxName, tax_country: taxCountry, tax_id_masked: `•••• ${taxId.slice(-4)}` });
+  } catch (err) {
+    res.status(500).json({ message: "Tax profile update failed", error: err.message });
   }
 });
 

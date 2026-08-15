@@ -940,21 +940,12 @@ router.push({
   const toggleWishlist = async (
     item: ListingItem
   ) => {
-    if (activeTab !== "Stay") {
-      Alert.alert(
-        "Trip wishlist",
-        "Trip wishlist support is not yet connected."
-      );
-
-      return;
-    }
-
     const itemId = String(item.id);
 
     if (savedIds.has(itemId)) {
       Alert.alert(
         "Already saved",
-        "This stay is already in your wishlist."
+        `This ${activeTab === "Stay" ? "stay" : "trip"} is already in your wishlist.`
       );
 
       return;
@@ -971,11 +962,12 @@ router.push({
 
       setSavingId(itemId);
 
-      await api.post("/wishlist", {
-        user_id:
-          user.id ?? user.user_id,
-        property_id: item.id,
-      });
+      await api.post(
+        activeTab === "Stay" ? "/wishlist" : "/trip-wishlist",
+        activeTab === "Stay"
+          ? { property_id: item.id }
+          : { experience_id: item.id }
+      );
 
       setSavedIds((current) => {
         const updated = new Set(
@@ -990,7 +982,7 @@ router.push({
       const message =
         error?.response?.data
           ?.message ||
-        "Could not save this stay.";
+        `Could not save this ${activeTab === "Stay" ? "stay" : "trip"}.`;
 
       if (
         String(message)

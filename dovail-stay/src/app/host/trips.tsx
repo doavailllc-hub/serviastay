@@ -364,7 +364,7 @@ export default function HostTripsScreen() {
   };
 
   const openCreateTrip = () => {
-    router.push("/trip/create");
+    router.push("/host/trip/create");
   };
 
   const openTripPreview = (trip: TripItem) => {

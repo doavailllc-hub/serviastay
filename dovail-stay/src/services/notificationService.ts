@@ -142,22 +142,6 @@ const sendPushTokenToBackend = async (
       return;
     }
 
-    /*
-     * Expected backend endpoint:
-     *
-     * POST /api/notifications/register-device
-     *
-     * Body:
-     * {
-     *   user_id,
-     *   expo_push_token,
-     *   platform,
-     *   device_name
-     * }
-     *
-     * If your backend route has a different name,
-     * only change the endpoint below.
-     */
     await api.post(
       "/notifications/register-device",
       {

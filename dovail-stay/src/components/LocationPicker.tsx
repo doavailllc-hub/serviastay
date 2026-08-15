@@ -277,7 +277,7 @@ export default function LocationPicker({
     []
   );
 
-  const useCurrentLocation =
+  const getCurrentLocation =
     useCallback(async () => {
       if (disabled || loadingLocation) return;
 
@@ -335,10 +335,10 @@ export default function LocationPicker({
       return;
     }
 
-    useCurrentLocation();
+    getCurrentLocation();
   }, [
     initialCoordinates,
-    useCurrentLocation,
+    getCurrentLocation,
   ]);
 
   const searchLocation =
@@ -657,7 +657,7 @@ export default function LocationPicker({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Use current location"
-          onPress={useCurrentLocation}
+          onPress={getCurrentLocation}
           disabled={
             disabled || loadingLocation
           }
