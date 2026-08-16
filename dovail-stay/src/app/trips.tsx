@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import {
   Building2,
@@ -12,12 +13,10 @@ import {
 } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -26,8 +25,8 @@ import {
 import api from "../api/api";
 import { getStoredUser } from "../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_LIGHT = "#E8F7F1";
 const TEXT = "#202124";
 const MUTED = "#5f6368";
 const BORDER = "#e5e7eb";
@@ -312,10 +311,7 @@ export default function TripsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.loadingPage}>
-          <ActivityIndicator size="large" color={THEME} />
-          <Text style={styles.loadingText}>Loading your trips...</Text>
-        </View>
+        <TripsSkeleton />
       </SafeAreaView>
     );
   }
@@ -360,7 +356,6 @@ export default function TripsScreen() {
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <Text style={styles.eyebrow}>Your journeys</Text>
               <Text style={styles.title}>Trips</Text>
               <Text style={styles.subtitle}>
                 Manage stays and trip package reservations in one place.
@@ -730,26 +725,49 @@ function EmptyState({
   );
 }
 
+function TripsSkeleton() {
+  return (
+    <View style={styles.skeletonPage}>
+      <View style={styles.skeletonHeader}>
+        <View style={styles.skeletonHeaderTitle} />
+        <View style={styles.skeletonHeaderSubtitle} />
+      </View>
+
+      <View style={styles.skeletonProductTabs} />
+      <View style={styles.skeletonFilters} />
+
+      {[1, 2].map((item) => (
+        <View key={item} style={styles.skeletonCard}>
+          <View style={styles.skeletonImage} />
+          <View style={styles.skeletonCardBody}>
+            <View style={styles.skeletonBadge} />
+            <View style={styles.skeletonCardTitle} />
+            <View style={styles.skeletonLine} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: WHITE },
-  list: { paddingHorizontal: 18, paddingBottom: 116 },
+  list: { paddingHorizontal: 18, paddingBottom: 28 },
   emptyList: { flexGrow: 1 },
-  header: { paddingTop: 18, paddingBottom: 18 },
-  eyebrow: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
+  header: { paddingTop: 14, paddingBottom: 18 },
   title: {
-    marginTop: 4,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontSize: 31,
-    lineHeight: 39,
-    letterSpacing: -1,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 25,
+    lineHeight: 32,
+    letterSpacing: -0.4,
     color: TEXT,
   },
   subtitle: {
-    marginTop: 7,
+    marginTop: 4,
     maxWidth: 330,
     fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 19,
     color: MUTED,
   },
   productTabs: {
@@ -859,8 +877,44 @@ const styles = StyleSheet.create({
   paymentLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: THEME },
   bookingReference: { marginTop: 4, fontFamily: "Inter_400Regular", fontSize: 10, color: MUTED },
   total: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, color: TEXT },
-  loadingPage: { flex: 1, alignItems: "center", justifyContent: "center" },
-  loadingText: { marginTop: 14, fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
+  skeletonPage: { flex: 1, paddingHorizontal: 18 },
+  skeletonHeader: { height: 88, paddingTop: 14 },
+  skeletonHeaderTitle: {
+    width: 76,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#eceff1",
+  },
+  skeletonHeaderSubtitle: {
+    width: 260,
+    height: 13,
+    marginTop: 8,
+    borderRadius: 7,
+    backgroundColor: "#f1f3f4",
+  },
+  skeletonProductTabs: {
+    height: 48,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: "#eceff1",
+  },
+  skeletonFilters: {
+    height: 54,
+    marginBottom: 20,
+    borderRadius: 18,
+    backgroundColor: "#f1f3f4",
+  },
+  skeletonCard: {
+    marginBottom: 20,
+    overflow: "hidden",
+    borderRadius: 22,
+    backgroundColor: WHITE,
+  },
+  skeletonImage: { width: "100%", height: 195, backgroundColor: "#eceff1" },
+  skeletonCardBody: { padding: 16 },
+  skeletonBadge: { width: 72, height: 24, borderRadius: 12, backgroundColor: "#eceff1" },
+  skeletonCardTitle: { width: "66%", height: 17, marginTop: 12, borderRadius: 8, backgroundColor: "#eceff1" },
+  skeletonLine: { width: "48%", height: 12, marginTop: 9, borderRadius: 6, backgroundColor: "#f1f3f4" },
   centeredPage: {
     flex: 1,
     paddingHorizontal: 28,

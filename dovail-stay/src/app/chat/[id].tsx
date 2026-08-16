@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
@@ -15,7 +16,6 @@ import {
   NativeSyntheticEvent,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -27,8 +27,8 @@ import { io, Socket } from "socket.io-client";
 import api from "../../api/api";
 import { getStoredUser } from "../../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
 const TEXT = "#202124";
 const MUTED = "#5f6368";
 const BORDER = "#e5e7eb";

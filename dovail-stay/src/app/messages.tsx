@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import {
   MessageCircle,
@@ -10,7 +11,6 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,9 +20,9 @@ import {
 import api from "../api/api";
 import { getStoredUser } from "../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 
 const TEXT = "#202124";
 const MUTED = "#5f6368";
@@ -191,11 +191,6 @@ export default function MessagesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Your conversations</Text>
-          <Text style={styles.title}>Messages</Text>
-        </View>
-
         <MessagesSkeleton />
       </SafeAreaView>
     );
@@ -264,10 +259,6 @@ export default function MessagesScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.header}>
-              <Text style={styles.eyebrow}>
-                Your conversations
-              </Text>
-
               <Text style={styles.title}>Messages</Text>
 
               <Text style={styles.subtitle}>
@@ -463,6 +454,11 @@ function EmptyState({
 function MessagesSkeleton() {
   return (
     <View style={styles.skeletonList}>
+      <View style={styles.skeletonHeader}>
+        <View style={styles.skeletonHeaderTitle} />
+        <View style={styles.skeletonHeaderSubtitle} />
+      </View>
+
       <View style={styles.skeletonSearch} />
 
       {[1, 2, 3, 4].map((item) => (
@@ -488,7 +484,7 @@ const styles = StyleSheet.create({
 
   list: {
     paddingHorizontal: 18,
-    paddingBottom: 116,
+    paddingBottom: 28,
   },
 
   emptyList: {
@@ -496,31 +492,24 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 18,
-    paddingBottom: 20,
-  },
-
-  eyebrow: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    color: MUTED,
+    paddingTop: 14,
+    paddingBottom: 18,
   },
 
   title: {
-    marginTop: 4,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontSize: 31,
-    lineHeight: 39,
-    letterSpacing: -1,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 25,
+    lineHeight: 32,
+    letterSpacing: -0.4,
     color: TEXT,
   },
 
   subtitle: {
-    marginTop: 7,
+    marginTop: 4,
     maxWidth: 330,
     fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 19,
     color: MUTED,
   },
 
@@ -752,7 +741,28 @@ const styles = StyleSheet.create({
   },
 
   skeletonList: {
+    flex: 1,
     paddingHorizontal: 18,
+  },
+
+  skeletonHeader: {
+    height: 88,
+    paddingTop: 14,
+  },
+
+  skeletonHeaderTitle: {
+    width: 118,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#eceff1",
+  },
+
+  skeletonHeaderSubtitle: {
+    width: 250,
+    height: 13,
+    marginTop: 8,
+    borderRadius: 7,
+    backgroundColor: "#f1f3f4",
   },
 
   skeletonSearch: {

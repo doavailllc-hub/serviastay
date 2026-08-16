@@ -1,31 +1,12 @@
-import RazorpayCheckout from "react-native-razorpay";
+import type { RazorpayOptions, RazorpaySuccess } from "./razorpay";
 
-export type RazorpayOptions = {
-  key: string;
-  order_id: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  image?: string;
-  prefill?: {
-    name?: string;
-    email?: string;
-    contact?: string;
-  };
-  theme?: {
-    color?: string;
-  };
-};
-
-export type RazorpaySuccess = {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
-};
+export type { RazorpayOptions, RazorpaySuccess } from "./razorpay";
 
 export async function openRazorpayCheckout(
   options: RazorpayOptions
 ): Promise<RazorpaySuccess> {
+  const { default: RazorpayCheckout } = await import(
+    "react-native-razorpay"
+  );
   return RazorpayCheckout.open(options);
 }

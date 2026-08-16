@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
+import type * as NotificationTypes from "expo-notifications";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 
@@ -46,14 +46,46 @@ type NotificationData = {
   [key: string]: unknown;
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+type NotificationsModule =
+  typeof import("expo-notifications");
+
+let notificationsPromise:
+  | Promise<NotificationsModule | null>
+  | undefined;
+
+const isAndroidExpoGo =
+  Platform.OS === "android" &&
+  Constants.appOwnership === "expo";
+
+const getNotifications = async () => {
+  if (isAndroidExpoGo) {
+    return null;
+  }
+
+  notificationsPromise ??= import("expo-notifications")
+    .then((Notifications) => {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+
+      return Notifications;
+    })
+    .catch((error) => {
+      console.log(
+        "Notification module unavailable:",
+        error?.message || error
+      );
+
+      return null;
+    });
+
+  return notificationsPromise;
+};
 
 const getProjectId = () => {
   return (
@@ -71,6 +103,12 @@ const createAndroidNotificationChannel =
       return;
     }
 
+    const Notifications = await getNotifications();
+
+    if (!Notifications) {
+      return;
+    }
+
     await Notifications.setNotificationChannelAsync(
       ANDROID_CHANNEL_ID,
       {
@@ -80,7 +118,7 @@ const createAndroidNotificationChannel =
         importance:
           Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#3b71e6",
+        lightColor: "#2DB281",
         sound: "default",
         enableVibrate: true,
         showBadge: true,
@@ -90,6 +128,12 @@ const createAndroidNotificationChannel =
 
 const requestNotificationPermission =
   async () => {
+    const Notifications = await getNotifications();
+
+    if (!Notifications) {
+      return false;
+    }
+
     const currentPermissions =
       await Notifications.getPermissionsAsync();
 
@@ -159,6 +203,15 @@ const sendPushTokenToBackend = async (
 export const registerForPushNotifications =
   async (): Promise<string | null> => {
     try {
+      const Notifications = await getNotifications();
+
+      if (!Notifications) {
+        console.log(
+          "Push notifications require a development build on Android."
+        );
+        return null;
+      }
+
       await createAndroidNotificationChannel();
 
       if (!Device.isDevice) {
@@ -269,8 +322,8 @@ export const unregisterPushNotifications =
 
 const getNotificationData = (
   response:
-    | Notifications.NotificationResponse
-    | Notifications.Notification
+    | NotificationTypes.NotificationResponse
+    | NotificationTypes.Notification
 ): NotificationData => {
   if ("notification" in response) {
     return (
@@ -285,8 +338,8 @@ const getNotificationData = (
 
 export const openNotificationDestination = (
   response:
-    | Notifications.NotificationResponse
-    | Notifications.Notification
+    | NotificationTypes.NotificationResponse
+    | NotificationTypes.Notification
 ) => {
   const data =
     getNotificationData(response);
@@ -384,13 +437,19 @@ export const openNotificationDestination = (
 };
 
 export const addNotificationListeners =
-  ({
+  async ({
     onNotificationReceived,
   }: {
     onNotificationReceived?: (
-      notification: Notifications.Notification
+      notification: NotificationTypes.Notification
     ) => void;
   } = {}) => {
+    const Notifications = await getNotifications();
+
+    if (!Notifications) {
+      return () => {};
+    }
+
     const receivedSubscription =
       Notifications.addNotificationReceivedListener(
         (notification) => {
@@ -418,6 +477,12 @@ export const addNotificationListeners =
 export const handleInitialNotification =
   async () => {
     try {
+      const Notifications = await getNotifications();
+
+      if (!Notifications) {
+        return;
+      }
+
       const response =
         await Notifications.getLastNotificationResponseAsync();
 
@@ -446,6 +511,14 @@ export const scheduleLocalNotification =
     data?: NotificationData;
     seconds?: number;
   }) => {
+    const Notifications = await getNotifications();
+
+    if (!Notifications) {
+      throw new Error(
+        "Notifications are unavailable in Expo Go on Android. Use a development build."
+      );
+    }
+
     return Notifications.scheduleNotificationAsync(
       {
         content: {

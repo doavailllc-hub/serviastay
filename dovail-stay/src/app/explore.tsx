@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, Heart, MapPin, Search, Star } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,7 +9,6 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
@@ -18,7 +18,7 @@ import {
 import api from "../api/api";
 import { getStoredUser } from "../services/authService";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
 const TEXT = "#202124";
 const MUTED = "#5f6368";
 const BORDER = "#e5e7eb";

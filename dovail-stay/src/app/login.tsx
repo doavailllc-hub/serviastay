@@ -1,4 +1,8 @@
-import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as AuthSession from "expo-auth-session";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Mail, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -8,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,11 +19,21 @@ import {
 } from "react-native";
 
 import api from "../api/api";
+import { loginWithGoogle } from "../services/authService";
 import { saveSession } from "../services/sessionStorage";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID = Platform.select({
+  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+});
 
 export default function LoginScreen() {
+  const params = useLocalSearchParams<{ redirect?: string | string[] }>();
   const otpRefs = useRef<Array<TextInput | null>>([]);
 
   const [step, setStep] = useState<"email" | "otp">("email");
@@ -28,9 +41,21 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const cleanEmail = email.trim().toLowerCase();
   const otpCode = otp.join("");
+  const redirectParam = Array.isArray(params.redirect)
+    ? params.redirect[0]
+    : params.redirect;
+
+  const finishAuthentication = () => {
+    const destination =
+      redirectParam?.startsWith("/") && !redirectParam.startsWith("//")
+        ? redirectParam
+        : "/profile";
+    router.replace(destination as never);
+  };
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -97,7 +122,7 @@ export default function LoginScreen() {
 
       await saveSession(res.data.token, res.data.user);
 
-      router.replace("/profile");
+      finishAuthentication();
     } catch (err: any) {
       Alert.alert(
         "Invalid code",
@@ -133,6 +158,64 @@ export default function LoginScreen() {
   const backToEmail = () => {
     setStep("email");
     setOtp(["", "", "", "", "", ""]);
+  };
+
+  const continueWithGoogle = async () => {
+    if (loading || googleLoading) return;
+
+    if (!GOOGLE_CLIENT_ID) {
+      Alert.alert(
+        "Google sign-in needs configuration",
+        "Add the Google OAuth client ID for this platform to your environment configuration."
+      );
+      return;
+    }
+
+    const redirectUri = AuthSession.makeRedirectUri({
+      scheme: "dovailstay",
+      path: "oauthredirect",
+    });
+
+    try {
+      setGoogleLoading(true);
+
+      const request = new AuthSession.AuthRequest({
+        clientId: GOOGLE_CLIENT_ID,
+        redirectUri,
+        responseType: AuthSession.ResponseType.Code,
+        usePKCE: true,
+        scopes: ["openid", "profile", "email"],
+        extraParams: { prompt: "select_account" },
+      });
+
+      const result = await request.promptAsync(Google.discovery);
+
+      if (result.type === "cancel" || result.type === "dismiss") return;
+      if (result.type !== "success" || !result.params.code) {
+        throw new Error("Google sign-in was not completed.");
+      }
+
+      if (!request.codeVerifier) {
+        throw new Error("Google sign-in security verification could not be completed.");
+      }
+
+      await loginWithGoogle({
+        code: result.params.code,
+        codeVerifier: request.codeVerifier,
+        redirectUri,
+      });
+
+      finishAuthentication();
+    } catch (error: any) {
+      Alert.alert(
+        "Google sign-in failed",
+        error?.response?.data?.message ||
+          error?.message ||
+          "Please try again or continue with email."
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -183,6 +266,33 @@ export default function LoginScreen() {
                   style={styles.input}
                 />
               </View>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={continueWithGoogle}
+                disabled={loading || googleLoading}
+                style={({ pressed }) => [
+                  styles.googleButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#202124" />
+                ) : (
+                  <>
+                    <View style={styles.googleMark}>
+                      <Text style={styles.googleMarkText}>G</Text>
+                    </View>
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </>
+                )}
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR CONTINUE WITH EMAIL</Text>
+                <View style={styles.dividerLine} />
+              </View>
             </>
           ) : (
             <>
@@ -202,6 +312,8 @@ export default function LoginScreen() {
                     value={digit}
                     onChangeText={(value) => handleOtpChange(index, value)}
                     keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
                     maxLength={1}
                     style={styles.otpInput}
                   />
@@ -323,7 +435,7 @@ const styles = StyleSheet.create({
   },
 
   inputBox: {
-    marginTop: 30,
+    marginTop: 20,
     height: 56,
     borderWidth: 1,
     borderColor: "#dadce0",
@@ -340,6 +452,65 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     color: "#202124",
+  },
+
+  googleButton: {
+    height: 56,
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: "#d9dde5",
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 11,
+  },
+
+  googleMark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+  },
+
+  googleMarkText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 18,
+    color: "#4285f4",
+  },
+
+  googleButtonText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#202124",
+  },
+
+  dividerRow: {
+    marginTop: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e8eaed",
+  },
+
+  dividerText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 9,
+    letterSpacing: 0.6,
+    color: "#80868b",
+  },
+
+  buttonPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.99 }],
   },
 
   otpRow: {

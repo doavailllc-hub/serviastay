@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
     Building2,
@@ -12,7 +13,6 @@ import {
     ActivityIndicator,
     Alert,
     Pressable,
-    SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -23,7 +23,7 @@ import {
 import api from "../../../api/api";
 import { getStoredUser } from "../../../services/authService";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
 const BACKGROUND = "#f7f8fa";
 const BORDER = "#e5e7eb";
 const TEXT = "#172033";
@@ -190,7 +190,7 @@ const getStatusTheme = (status?: string) => {
 
   if (normalized === "completed") {
     return {
-      backgroundColor: "#eaf1ff",
+      backgroundColor: "#E8F7F1",
       textColor: THEME,
     };
   }

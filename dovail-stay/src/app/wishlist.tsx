@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import {
   Heart,
@@ -14,7 +15,6 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -23,9 +23,9 @@ import {
 import api from "../api/api";
 import { getStoredUser } from "../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 
 const TEXT = "#202124";
 const MUTED = "#5f6368";
@@ -283,10 +283,6 @@ export default function WishlistScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Wishlist</Text>
-        </View>
-
         <WishlistSkeleton />
       </SafeAreaView>
     );
@@ -411,6 +407,11 @@ export default function WishlistScreen() {
 function WishlistSkeleton() {
   return (
     <View style={styles.skeletonList}>
+      <View style={styles.skeletonHeader}>
+        <View style={styles.skeletonHeaderTitle} />
+        <View style={styles.skeletonHeaderSubtitle} />
+      </View>
+
       {[1, 2].map((item) => (
         <View key={item} style={styles.skeletonCard}>
           <View style={styles.skeletonImage} />
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
 
   list: {
     paddingHorizontal: 18,
-    paddingBottom: 116,
+    paddingBottom: 28,
   },
 
   emptyList: {
@@ -445,7 +446,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 16,
+    paddingTop: 14,
     paddingBottom: 18,
   },
 
@@ -677,7 +678,28 @@ const styles = StyleSheet.create({
   },
 
   skeletonList: {
+    flex: 1,
     paddingHorizontal: 18,
+  },
+
+  skeletonHeader: {
+    height: 88,
+    paddingTop: 14,
+  },
+
+  skeletonHeaderTitle: {
+    width: 112,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#eceff1",
+  },
+
+  skeletonHeaderSubtitle: {
+    width: 190,
+    height: 13,
+    marginTop: 8,
+    borderRadius: 7,
+    backgroundColor: "#f1f3f4",
   },
 
   skeletonCard: {

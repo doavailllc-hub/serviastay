@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
     ChevronLeft,
@@ -13,7 +14,6 @@ import {
     FlatList,
     Pressable,
     RefreshControl,
-    SafeAreaView,
     StatusBar,
     StyleSheet,
     Text,
@@ -24,7 +24,7 @@ import {
 import api from "../../api/api";
 import { getStoredUser } from "../../services/authService";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
 const BACKGROUND = "#f7f8fa";
 const BORDER = "#e5e7eb";
 const TEXT = "#172033";

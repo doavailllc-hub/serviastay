@@ -1,7 +1,7 @@
 import type {
     RazorpayOptions,
     RazorpaySuccess,
-} from "./razorpay.native";
+} from "./razorpay";
 
 export async function openRazorpayCheckout(
   _options: RazorpayOptions

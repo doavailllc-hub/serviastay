@@ -11,14 +11,16 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import {
   SafeAreaProvider,
+  initialWindowMetrics,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
 import { useFonts } from "expo-font";
-import { Tabs } from "expo-router";
+import { Tabs, type ErrorBoundaryProps, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   Building2,
@@ -27,6 +29,7 @@ import {
   Search,
   User,
 } from "lucide-react-native";
+import { fontFamily, icon, palette } from "../constants/theme";
 
 import {
   addNotificationListeners,
@@ -34,24 +37,78 @@ import {
   registerForPushNotifications,
 } from "../services/notificationService";
 
-const THEME = "#3b71e6";
-const TEXT_MUTED = "#717171";
-const BORDER = "#e5e7eb";
-
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may already be controlled during Fast Refresh.
 });
 
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <View style={errorStyles.screen}>
+      <View style={errorStyles.icon}>
+        <Text style={errorStyles.iconText}>!</Text>
+      </View>
+      <Text style={errorStyles.title}>Something went wrong</Text>
+      <Text style={errorStyles.message}>
+        {__DEV__ ? error.message : "We couldn't open this screen. Please try again."}
+      </Text>
+      <Pressable onPress={retry} style={errorStyles.button}>
+        <Text style={errorStyles.buttonText}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <RootNavigation />
     </SafeAreaProvider>
   );
 }
 
+const errorStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    paddingHorizontal: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.canvas,
+  },
+  icon: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.surfaceMuted,
+  },
+  iconText: { fontSize: 28, fontFamily: fontFamily.displayExtraBold, color: palette.ink },
+  title: { marginTop: 20, fontSize: 22, fontFamily: fontFamily.displayBold, color: palette.ink },
+  message: {
+    marginTop: 9,
+    maxWidth: 320,
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 21,
+    color: palette.muted,
+  },
+  button: {
+    minWidth: 140,
+    height: 50,
+    marginTop: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.ink,
+  },
+  buttonText: { fontSize: 14, fontFamily: fontFamily.bodySemibold, color: palette.inverse },
+});
+
 function RootNavigation() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const tabRoutes = ["/", "/wishlist", "/trips", "/messages", "/profile"];
+  const hideTabBar = !tabRoutes.includes(pathname);
 
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -82,7 +139,7 @@ function RootNavigation() {
           return;
         }
 
-        cleanup = addNotificationListeners();
+        cleanup = await addNotificationListeners();
 
         await handleInitialNotification();
       } catch (error) {
@@ -107,35 +164,40 @@ function RootNavigation() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style="dark" animated />
 
       <Tabs
         initialRouteName="index"
         screenOptions={{
           headerShown: false,
 
-          tabBarActiveTintColor: THEME,
-          tabBarInactiveTintColor: TEXT_MUTED,
+          tabBarActiveTintColor: palette.primary,
+          tabBarInactiveTintColor: palette.ink,
           tabBarHideOnKeyboard: true,
 
-          tabBarStyle: {
-            height: 62 + insets.bottom,
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 8),
-            backgroundColor: "#ffffff",
-            borderTopWidth: 1,
-            borderTopColor: BORDER,
+          tabBarStyle: hideTabBar ? { display: "none" } : {
+            height: 58 + insets.bottom,
+            paddingTop: 7,
+            paddingBottom: Math.max(insets.bottom, 7),
+            backgroundColor: palette.surface,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: palette.border,
             elevation: 0,
+            shadowOpacity: 0,
           },
 
           tabBarItemStyle: {
             paddingVertical: 2,
+            borderRadius: 18,
+            overflow: "hidden",
           },
+          tabBarActiveBackgroundColor: palette.transparent,
 
           tabBarLabelStyle: {
             fontFamily: "Inter_600SemiBold",
-            fontSize: 11,
+            fontSize: 10,
             lineHeight: 15,
+            letterSpacing: 0.1,
           },
 
           tabBarIconStyle: {
@@ -143,7 +205,7 @@ function RootNavigation() {
           },
 
           sceneStyle: {
-            backgroundColor: "#ffffff",
+            backgroundColor: palette.canvas,
           },
         }}
       >
@@ -161,7 +223,7 @@ function RootNavigation() {
               <Search
                 size={focused ? size + 1 : size}
                 color={color}
-                strokeWidth={focused ? 2.5 : 2}
+                strokeWidth={focused ? icon.strokeWidthActive : icon.strokeWidth}
               />
             ),
           }}
@@ -179,7 +241,7 @@ function RootNavigation() {
               <Heart
                 size={focused ? size + 1 : size}
                 color={color}
-                strokeWidth={focused ? 2.5 : 2}
+                strokeWidth={focused ? icon.strokeWidthActive : icon.strokeWidth}
               />
             ),
           }}
@@ -197,7 +259,7 @@ function RootNavigation() {
               <Building2
                 size={focused ? size + 1 : size}
                 color={color}
-                strokeWidth={focused ? 2.5 : 2}
+                strokeWidth={focused ? icon.strokeWidthActive : icon.strokeWidth}
               />
             ),
           }}
@@ -215,7 +277,7 @@ function RootNavigation() {
               <MessageCircle
                 size={focused ? size + 1 : size}
                 color={color}
-                strokeWidth={focused ? 2.5 : 2}
+                strokeWidth={focused ? icon.strokeWidthActive : icon.strokeWidth}
               />
             ),
           }}
@@ -233,7 +295,7 @@ function RootNavigation() {
               <User
                 size={focused ? size + 1 : size}
                 color={color}
-                strokeWidth={focused ? 2.5 : 2}
+                strokeWidth={focused ? icon.strokeWidthActive : icon.strokeWidth}
               />
             ),
           }}
@@ -243,6 +305,11 @@ function RootNavigation() {
 
         <Tabs.Screen
           name="login"
+          options={{ href: null }}
+        />
+
+        <Tabs.Screen
+          name="+not-found"
           options={{ href: null }}
         />
 

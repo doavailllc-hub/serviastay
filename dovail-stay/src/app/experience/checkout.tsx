@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import {
     Building2,
@@ -17,21 +18,24 @@ import {
     ActivityIndicator,
     Image,
     Pressable,
-    SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
     Text,
     View
 } from "react-native";
-import RazorpayCheckout from "react-native-razorpay";
-
 import api from "../../api/api";
 import { getStoredUser } from "../../services/authService";
+import { openRazorpayCheckout } from "../../services/razorpay";
+import {
+  formatDisplayDate,
+  isTodayOrFuture,
+  toApiDate,
+} from "../../utils/date";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 const TEXT = "#202124";
 const MUTED = "#5f6368";
 const BORDER = "#e5e7eb";
@@ -77,11 +81,42 @@ type Experience = {
 
 type ExperienceDeparture = {
   id: number | string;
+  departure_id?: number | string;
   departure_date?: string;
+  date?: string;
+  start_date?: string;
   total_seats?: number | string;
+  available_seats?: number | string;
+  capacity?: number | string;
   booked_seats?: number | string;
   status?: string;
   price_override?: number | string;
+  price?: number | string;
+};
+
+const normalizeDeparture = (departure: ExperienceDeparture): ExperienceDeparture => ({
+  ...departure,
+  id: departure.id ?? departure.departure_id ?? "",
+  departure_date: departure.departure_date || departure.date || departure.start_date,
+  total_seats: departure.total_seats ?? departure.capacity ?? departure.available_seats ?? 0,
+  booked_seats: departure.booked_seats ?? 0,
+  price_override: departure.price_override ?? departure.price,
+});
+
+const getRemainingSeats = (departure: ExperienceDeparture) =>
+  departure.available_seats != null
+    ? toNumber(departure.available_seats)
+    : toNumber(departure.total_seats) - toNumber(departure.booked_seats);
+
+const getDepartures = (payload: unknown): ExperienceDeparture[] => {
+  if (Array.isArray(payload)) return payload.map(normalizeDeparture);
+  if (!payload || typeof payload !== "object") return [];
+  const record = payload as Record<string, unknown>;
+  for (const key of ["departures", "data", "items", "results"]) {
+    const departures = getDepartures(record[key]);
+    if (departures.length) return departures;
+  }
+  return [];
 };
 
 const firstParam = (
@@ -174,19 +209,7 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const formatDate = (value?: string) => {
-  if (!value) return "Not selected";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDisplayDate(value, "Not selected");
 };
 
 const getUserId = (user: StoredUser | null) =>
@@ -223,6 +246,7 @@ export default function ExperienceCheckoutScreen() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
+  const loginRedirect = `/experience/checkout?id=${encodeURIComponent(id)}&departureId=${encodeURIComponent(departureId)}&selectedDate=${encodeURIComponent(selectedDate)}&guests=${guests}`;
 
   const loadCheckout = useCallback(async () => {
     if (!id) {
@@ -239,7 +263,10 @@ export default function ExperienceCheckoutScreen() {
         (await getStoredUser()) as StoredUser | null;
 
       if (!storedUser || !getUserId(storedUser)) {
-        router.replace("/login");
+        router.replace({
+          pathname: "/login",
+          params: { redirect: loginRedirect },
+        });
         return;
       }
 
@@ -269,15 +296,7 @@ export default function ExperienceCheckoutScreen() {
             `/trip-packages/${id}/departures`
           );
 
-          const list = Array.isArray(
-            departureResponse.data
-          )
-            ? departureResponse.data
-            : Array.isArray(
-                departureResponse.data?.departures
-              )
-            ? departureResponse.data.departures
-            : [];
+          const list = getDepartures(departureResponse.data);
 
           const matched = list.find(
             (item: ExperienceDeparture) =>
@@ -285,16 +304,20 @@ export default function ExperienceCheckoutScreen() {
               String(departureId)
           );
 
+          if (!matched) {
+            throw new Error(
+              "The selected departure no longer exists. Go back and choose another date."
+            );
+          }
+
           if (matched) {
-            const remaining =
-              toNumber(matched.total_seats) -
-              toNumber(matched.booked_seats);
+            const remaining = getRemainingSeats(matched);
 
             const available =
-              String(
-                matched.status || "Available"
-              ).toLowerCase() ===
-                "available" &&
+              ["active", "available", "open", "bookable"].includes(
+                String(matched.status || "active").toLowerCase()
+              ) &&
+              isTodayOrFuture(matched.departure_date) &&
               remaining >= guests;
 
             if (!available) {
@@ -367,6 +390,9 @@ export default function ExperienceCheckoutScreen() {
   const subtotal = price * guests;
   const taxes = Math.round(subtotal * 0.12);
   const total = subtotal + taxes;
+  const bookingDate = toApiDate(
+    departure?.departure_date || selectedDate
+  );
 
   const createBooking = useCallback(
     async ({
@@ -387,7 +413,10 @@ export default function ExperienceCheckoutScreen() {
       const userId = getUserId(user);
 
       if (!userId) {
-        router.replace("/login");
+        router.replace({
+          pathname: "/login",
+          params: { redirect: loginRedirect },
+        });
         return;
       }
 
@@ -399,9 +428,7 @@ export default function ExperienceCheckoutScreen() {
           departure_id: departureId
             ? Number(departureId)
             : null,
-          booking_date:
-            departure?.departure_date ||
-            selectedDate,
+          booking_date: bookingDate,
           guests,
           total,
           taxes,
@@ -428,8 +455,7 @@ export default function ExperienceCheckoutScreen() {
           id: String(experience.id),
           departureId,
           selectedDate:
-            departure?.departure_date ||
-            selectedDate,
+            bookingDate,
           guests: String(guests),
           total: String(total),
           paymentStatus,
@@ -444,6 +470,7 @@ export default function ExperienceCheckoutScreen() {
       id,
       paymentMethod,
       selectedDate,
+      bookingDate,
       taxes,
       total,
       user,
@@ -461,7 +488,10 @@ export default function ExperienceCheckoutScreen() {
       const userId = getUserId(user);
 
       if (!userId) {
-        router.replace("/login");
+        router.replace({
+          pathname: "/login",
+          params: { redirect: loginRedirect },
+        });
         return;
       }
 
@@ -473,9 +503,7 @@ export default function ExperienceCheckoutScreen() {
           amount: total,
           currency: "INR",
           guests,
-          booking_date:
-            departure?.departure_date ||
-            selectedDate,
+          booking_date: bookingDate,
           departure_id: departureId
             ? Number(departureId)
             : null,
@@ -494,7 +522,7 @@ export default function ExperienceCheckoutScreen() {
       }
 
       const result =
-        await RazorpayCheckout.open({
+        await openRazorpayCheckout({
           key,
           amount: Number(order.amount),
           currency:
@@ -556,6 +584,7 @@ export default function ExperienceCheckoutScreen() {
       guests,
       id,
       selectedDate,
+      bookingDate,
       total,
       user,
     ]);
@@ -574,11 +603,16 @@ export default function ExperienceCheckoutScreen() {
       }
 
       if (
-        !selectedDate &&
-        !departure?.departure_date
+        !bookingDate
       ) {
         throw new Error(
           "Travel date is missing. Go back and select a departure."
+        );
+      }
+
+      if (!isTodayOrFuture(bookingDate)) {
+        throw new Error(
+          "The selected travel date has passed. Go back and choose a future departure."
         );
       }
 

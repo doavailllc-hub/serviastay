@@ -1,4 +1,5 @@
 import * as Location from "expo-location";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Crosshair, List, MapPin, Star } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,17 +9,16 @@ import {
   Image,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from "../components/maps";
 
 import api from "../api/api";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
 const TEXT = "#172033";
 const MUTED = "#687386";
 const BORDER = "#e5e7eb";

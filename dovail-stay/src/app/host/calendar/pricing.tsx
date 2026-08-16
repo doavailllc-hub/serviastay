@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { CalendarDays, Check, ChevronLeft, CircleDollarSign, Clock3, Home, Info } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import api from "../../../api/api";
 import { getStoredUser } from "../../../services/authService";
 
-const THEME="#3b71e6", BG="#f7f8fa", BORDER="#e5e7eb", TEXT="#172033", MUTED="#687386";
+const THEME="#2DB281", BG="#f7f8fa", BORDER="#e5e7eb", TEXT="#172033", MUTED="#687386";
 type Property={id:number|string;title?:string;name?:string;location?:string;weekday_price?:number|string;price?:number|string};
 type CalendarRule={calendar_date?:string;status?:string;custom_price?:number|string;note?:string;minimum_stay?:number|string;maximum_stay?:number|string};
 type User={id?:number|string;user_id?:number|string};

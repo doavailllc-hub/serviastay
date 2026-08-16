@@ -1,12 +1,13 @@
 import { useFocusEffect, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { CheckCircle2, ChevronLeft, MessageSquare, Send, Star } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 
 import api from "../../api/api";
 import { getStoredUser } from "../../services/authService";
 
-const THEME = "#3b71e6", BG = "#f7f8fa", BORDER = "#e5e7eb", TEXT = "#172033", MUTED = "#687386";
+const THEME = "#2DB281", BG = "#f7f8fa", BORDER = "#e5e7eb", TEXT = "#172033", MUTED = "#687386";
 const FALLBACK = "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80";
 
 type Review = { id:number|string; rating?:number|string; review?:string; comment?:string; created_at?:string; host_reply?:string; guest_name?:string; fullname?:string; property_id?:number|string; property_title?:string; title?:string; property_image?:string; image?:string };

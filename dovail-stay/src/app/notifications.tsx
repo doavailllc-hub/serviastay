@@ -1,4 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Bell, CalendarCheck, CheckCheck, ChevronLeft, MessageCircle } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -6,7 +7,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -15,7 +15,7 @@ import {
 import api from "../api/api";
 import { getStoredUser } from "../services/authService";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
 const BACKGROUND = "#f7f8fa";
 const BORDER = "#e5e7eb";
 const TEXT = "#172033";

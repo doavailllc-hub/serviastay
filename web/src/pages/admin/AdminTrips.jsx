@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle, Search, XCircle, Loader2, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api/api";
@@ -20,22 +20,61 @@ export default function AdminTrips() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [homeDrafts, setHomeDrafts] = useState({});
 
-  const loadTrips = async () => {
+  const loadTrips = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get("/admin/trip-packages");
-      setTrips(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setTrips(list);
+      setHomeDrafts(
+        Object.fromEntries(
+          list.map((trip) => [
+            trip.id,
+            {
+              is_top_spot: Boolean(Number(trip.is_top_spot)),
+              show_brand_on_home: Boolean(Number(trip.show_brand_on_home)),
+              brand_name: trip.brand_name || "",
+              home_display_order: Number(trip.home_display_order || 0),
+            },
+          ])
+        )
+      );
     } catch (err) {
       toast.error(err.response?.data?.message || "Trips load failed");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const updateHomeDraft = (id, field, value) => {
+    setHomeDrafts((current) => ({
+      ...current,
+      [id]: { ...current[id], [field]: value },
+    }));
+  };
+
+  const saveHomePlacement = async (trip) => {
+    try {
+      setActionLoading(true);
+      const { data } = await api.put(
+        `/admin/trip-packages/${trip.id}/home-placement`,
+        homeDrafts[trip.id]
+      );
+      toast.success(data?.message || "Home placement updated");
+      await loadTrips();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Home placement update failed");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadTrips();
-  }, []);
+    const timeout = window.setTimeout(loadTrips, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadTrips]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -145,6 +184,12 @@ export default function AdminTrips() {
             {filtered.map((trip) => {
               const currentStatus = normalizeStatus(trip.status);
               const permitted = allowedActions[currentStatus] || [];
+              const homeDraft = homeDrafts[trip.id] || {
+                is_top_spot: false,
+                show_brand_on_home: false,
+                brand_name: "",
+                home_display_order: 0,
+              };
 
               return (
               <article
@@ -177,6 +222,66 @@ export default function AdminTrips() {
                     <p className="mt-3 line-clamp-2 text-sm text-gray-500">
                       {trip.description || "No description provided."}
                     </p>
+
+                    <div className="mt-4 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-2 xl:grid-cols-4">
+                      <label className="flex items-center gap-2 text-sm font-semibold">
+                        <input
+                          type="checkbox"
+                          checked={homeDraft.is_top_spot}
+                          onChange={(e) =>
+                            updateHomeDraft(trip.id, "is_top_spot", e.target.checked)
+                          }
+                          className="h-5 w-5 accent-[#2DB281]"
+                        />
+                        Top destination
+                      </label>
+
+                      <label className="flex items-center gap-2 text-sm font-semibold">
+                        <input
+                          type="checkbox"
+                          checked={homeDraft.show_brand_on_home}
+                          onChange={(e) =>
+                            updateHomeDraft(trip.id, "show_brand_on_home", e.target.checked)
+                          }
+                          className="h-5 w-5 accent-[#2DB281]"
+                        />
+                        Show brand
+                      </label>
+
+                      <input
+                        value={homeDraft.brand_name}
+                        onChange={(e) =>
+                          updateHomeDraft(trip.id, "brand_name", e.target.value)
+                        }
+                        placeholder="Brand name"
+                        className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#2DB281]"
+                      />
+
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="9999"
+                          value={homeDraft.home_display_order}
+                          onChange={(e) =>
+                            updateHomeDraft(
+                              trip.id,
+                              "home_display_order",
+                              Number(e.target.value || 0)
+                            )
+                          }
+                          aria-label="Home display order"
+                          className="h-10 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#2DB281]"
+                        />
+                        <button
+                          disabled={actionLoading}
+                          onClick={() => saveHomePlacement(trip)}
+                          className="rounded-xl bg-[#2DB281] px-4 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
 
                     <div className="mt-4 flex flex-wrap gap-3">
                       <button

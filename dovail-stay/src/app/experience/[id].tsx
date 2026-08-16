@@ -1,14 +1,20 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import {
     Building2,
+    CalendarDays,
     ChevronLeft,
+    ChevronRight,
     FileText,
     Heart,
     MapPin,
+    MessageCircle,
     Minus,
     Plus,
     Star,
     User,
+    Users,
+    X,
 } from "lucide-react-native";
 import React, {
     useCallback,
@@ -22,9 +28,9 @@ import {
     Dimensions,
     FlatList,
     Image,
+    Modal,
     Pressable,
     RefreshControl,
-    SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -33,10 +39,16 @@ import {
 } from "react-native";
 
 import api from "../../api/api";
+import { getStoredUser } from "../../services/authService";
+import {
+  formatDisplayDate,
+  isTodayOrFuture,
+  parseCalendarDate,
+} from "../../utils/date";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 const TEXT = "#202124";
 const MUTED = "#5f6368";
 const BORDER = "#e5e7eb";
@@ -58,11 +70,17 @@ type ExperienceImage = {
 
 type ExperienceDeparture = {
   id: number | string;
+  departure_id?: number | string;
   departure_date?: string;
+  date?: string;
+  start_date?: string;
   total_seats?: number | string;
+  available_seats?: number | string;
+  capacity?: number | string;
   booked_seats?: number | string;
   status?: string;
   price_override?: number | string;
+  price?: number | string;
 };
 
 type ExperienceReview = {
@@ -87,6 +105,8 @@ type Experience = {
   package_days?: number | string;
   package_nights?: number | string;
   max_people?: number | string;
+  max_travelers?: number | string;
+  max_guests?: number | string;
   group_size?: string;
   host_name?: string;
   host?: string;
@@ -134,6 +154,10 @@ const getArrayFromResponse = <T,>(
   for (const key of [...keys, "data", "items", "results"]) {
     const value = record[key];
     if (Array.isArray(value)) return value as T[];
+    if (value && typeof value === "object") {
+      const nested = getArrayFromResponse<T>(value, keys);
+      if (nested.length) return nested;
+    }
   }
 
   return [];
@@ -191,17 +215,7 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const formatDate = (value?: string) => {
-  if (!value) return "Date unavailable";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDisplayDate(value);
 };
 
 const parseList = (value?: string, fallback: string[] = []) => {
@@ -237,15 +251,30 @@ const parseItinerary = (value?: string) => {
   });
 };
 
+const getRemainingSeats = (departure: ExperienceDeparture) =>
+  departure.available_seats != null
+    ? toNumber(departure.available_seats)
+    : toNumber(departure.total_seats) - toNumber(departure.booked_seats);
+
 const isDepartureAvailable = (departure: ExperienceDeparture) => {
-  const remaining =
-    toNumber(departure.total_seats) - toNumber(departure.booked_seats);
+  const remaining = getRemainingSeats(departure);
+  const status = String(departure.status || "active").toLowerCase();
 
   return (
-    String(departure.status || "Available").toLowerCase() === "available" &&
+    ["active", "available", "open", "bookable"].includes(status) &&
+    isTodayOrFuture(departure.departure_date) &&
     remaining > 0
   );
 };
+
+const normalizeDeparture = (departure: ExperienceDeparture): ExperienceDeparture => ({
+  ...departure,
+  id: departure.id ?? departure.departure_id ?? "",
+  departure_date: departure.departure_date || departure.date || departure.start_date,
+  total_seats: departure.total_seats ?? departure.capacity ?? departure.available_seats ?? 0,
+  booked_seats: departure.booked_seats ?? 0,
+  price_override: departure.price_override ?? departure.price,
+});
 
 export default function ExperienceDetailsScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -263,6 +292,9 @@ export default function ExperienceDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [departurePickerOpen, setDeparturePickerOpen] = useState(false);
+  const [startingConversation, setStartingConversation] = useState(false);
 
   const loadPage = useCallback(
     async (refresh = false) => {
@@ -273,7 +305,11 @@ export default function ExperienceDetailsScreen() {
       }
 
       try {
-        refresh ? setRefreshing(true) : setLoading(true);
+        if (refresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
         setError("");
 
         const detailResponse = await api.get(`/experiences/${id}`);
@@ -299,9 +335,17 @@ export default function ExperienceDetailsScreen() {
             ["departures"]
           );
 
-          setDepartures(loadedDepartures);
+          const sortedDepartures = loadedDepartures.map(normalizeDeparture).sort((first, second) => {
+            const firstTime =
+              parseCalendarDate(first.departure_date)?.getTime() ?? Infinity;
+            const secondTime =
+              parseCalendarDate(second.departure_date)?.getTime() ?? Infinity;
+            return firstTime - secondTime;
+          });
+
+          setDepartures(sortedDepartures);
           setSelectedDeparture(
-            loadedDepartures.find(isDepartureAvailable) || null
+            sortedDepartures.find(isDepartureAvailable) || null
           );
         } catch {
           setDepartures([]);
@@ -371,13 +415,15 @@ export default function ExperienceDetailsScreen() {
     if (selectedDeparture) {
       return Math.max(
         1,
-        toNumber(selectedDeparture.total_seats) -
-          toNumber(selectedDeparture.booked_seats)
+        getRemainingSeats(selectedDeparture)
       );
     }
 
-    return Math.max(1, toNumber(experience?.max_people) || 10);
-  }, [experience?.max_people, selectedDeparture]);
+    return Math.max(
+      1,
+      toNumber(experience?.max_people ?? experience?.max_travelers ?? experience?.max_guests) || 10
+    );
+  }, [experience?.max_guests, experience?.max_people, experience?.max_travelers, selectedDeparture]);
 
   useEffect(() => {
     if (travelers > maximumTravelers) {
@@ -409,7 +455,15 @@ export default function ExperienceDetailsScreen() {
   const openCheckout = () => {
     if (!experience || !id) return;
 
-    if (departures.length > 0 && !selectedDeparture) {
+    if (departures.length === 0) {
+      Alert.alert(
+        "No departure dates",
+        "This trip does not have a bookable departure yet. Please check again later."
+      );
+      return;
+    }
+
+    if (!selectedDeparture) {
       Alert.alert(
         "Select a departure",
         "Choose an available departure date before continuing."
@@ -434,6 +488,60 @@ export default function ExperienceDetailsScreen() {
         guests: String(travelers),
       },
     });
+  };
+
+  const messageHost = async () => {
+    if (!experience || startingConversation) return;
+
+    try {
+      const user = await getStoredUser();
+
+      if (!user) {
+        setBookingModalOpen(false);
+        router.push("/login");
+        return;
+      }
+
+      const hostId = Number(experience.host_id);
+      const userId = Number(user.id ?? user.user_id);
+      if (!hostId) {
+        Alert.alert("Host unavailable", "Host information is missing for this trip.");
+        return;
+      }
+
+      if (userId === hostId) {
+        Alert.alert("Your trip", "You cannot message yourself.");
+        return;
+      }
+
+      setStartingConversation(true);
+      await api.post("/conversations/start", {
+        sender_id: userId,
+        receiver_id: hostId,
+        experience_id: experience.id,
+        message: `Hi, I’m interested in ${experience.title || "this trip"}. Is this departure available?`,
+      });
+      setBookingModalOpen(false);
+      router.push("/messages");
+    } catch (messageError: any) {
+      Alert.alert(
+        "Message failed",
+        messageError?.response?.data?.message || "Could not start this conversation."
+      );
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
+  const openDeparturePicker = () => {
+    setBookingModalOpen(false);
+    setTimeout(() => setDeparturePickerOpen(true), 160);
+  };
+
+  const chooseDeparture = (departure: ExperienceDeparture) => {
+    setSelectedDeparture(departure);
+    setDeparturePickerOpen(false);
+    setTimeout(() => setBookingModalOpen(true), 160);
   };
 
   if (loading) {
@@ -656,9 +764,7 @@ export default function ExperienceDetailsScreen() {
               <Section title="Choose a departure">
                 <View style={styles.departureList}>
                   {departures.map((departure) => {
-                    const remaining =
-                      toNumber(departure.total_seats) -
-                      toNumber(departure.booked_seats);
+                    const remaining = getRemainingSeats(departure);
 
                     const available = isDepartureAvailable(departure);
                     const selected =
@@ -848,21 +954,227 @@ export default function ExperienceDetailsScreen() {
           <View>
             <Text style={styles.footerPrice}>{formatCurrency(total)}</Text>
             <Text style={styles.footerPriceText}>
-              total for {travelers}{" "}
-              {travelers === 1 ? "traveler" : "travelers"}
+              {selectedDeparture?.departure_date
+                ? `${formatDate(selectedDeparture.departure_date)} · ${travelers} ${
+                    travelers === 1 ? "traveler" : "travelers"
+                  }`
+                : "Select a departure date"}
             </Text>
           </View>
 
           <Pressable
-            onPress={openCheckout}
+            onPress={() => setBookingModalOpen(true)}
             style={({ pressed }) => [
               styles.bookButton,
               pressed && styles.bookButtonPressed,
             ]}
           >
-            <Text style={styles.bookButtonText}>Book package</Text>
+            <Text style={styles.bookButtonText}>Reserve</Text>
           </Pressable>
         </View>
+
+        <Modal
+          visible={bookingModalOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setBookingModalOpen(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <SafeAreaView edges={["bottom"]} style={styles.bookingSheet}>
+              <View style={styles.sheetHandle} />
+              <View style={styles.sheetHeader}>
+                <View style={styles.sheetHeaderCopy}>
+                  <Text style={styles.sheetTitle}>Reserve your trip</Text>
+                  <Text numberOfLines={1} style={styles.sheetSubtitle}>
+                    {experience.title || "Dovail trip"}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityLabel="Close reservation"
+                  onPress={() => setBookingModalOpen(false)}
+                  style={styles.sheetCloseButton}
+                >
+                  <X size={20} color={TEXT} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.sheetPriceRow}>
+                  <Text style={styles.sheetPrice}>{formatCurrency(packagePrice)}</Text>
+                  <Text style={styles.sheetPriceSuffix}> / traveler</Text>
+                </View>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose departure date"
+                  onPress={openDeparturePicker}
+                  style={({ pressed }) => [
+                    styles.sheetSelectorCard,
+                    pressed && styles.sheetSelectorCardPressed,
+                  ]}
+                >
+                  <CalendarDays size={20} color={THEME} />
+                  <View style={styles.sheetSelectorContent}>
+                    <Text style={styles.sheetSelectorLabel}>Departure date</Text>
+                    <Text style={styles.sheetSelectorValue}>
+                      {selectedDeparture?.departure_date
+                        ? formatDate(selectedDeparture.departure_date)
+                        : "Select an available departure"}
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color={MUTED} />
+                </Pressable>
+
+                <View style={styles.sheetDepartureList}>
+                  {departures.map((departure) => {
+                    const available = isDepartureAvailable(departure);
+                    const selected = String(selectedDeparture?.id) === String(departure.id);
+                    return (
+                      <Pressable
+                        key={String(departure.id)}
+                        disabled={!available}
+                        onPress={() => setSelectedDeparture(departure)}
+                        style={[
+                          styles.sheetDepartureChip,
+                          selected && styles.sheetDepartureChipSelected,
+                          !available && styles.sheetDepartureChipDisabled,
+                        ]}
+                      >
+                        <Text style={[styles.sheetDepartureChipText, selected && styles.sheetDepartureChipTextSelected]}>
+                          {formatDate(departure.departure_date)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.sheetSelectorCard}>
+                  <Users size={20} color={THEME} />
+                  <View style={styles.sheetSelectorContent}>
+                    <Text style={styles.sheetSelectorLabel}>Travelers</Text>
+                    <Text style={styles.sheetSelectorValue}>
+                      {travelers} {travelers === 1 ? "traveler" : "travelers"}
+                    </Text>
+                  </View>
+                  <View style={styles.sheetCounter}>
+                    <Pressable
+                      disabled={travelers <= 1}
+                      onPress={() => setTravelers((current) => Math.max(1, current - 1))}
+                      style={[styles.sheetCounterButton, travelers <= 1 && styles.counterButtonDisabled]}
+                    >
+                      <Minus size={17} color={TEXT} />
+                    </Pressable>
+                    <Text style={styles.sheetCounterValue}>{travelers}</Text>
+                    <Pressable
+                      disabled={travelers >= maximumTravelers}
+                      onPress={() => setTravelers((current) => Math.min(maximumTravelers, current + 1))}
+                      style={[styles.sheetCounterButton, travelers >= maximumTravelers && styles.counterButtonDisabled]}
+                    >
+                      <Plus size={17} color={TEXT} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.sheetPriceBreakdown}>
+                  <PriceRow label={`${formatCurrency(packagePrice)} × ${travelers}`} value={formatCurrency(subtotal)} />
+                  <PriceRow label="Taxes" value={formatCurrency(taxes)} />
+                  <View style={styles.sheetTotalRow}>
+                    <Text style={styles.sheetTotalLabel}>Total before payment</Text>
+                    <Text style={styles.sheetTotalValue}>{formatCurrency(total)}</Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  disabled={startingConversation}
+                  onPress={messageHost}
+                  style={styles.messageHostButton}
+                >
+                  {startingConversation ? (
+                    <ActivityIndicator size="small" color={TEXT} />
+                  ) : (
+                    <MessageCircle size={19} color={TEXT} />
+                  )}
+                  <Text style={styles.messageHostButtonText}>Message host</Text>
+                </Pressable>
+              </ScrollView>
+
+              <Pressable
+                onPress={() => {
+                  setBookingModalOpen(false);
+                  openCheckout();
+                }}
+                style={({ pressed }) => [styles.sheetContinueButton, pressed && styles.bookButtonPressed]}
+              >
+                <Text style={styles.bookButtonText}>Continue</Text>
+              </Pressable>
+            </SafeAreaView>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={departurePickerOpen}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setDeparturePickerOpen(false)}
+        >
+          <SafeAreaView edges={["top", "bottom", "left", "right"]} style={styles.departurePickerPage}>
+            <View style={styles.departurePickerHeader}>
+              <Pressable
+                accessibilityLabel="Back to reservation"
+                onPress={() => {
+                  setDeparturePickerOpen(false);
+                  setTimeout(() => setBookingModalOpen(true), 160);
+                }}
+                style={styles.sheetCloseButton}
+              >
+                <ChevronLeft size={24} color={TEXT} />
+              </Pressable>
+              <Text style={styles.departurePickerTitle}>Choose a departure</Text>
+              <View style={styles.sheetCloseButton} />
+            </View>
+
+            <ScrollView contentContainerStyle={styles.departurePickerContent}>
+              <Text style={styles.departurePickerSubtitle}>
+                Select an available date for {experience.title || "this trip"}.
+              </Text>
+
+              {departures.length ? departures.map((departure) => {
+                const available = isDepartureAvailable(departure);
+                const selected = String(selectedDeparture?.id) === String(departure.id);
+                const remaining = getRemainingSeats(departure);
+                return (
+                  <Pressable
+                    key={String(departure.id)}
+                    disabled={!available}
+                    onPress={() => chooseDeparture(departure)}
+                    style={({ pressed }) => [
+                      styles.departurePickerRow,
+                      selected && styles.departurePickerRowSelected,
+                      !available && styles.departureCardDisabled,
+                      pressed && styles.sheetSelectorCardPressed,
+                    ]}
+                  >
+                    <CalendarDays size={21} color={selected ? THEME : TEXT} />
+                    <View style={styles.sheetSelectorContent}>
+                      <Text style={styles.departurePickerDate}>{formatDate(departure.departure_date)}</Text>
+                      <Text style={styles.departurePickerSeats}>
+                        {available ? `${remaining} seats available` : departure.status || "Unavailable"}
+                      </Text>
+                    </View>
+                    <View style={[styles.radio, selected && styles.radioSelected]}>
+                      {selected ? <View style={styles.radioInner} /> : null}
+                    </View>
+                  </Pressable>
+                );
+              }) : (
+                <View style={styles.departurePickerEmpty}>
+                  <Text style={styles.departurePickerDate}>No departure dates available</Text>
+                  <Text style={styles.departurePickerSeats}>Please check again later.</Text>
+                </View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -1564,4 +1876,91 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: WHITE,
   },
+
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.42)",
+  },
+
+  bookingSheet: {
+    maxHeight: "88%",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: WHITE,
+  },
+
+  sheetHandle: {
+    width: 42,
+    height: 4,
+    alignSelf: "center",
+    marginBottom: 16,
+    borderRadius: 2,
+    backgroundColor: "#d7d7d2",
+  },
+
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
+  sheetHeaderCopy: { flex: 1, minWidth: 0 },
+  sheetTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 21, color: TEXT },
+  sheetSubtitle: { marginTop: 3, fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+  sheetCloseButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22 },
+
+  sheetPriceRow: { flexDirection: "row", alignItems: "baseline", marginBottom: 16 },
+  sheetPrice: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, color: TEXT },
+  sheetPriceSuffix: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
+
+  sheetSelectorCard: {
+    minHeight: 72,
+    marginBottom: 12,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  sheetSelectorContent: { flex: 1 },
+  sheetSelectorLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: TEXT },
+  sheetSelectorValue: { marginTop: 4, fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
+  sheetSelectorCardPressed: { opacity: 0.72 },
+
+  sheetDepartureList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
+  sheetDepartureChip: { minHeight: 40, paddingHorizontal: 13, borderWidth: 1, borderColor: BORDER, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  sheetDepartureChipSelected: { borderColor: THEME, backgroundColor: THEME_LIGHT },
+  sheetDepartureChipDisabled: { opacity: 0.35 },
+  sheetDepartureChipText: { fontFamily: "Inter_500Medium", fontSize: 12, color: TEXT },
+  sheetDepartureChipTextSelected: { fontFamily: "Inter_600SemiBold", color: THEME_DARK },
+
+  sheetCounter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  sheetCounterButton: { width: 36, height: 36, borderWidth: 1, borderColor: BORDER, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  sheetCounterValue: { minWidth: 20, textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 14, color: TEXT },
+
+  sheetPriceBreakdown: { paddingVertical: 8, gap: 11 },
+  sheetTotalRow: { paddingTop: 14, borderTopWidth: 1, borderTopColor: BORDER, flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  sheetTotalLabel: { flex: 1, fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: TEXT },
+  sheetTotalValue: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 16, color: TEXT },
+
+  messageHostButton: { height: 50, marginTop: 8, marginBottom: 14, borderWidth: 1, borderColor: BORDER, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  messageHostButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: TEXT },
+  sheetContinueButton: { height: 54, borderRadius: 17, backgroundColor: THEME, alignItems: "center", justifyContent: "center" },
+
+  departurePickerPage: { flex: 1, backgroundColor: WHITE },
+  departurePickerHeader: { minHeight: 64, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: BORDER, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  departurePickerTitle: { flex: 1, textAlign: "center", fontFamily: "PlusJakartaSans_700Bold", fontSize: 18, color: TEXT },
+  departurePickerContent: { padding: 20, paddingBottom: 36 },
+  departurePickerSubtitle: { marginBottom: 18, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: MUTED },
+  departurePickerRow: { minHeight: 76, marginBottom: 10, paddingHorizontal: 16, borderWidth: 1, borderColor: BORDER, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 13, backgroundColor: WHITE },
+  departurePickerRowSelected: { borderColor: THEME, backgroundColor: THEME_LIGHT },
+  departurePickerDate: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: TEXT },
+  departurePickerSeats: { marginTop: 4, fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+  departurePickerEmpty: { minHeight: 180, alignItems: "center", justifyContent: "center", padding: 24, borderWidth: 1, borderColor: BORDER, borderRadius: 18 },
 });

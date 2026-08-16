@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import {
     Building2,
@@ -21,7 +22,6 @@ import {
     FlatList,
     Pressable,
     RefreshControl,
-    SafeAreaView,
     StatusBar,
     StyleSheet,
     Text,
@@ -31,8 +31,8 @@ import {
 import api from "../../api/api";
 import { getStoredUser } from "../../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
 const THEME_LIGHT = "#edf3ff";
 const BACKGROUND = "#f7f8fa";
 const BORDER = "#e5e7eb";

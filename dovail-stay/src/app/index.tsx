@@ -1,6 +1,8 @@
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import {
   Building2,
+  Bell,
   ChevronLeft,
   ChevronRight,
   Heart,
@@ -18,13 +20,13 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Image,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -33,19 +35,22 @@ import {
 
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import api from "../api/api";
+import { icon, palette, spacing } from "../constants/theme";
 import { getStoredUser } from "../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_LIGHT = "#eef4ff";
-const TEXT = "#202124";
-const MUTED = "#5f6368";
-const BORDER = "#e5e7eb";
-const BACKGROUND = "#f7f8fa";
-const SURFACE = "#f8fafc";
-const SUCCESS = "#177a45";
+const THEME = palette.primary;
+const THEME_LIGHT = palette.primarySoft;
+const TEXT = palette.ink;
+const MUTED = palette.muted;
+const BORDER = palette.border;
+const SURFACE = palette.canvas;
+const HORIZONTAL_LIST_PADDING = 18;
+const CARD_GAP = 12;
+const CARD_WIDTH =
+  (Dimensions.get("window").width - HORIZONTAL_LIST_PADDING * 2 - CARD_GAP) / 2;
 
 const FALLBACK_STAY_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
@@ -78,6 +83,12 @@ type ListingItem = {
   category?: string;
   package_type?: string;
   property_type?: string;
+  brand_name?: string;
+  host_name?: string;
+  is_top_pick?: boolean | number | string;
+  is_top_spot?: boolean | number | string;
+  show_brand_on_home?: boolean | number | string;
+  home_display_order?: number | string;
 
   location?: string;
   destination?: string;
@@ -135,10 +146,10 @@ const EMPTY_SEARCH: AppliedSearch = {
   maximumPrice: "",
 };
 
-const tabs: Array<{
+const tabs: {
   name: HomeTab;
   icon: typeof Building2;
-}> = [
+}[] = [
   {
     name: "Stay",
     icon: Building2,
@@ -451,8 +462,6 @@ const generateCalendarDays = (
 };
 
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
-
   const [items, setItems] = useState<
     ListingItem[]
   >([]);
@@ -624,6 +633,99 @@ export default function HomeScreen() {
     items,
   ]);
 
+  const discoveryGroups = useMemo(() => {
+    const groupBy = (
+      getLabel: (item: ListingItem) => string,
+      limit: number,
+      source: ListingItem[] = items
+    ) => {
+      const groups = new Map<
+        string,
+        { label: string; count: number; item: ListingItem }
+      >();
+
+      source.forEach((item) => {
+        const label = getLabel(item).trim();
+        if (!label) return;
+
+        const key = label.toLowerCase().replace(/\s+/g, "");
+        const current = groups.get(key);
+
+        if (current) {
+          current.count += 1;
+        } else {
+          groups.set(key, { label, count: 1, item });
+        }
+      });
+
+      return Array.from(groups.values())
+        .sort(
+          (a, b) =>
+            toNumber(a.item.home_display_order) -
+              toNumber(b.item.home_display_order) ||
+            b.count - a.count ||
+            a.label.localeCompare(b.label)
+        )
+        .slice(0, limit);
+    };
+
+    const enabled = (value: ListingItem["is_top_pick"]) =>
+      value === true || value === 1 || value === "1";
+
+    const byDisplayOrder = (a: ListingItem, b: ListingItem) =>
+      toNumber(a.home_display_order) - toNumber(b.home_display_order) ||
+      toNumber(b.rating ?? b.average_rating) -
+        toNumber(a.rating ?? a.average_rating);
+
+    const hasTopSpotControls = items.some(
+      (item) => item.is_top_spot !== undefined && item.is_top_spot !== null
+    );
+    const hasBrandControls = items.some(
+      (item) =>
+        item.show_brand_on_home !== undefined && item.show_brand_on_home !== null
+    );
+    const hasTopPickControls = items.some(
+      (item) => item.is_top_pick !== undefined && item.is_top_pick !== null
+    );
+
+    const orderedTopSpots = (
+      hasTopSpotControls
+        ? items.filter((item) => enabled(item.is_top_spot))
+        : [...items]
+    ).sort(byDisplayOrder);
+
+    const orderedBrands = (
+      hasBrandControls
+        ? items.filter((item) => enabled(item.show_brand_on_home))
+        : items.filter((item) => Boolean(item.brand_name?.trim()))
+    ).sort(byDisplayOrder);
+
+    const orderedTopPicks = (
+      hasTopPickControls
+        ? items.filter((item) => enabled(item.is_top_pick))
+        : [...items]
+    ).sort(byDisplayOrder);
+
+    return {
+      spots:
+        activeTab === "Trip"
+          ? groupBy(
+              (item) => item.destination || item.location || item.city || "",
+              6,
+              orderedTopSpots
+            )
+          : [],
+      brands:
+        activeTab === "Trip"
+          ? groupBy((item) => item.brand_name || "", 6, orderedBrands)
+          : [],
+      topPicks:
+        activeTab === "Stay"
+          ? orderedTopPicks.slice(0, 6)
+          : [],
+    };
+  }, [activeTab, items]);
+
   const calendarDays = useMemo(
     () =>
       generateCalendarDays(
@@ -648,7 +750,7 @@ export default function HomeScreen() {
   const searchSummary = useMemo(() => {
     const destination =
       appliedSearch.destination.trim() ||
-      "Anywhere";
+      "Search stays and trips";
 
     const dateText =
       appliedSearch.checkin &&
@@ -1114,7 +1216,7 @@ router.push({
               />
             ) : (
               <Heart
-                size={20}
+                size={18}
                 color={
                   saved
                     ? THEME
@@ -1144,7 +1246,7 @@ router.push({
               style={styles.ratingWrap}
             >
               <Star
-                size={13}
+                size={11}
                 color="#717171"
                 fill={
                   rating === "New"
@@ -1178,7 +1280,7 @@ router.push({
             style={styles.locationRow}
           >
             <MapPin
-              size={14}
+              size={12}
               color="#717171"
             />
 
@@ -1250,10 +1352,7 @@ router.push({
       style={styles.safe}
       edges={["top", "left", "right"]}
     >
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#ffffff"
-      />
+      <StatusBar style="dark" animated />
 
       <ScrollView
         style={styles.screen}
@@ -1273,13 +1372,29 @@ router.push({
           style={[
             styles.topSpacer,
             {
-              height: Math.max(
-                8,
-                insets.top > 0 ? 8 : 16
-              ),
+              height: spacing.xs,
             },
           ]}
         />
+
+        <View style={styles.heroHeader}>
+          <View>
+            <Text style={styles.heroTitle}>Where to next?</Text>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+            onPress={() => router.push("/notifications")}
+            style={({ pressed }) => [
+              styles.notificationButton,
+              pressed && styles.iconButtonPressed,
+            ]}
+          >
+            <Bell size={icon.size} color={palette.ink} strokeWidth={icon.strokeWidth} />
+            <View style={styles.notificationDot} />
+          </Pressable>
+        </View>
 
         <View style={styles.searchContainer}>
           <Pressable
@@ -1291,17 +1406,12 @@ router.push({
               pressed && styles.searchBarPressed,
             ]}
           >
-            <Search
-              size={22}
-              color="#717171"
-              strokeWidth={2}
-            />
+            <View style={styles.searchIconWrap}>
+              <Search size={icon.size} color={palette.ink} strokeWidth={icon.strokeWidth} />
+            </View>
 
-            <Text
-              numberOfLines={1}
-              style={styles.searchOnlyText}
-            >
-              Search and go
+            <Text numberOfLines={1} style={styles.searchOnlyText}>
+              {searchSummary.destination}
             </Text>
           </Pressable>
         </View>
@@ -1342,8 +1452,8 @@ router.push({
               >
                 <Icon
                   size={19}
-                  color={active ? THEME : MUTED}
-                  strokeWidth={active ? 2.4 : 2}
+                  color={active ? "#ffffff" : THEME}
+                  strokeWidth={active ? icon.strokeWidthActive : icon.strokeWidth}
                 />
 
                 <Text
@@ -1366,8 +1476,8 @@ router.push({
                 {hasActiveSearch
                   ? "Search results"
                   : activeTab === "Stay"
-                    ? "Popular stays"
-                    : "Popular trips"}
+                    ? "Stays worth the trip"
+                    : "Journeys made memorable"}
               </Text>
 
               <Text style={styles.sectionSubtitle}>
@@ -1376,15 +1486,29 @@ router.push({
                       activeTab === "Stay" ? "stays" : "trips"
                     }`
                   : activeTab === "Stay"
-                    ? "Handpicked places for a comfortable stay"
-                    : "Curated journeys for memorable experiences"}
+                    ? "Handpicked homes with character and comfort"
+                    : "Thoughtful itineraries, curated for you"}
               </Text>
             </View>
 
             {!loading && filteredItems.length > 0 ? (
-              <Text style={styles.resultCount}>
-                {filteredItems.length}
-              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View all ${activeTab === "Stay" ? "stays" : "trips"}`}
+                hitSlop={8}
+                onPress={() =>
+                  router.push({
+                    pathname: "/explore",
+                    params: { type: activeTab },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.sectionArrowButton,
+                  pressed && styles.sectionArrowButtonPressed,
+                ]}
+              >
+                <ChevronRight size={18} color={TEXT} strokeWidth={2} />
+              </Pressable>
             ) : null}
           </View>
         </View>
@@ -1402,7 +1526,7 @@ router.push({
             ItemSeparatorComponent={() => (
               <View style={styles.horizontalSeparator} />
             )}
-            snapToInterval={254}
+            snapToInterval={CARD_WIDTH + CARD_GAP}
             decelerationRate="fast"
             snapToAlignment="start"
             removeClippedSubviews
@@ -1418,6 +1542,112 @@ router.push({
             onRetry={() => loadData()}
           />
         )}
+
+        {!loading && filteredItems.length > 0 && activeTab === "Trip" ? (
+          <>
+            {discoveryGroups.spots.length > 0 ? (
+              <View style={styles.discoverySection}>
+                <Text style={styles.discoveryTitle}>Popular destinations</Text>
+                <Text style={styles.discoverySubtitle}>Top places from available trips</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.discoveryRow}
+                >
+                  {discoveryGroups.spots.map((spot) => (
+                    <Pressable
+                      key={spot.label}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/explore",
+                          params: { type: "Trip", destination: spot.label },
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.destinationCard,
+                        pressed && styles.discoveryCardPressed,
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: getItemImage(spot.item, "Trip") }}
+                        style={styles.destinationImage}
+                        resizeMode="cover"
+                      />
+                      <Text numberOfLines={1} style={styles.destinationName}>
+                        {spot.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
+            {discoveryGroups.brands.length > 0 ? (
+              <View style={styles.discoverySection}>
+                <Text style={styles.discoveryTitle}>Travel brands</Text>
+                <Text style={styles.discoverySubtitle}>Packages from trusted trip partners</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.brandRow}
+                >
+                  {discoveryGroups.brands.map((brand) => (
+                    <Pressable
+                      key={brand.label}
+                      onPress={() => openDetails(brand.item)}
+                      style={({ pressed }) => [
+                        styles.brandCard,
+                        pressed && styles.discoveryCardPressed,
+                      ]}
+                    >
+                      <View style={styles.brandMark}>
+                        <Text style={styles.brandInitial}>
+                          {brand.label.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text numberOfLines={1} style={styles.brandName}>
+                        {brand.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {!loading && filteredItems.length > 0 && activeTab === "Stay" &&
+        discoveryGroups.topPicks.length > 0 ? (
+          <View style={styles.discoverySection}>
+            <Text style={styles.discoveryTitle}>Top picks</Text>
+            <Text style={styles.discoverySubtitle}>Guest-ready stays selected for you</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.discoveryRow}
+            >
+              {discoveryGroups.topPicks.map((item) => (
+                <Pressable
+                  key={String(item.id)}
+                  onPress={() => openDetails(item)}
+                  style={({ pressed }) => [
+                    styles.destinationCard,
+                    pressed && styles.discoveryCardPressed,
+                  ]}
+                >
+                  <Image
+                    source={{ uri: getItemImage(item, "Stay") }}
+                    style={styles.destinationImage}
+                    resizeMode="cover"
+                  />
+                  <Text numberOfLines={1} style={styles.destinationName}>
+                    {getItemTitle(item, "Stay")}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
         {!loading && filteredItems.length > 0 ? (
           <View style={styles.browseHint}>
@@ -1438,10 +1668,7 @@ router.push({
           style={styles.modalSafe}
           edges={["top", "bottom", "left", "right"]}
         >
-          <StatusBar
-            barStyle="dark-content"
-            backgroundColor="#ffffff"
-          />
+          <StatusBar style="dark" animated />
 
           <View
             style={styles.modalHeader}
@@ -2176,11 +2403,14 @@ function SearchSectionCard({
       </Pressable>
 
       {active ? (
-        <View
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(120)}
+          layout={LinearTransition.duration(180)}
           style={styles.searchSectionBody}
         >
           {children}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -2289,16 +2519,59 @@ const styles = StyleSheet.create({
 
   list: {
     paddingTop: 0,
-    paddingBottom: 118,
+    paddingBottom: 32,
   },
 
   topSpacer: {
-    height: 12,
+    height: 8,
+  },
+
+  heroHeader: {
+    minHeight: 46,
+    marginHorizontal: 18,
+    marginBottom: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  heroTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 25,
+    lineHeight: 32,
+    letterSpacing: -0.4,
+    color: TEXT,
+  },
+
+  notificationButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  notificationDot: {
+    position: "absolute",
+    right: 10,
+    top: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: "#ffffff",
+    backgroundColor: "#ef4444",
+  },
+
+  iconButtonPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.96 }],
   },
 
   searchContainer: {
     marginHorizontal: 18,
-    marginBottom: 18,
+    marginBottom: 14,
   },
 
   airbnbSearchBar: {
@@ -2306,18 +2579,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#e7e7e7",
+    borderColor: "#dfe1e5",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowRadius: 9,
+    paddingHorizontal: 16,
+    shadowColor: "#111827",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 3,
     },
-    elevation: 3,
+    elevation: 2,
   },
 
   searchBarPressed: {
@@ -2326,10 +2599,18 @@ const styles = StyleSheet.create({
 
   searchOnlyText: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 12,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 15,
+    fontSize: 14,
     color: TEXT,
+  },
+
+  searchIconWrap: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
   },
 
   activeSearchRow: {
@@ -2356,17 +2637,19 @@ const styles = StyleSheet.create({
 
   segmentWrap: {
     marginHorizontal: 18,
-    borderRadius: 17,
-    backgroundColor: "#f1f3f4",
-    padding: 4,
+    borderRadius: 16,
+    backgroundColor: "#f4f6f9",
+    padding: 5,
     flexDirection: "row",
     gap: 4,
   },
 
   segmentButton: {
     flex: 1,
-    height: 46,
+    height: 50,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "transparent",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -2374,8 +2657,13 @@ const styles = StyleSheet.create({
   },
 
   segmentButtonActive: {
-    backgroundColor: "#ffffff",
-    elevation: 1,
+    backgroundColor: THEME,
+    borderColor: THEME,
+    shadowColor: "#111827",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
 
   segmentButtonPressed: {
@@ -2390,12 +2678,12 @@ const styles = StyleSheet.create({
 
   segmentTextActive: {
     fontFamily: "Inter_600SemiBold",
-    color: THEME,
+    color: "#ffffff",
   },
 
   sectionHeader: {
-    marginTop: 26,
-    marginBottom: 14,
+    marginTop: 30,
+    marginBottom: 16,
     paddingHorizontal: 18,
   },
 
@@ -2411,41 +2699,47 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 21,
-    lineHeight: 28,
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    fontSize: 22,
+    lineHeight: 29,
     color: TEXT,
     letterSpacing: -0.4,
   },
 
   sectionSubtitle: {
-    marginTop: 4,
+    marginTop: 5,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     lineHeight: 18,
     color: MUTED,
   },
 
-  resultCount: {
-    color: MUTED,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    paddingBottom: 2,
+  sectionArrowButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f4f4f2",
+  },
+
+  sectionArrowButtonPressed: {
+    opacity: 0.65,
+    transform: [{ scale: 0.94 }],
   },
 
   horizontalList: {
-    paddingLeft: 18,
-    paddingRight: 18,
+    paddingHorizontal: HORIZONTAL_LIST_PADDING,
   },
 
   horizontalSeparator: {
-    width: 12,
+    width: CARD_GAP,
   },
 
   card: {
-    width: 242,
+    width: CARD_WIDTH,
     backgroundColor: "#ffffff",
-    borderRadius: 17,
+    borderRadius: 18,
   },
 
   cardPressed: {
@@ -2461,8 +2755,8 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     width: "100%",
-    height: 176,
-    borderRadius: 17,
+    aspectRatio: 1,
+    borderRadius: 16,
     backgroundColor: "#f1f3f4",
   },
 
@@ -2477,19 +2771,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 42,
-    backgroundColor: "rgba(0,0,0,0.04)",
+    height: 48,
+    backgroundColor: "rgba(0,0,0,0.06)",
   },
 
   badge: {
     position: "absolute",
-    left: 9,
-    top: 9,
-    maxWidth: "58%",
+    left: 8,
+    top: 8,
+    maxWidth: "62%",
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.95)",
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
 
   badgeText: {
@@ -2500,11 +2794,11 @@ const styles = StyleSheet.create({
 
   heartButton: {
     position: "absolute",
-    right: 9,
-    top: 9,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    right: 8,
+    top: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "rgba(255,255,255,0.95)",
     alignItems: "center",
     justifyContent: "center",
@@ -2520,22 +2814,22 @@ const styles = StyleSheet.create({
   },
 
   cardContent: {
-    paddingTop: 10,
+    paddingTop: 9,
     paddingHorizontal: 1,
-    paddingBottom: 5,
+    paddingBottom: 6,
   },
 
   titleRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 7,
+    gap: 4,
   },
 
   cardTitle: {
     flex: 1,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 18,
     color: TEXT,
   },
 
@@ -2548,7 +2842,7 @@ const styles = StyleSheet.create({
 
   ratingText: {
     fontFamily: "Inter_500Medium",
-    fontSize: 11,
+    fontSize: 10,
     color: "#717171",
   },
 
@@ -2566,14 +2860,14 @@ const styles = StyleSheet.create({
   location: {
     flex: 1,
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 10,
     color: MUTED,
   },
 
   details: {
     marginTop: 4,
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 10,
     color: "#80868b",
   },
 
@@ -2585,14 +2879,105 @@ const styles = StyleSheet.create({
 
   price: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
+    fontSize: 13,
     color: TEXT,
   },
 
   priceSuffix: {
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 10,
     color: MUTED,
+  },
+
+  discoverySection: {
+    marginTop: 28,
+  },
+
+  discoveryTitle: {
+    paddingHorizontal: 18,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 18,
+    lineHeight: 24,
+    color: TEXT,
+  },
+
+  discoverySubtitle: {
+    marginTop: 3,
+    paddingHorizontal: 18,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    color: MUTED,
+  },
+
+  discoveryRow: {
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+  },
+
+  destinationCard: {
+    width: 126,
+  },
+
+  destinationImage: {
+    width: 126,
+    height: 92,
+    borderRadius: 16,
+    backgroundColor: "#f1f3f4",
+  },
+
+  destinationName: {
+    marginTop: 7,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    color: TEXT,
+  },
+
+  brandRow: {
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+  },
+
+  brandCard: {
+    width: 132,
+    minHeight: 64,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    backgroundColor: "#ffffff",
+  },
+
+  brandMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: THEME_LIGHT,
+  },
+
+  brandInitial: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 15,
+    color: THEME,
+  },
+
+  brandName: {
+    flex: 1,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    color: TEXT,
+  },
+
+  discoveryCardPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.98 }],
   },
 
   browseHint: {
@@ -2612,13 +2997,12 @@ const styles = StyleSheet.create({
   },
 
   modalHeader: {
-    minHeight: 68,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+    borderBottomWidth: 0,
   },
 
   modalCloseButton: {
@@ -2635,8 +3019,8 @@ const styles = StyleSheet.create({
 
   modalHeaderTitle: {
     fontFamily:
-      "PlusJakartaSans_700Bold",
-    fontSize: 18,
+      "PlusJakartaSans_800ExtraBold",
+    fontSize: 19,
     color: TEXT,
   },
 
@@ -2649,7 +3033,7 @@ const styles = StyleSheet.create({
 
   modalScreen: {
     flex: 1,
-    backgroundColor: BACKGROUND,
+    backgroundColor: "#ffffff",
   },
 
   modalContent: {
@@ -2662,14 +3046,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 18,
+    borderRadius: 16,
     marginBottom: 12,
     overflow: "hidden",
   },
 
   searchSectionCardActive: {
     borderColor: THEME,
-    elevation: 2,
   },
 
   searchSectionHeader: {
@@ -2995,7 +3378,7 @@ const styles = StyleSheet.create({
     minWidth: 132,
     minHeight: 50,
     borderRadius: 14,
-    backgroundColor: THEME,
+    backgroundColor: "#0b0b0c",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -3014,17 +3397,17 @@ const styles = StyleSheet.create({
   },
 
   horizontalSkeletonCard: {
-    width: 242,
+    width: CARD_WIDTH,
   },
 
   horizontalSkeletonSpacing: {
-    marginRight: 12,
+    marginRight: CARD_GAP,
   },
 
   horizontalSkeletonImage: {
-    width: 242,
-    height: 176,
-    borderRadius: 17,
+    width: CARD_WIDTH,
+    aspectRatio: 1,
+    borderRadius: 16,
     backgroundColor: "#eceff1",
   },
 
@@ -3093,7 +3476,7 @@ const styles = StyleSheet.create({
     minWidth: 130,
     height: 48,
     borderRadius: 15,
-    backgroundColor: THEME,
+    backgroundColor: "#0b0b0c",
     paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",

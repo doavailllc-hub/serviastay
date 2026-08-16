@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
   Building2,
-  Eye,
-  Image as ImageIcon,
   Loader2,
   MapPin,
   RefreshCw,
   Search,
   ShieldCheck,
-  Star,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -26,12 +23,12 @@ export default function AdminProperties() {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [homePlacement, setHomePlacement] = useState({
+    is_top_pick: false,
+    home_display_order: 0,
+  });
 
-  useEffect(() => {
-    loadProperties();
-  }, []);
-
-  const loadProperties = async () => {
+  const loadProperties = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get("/admin/properties");
@@ -41,7 +38,7 @@ export default function AdminProperties() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const openDetails = async (property) => {
     try {
@@ -52,14 +49,49 @@ export default function AdminProperties() {
         stats: {},
       });
       setReason(property.rejection_reason || property.admin_note || "");
+      setHomePlacement({
+        is_top_pick: Boolean(Number(property.is_top_pick)),
+        home_display_order: Number(property.home_display_order || 0),
+      });
 
       const { data } = await api.get(`/admin/properties/${property.id}/details`);
       setSelected(data);
       setReason(data.property?.rejection_reason || data.property?.admin_note || "");
+      setHomePlacement({
+        is_top_pick: Boolean(Number(data.property?.is_top_pick)),
+        home_display_order: Number(data.property?.home_display_order || 0),
+      });
     } catch (err) {
       toast.error(err.response?.data?.message || "Property details failed");
     } finally {
       setDetailsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadProperties, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadProperties]);
+
+  const updateHomePlacement = async () => {
+    if (!selected?.property?.id) return;
+
+    try {
+      setActionLoading(true);
+      const { data } = await api.put(
+        `/admin/properties/${selected.property.id}/home-placement`,
+        homePlacement
+      );
+      toast.success(data?.message || "Home placement updated");
+      setSelected((current) => ({
+        ...current,
+        property: { ...current.property, ...data },
+      }));
+      await loadProperties();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Home placement update failed");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -225,15 +257,29 @@ export default function AdminProperties() {
           reason={reason}
           setReason={setReason}
           actionLoading={actionLoading}
+          homePlacement={homePlacement}
+          setHomePlacement={setHomePlacement}
           onClose={() => setSelected(null)}
           onStatus={updateStatus}
+          onSaveHomePlacement={updateHomePlacement}
         />
       )}
     </main>
   );
 }
 
-function Drawer({ data, loading, reason, setReason, actionLoading, onClose, onStatus }) {
+function Drawer({
+  data,
+  loading,
+  reason,
+  setReason,
+  actionLoading,
+  homePlacement,
+  setHomePlacement,
+  onClose,
+  onStatus,
+  onSaveHomePlacement,
+}) {
   const property = data.property || {};
   const images = data.images || [];
   const stats = data.stats || {};
@@ -331,6 +377,48 @@ function Drawer({ data, loading, reason, setReason, actionLoading, onClose, onSt
                 <Check ok={Boolean(property.price)} text="Price added" />
                 <Check ok={property.host_kyc_status === "Approved"} text="Host KYC approved" />
                 <Check ok={Boolean(property.latitude && property.longitude)} text="Location coordinates added" />
+              </Card>
+
+              <Card title="Mobile Home placement">
+                <label className="flex items-center justify-between gap-4 rounded-2xl bg-gray-50 p-4 text-sm font-semibold">
+                  <span>Show in Stay Top picks</span>
+                  <input
+                    type="checkbox"
+                    checked={homePlacement.is_top_pick}
+                    onChange={(e) =>
+                      setHomePlacement((current) => ({
+                        ...current,
+                        is_top_pick: e.target.checked,
+                      }))
+                    }
+                    className="h-5 w-5 accent-[#2DB281]"
+                  />
+                </label>
+
+                <label className="mt-4 block text-sm font-semibold text-gray-700">
+                  Display order
+                  <input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    value={homePlacement.home_display_order}
+                    onChange={(e) =>
+                      setHomePlacement((current) => ({
+                        ...current,
+                        home_display_order: Number(e.target.value || 0),
+                      }))
+                    }
+                    className="mt-2 h-11 w-full rounded-xl border border-gray-200 px-4 outline-none focus:border-[#2DB281]"
+                  />
+                </label>
+
+                <button
+                  disabled={actionLoading}
+                  onClick={onSaveHomePlacement}
+                  className="mt-4 w-full rounded-xl bg-[#2DB281] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  Save Home placement
+                </button>
               </Card>
 
               <Card title="Admin Decision">

@@ -1,7 +1,7 @@
 import { Building2, Plane } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-const THEME = "#3b71e6";
+const THEME = "#2DB281";
 
 export default function CategoryBar({
   selected,

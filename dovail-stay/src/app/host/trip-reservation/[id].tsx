@@ -1,11 +1,12 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { CalendarDays, ChevronLeft, CircleDollarSign, Mail, MapPin, Phone, User, Users } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import api from "../../../api/api";
 
-const THEME = "#3b71e6", BG = "#f7f8fa", BORDER = "#e5e7eb", TEXT = "#172033", MUTED = "#687386", DANGER = "#bd3434";
+const THEME = "#2DB281", BG = "#f7f8fa", BORDER = "#e5e7eb", TEXT = "#172033", MUTED = "#687386", DANGER = "#bd3434";
 
 type TripBooking = {
   id: number | string; booking_id?: number | string; title?: string; experience_title?: string;

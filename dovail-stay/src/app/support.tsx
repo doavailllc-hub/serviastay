@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
     ChevronLeft,
@@ -12,7 +13,6 @@ import {
     Alert,
     Linking,
     Pressable,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -20,9 +20,9 @@ import {
     View,
 } from "react-native";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 
 const TEXT = "#202124";
 const MUTED = "#5f6368";

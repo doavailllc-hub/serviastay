@@ -2976,6 +2976,51 @@ app.get("/api/host/reviews/:hostId", verifyToken, requireApprovedHost, async (re
     res.status(500).json({ message: "Host reviews failed to load" });
   }
 });
+
+app.put("/api/admin/properties/:id/home-placement", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const isTopPick = req.body.is_top_pick === true || Number(req.body.is_top_pick) === 1;
+    const displayOrder = Number(req.body.home_display_order || 0);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid property ID" });
+    }
+
+    if (!Number.isInteger(displayOrder) || displayOrder < 0 || displayOrder > 9999) {
+      return res.status(400).json({ message: "Display order must be between 0 and 9999" });
+    }
+
+    const rows = await query(
+      "SELECT id,title,status FROM servia_properties WHERE id=? LIMIT 1",
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ message: "Property not found" });
+
+    await query(
+      "UPDATE servia_properties SET is_top_pick=?, home_display_order=? WHERE id=?",
+      [isTopPick ? 1 : 0, displayOrder, id]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "PROPERTY_HOME_PLACEMENT_UPDATED",
+      entityType: "property",
+      entityId: id,
+      message: `Home placement updated for property "${rows[0].title}"`,
+      metadata: { isTopPick, displayOrder },
+    });
+
+    res.json({
+      message: isTopPick ? "Property added to Top picks" : "Property removed from Top picks",
+      is_top_pick: isTopPick ? 1 : 0,
+      home_display_order: displayOrder,
+    });
+  } catch (err) {
+    console.log("PROPERTY HOME PLACEMENT ERROR:", err.message);
+    res.status(500).json({ message: "Failed to update property Home placement" });
+  }
+});
 app.post("/api/trip-wishlist", verifyToken, async (req, res) => {
   try {
     const userId = Number(req.user.id);
@@ -7850,6 +7895,62 @@ app.get("/api/admin/trip-packages", verifyToken, verifyAdmin, async (req, res) =
   } catch (err) {
     console.log("ADMIN TRIPS LOAD ERROR:", err.message);
     res.status(500).json({ message: "Failed to load trip packages" });
+  }
+});
+
+app.put("/api/admin/trip-packages/:id/home-placement", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const isTopSpot = req.body.is_top_spot === true || Number(req.body.is_top_spot) === 1;
+    const showBrand = req.body.show_brand_on_home === true || Number(req.body.show_brand_on_home) === 1;
+    const displayOrder = Number(req.body.home_display_order || 0);
+    const brandName = String(req.body.brand_name || "").trim();
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid trip package ID" });
+    }
+
+    if (!Number.isInteger(displayOrder) || displayOrder < 0 || displayOrder > 9999) {
+      return res.status(400).json({ message: "Display order must be between 0 and 9999" });
+    }
+
+    if (brandName.length > 255) {
+      return res.status(400).json({ message: "Brand name must be 255 characters or fewer" });
+    }
+
+    if (showBrand && !brandName) {
+      return res.status(400).json({ message: "Add a brand name before showing this brand on Home" });
+    }
+
+    const rows = await query("SELECT id,title FROM experiences WHERE id=? LIMIT 1", [id]);
+    if (!rows.length) return res.status(404).json({ message: "Trip package not found" });
+
+    await query(
+      `UPDATE experiences
+       SET is_top_spot=?, show_brand_on_home=?, brand_name=?, home_display_order=?
+       WHERE id=?`,
+      [isTopSpot ? 1 : 0, showBrand ? 1 : 0, brandName || null, displayOrder, id]
+    );
+
+    await addAuditLog({
+      adminId: req.user.id,
+      action: "TRIP_HOME_PLACEMENT_UPDATED",
+      entityType: "experience",
+      entityId: id,
+      message: `Home placement updated for trip "${rows[0].title}"`,
+      metadata: { isTopSpot, showBrand, brandName, displayOrder },
+    });
+
+    res.json({
+      message: "Trip Home placement updated",
+      is_top_spot: isTopSpot ? 1 : 0,
+      show_brand_on_home: showBrand ? 1 : 0,
+      brand_name: brandName || null,
+      home_display_order: displayOrder,
+    });
+  } catch (err) {
+    console.log("TRIP HOME PLACEMENT ERROR:", err.message);
+    res.status(500).json({ message: "Failed to update trip Home placement" });
   }
 });
 

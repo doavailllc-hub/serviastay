@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
@@ -22,7 +23,6 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -36,9 +36,9 @@ import {
   logoutUser,
 } from "../services/authService";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 
 const TEXT = "#202124";
 const MUTED = "#5f6368";
@@ -56,6 +56,10 @@ type UserProfile = {
   email?: string;
   phone?: string;
   profile_image?: string;
+  profileImage?: string;
+  avatar?: string;
+  avatar_url?: string;
+  imageUrl?: string;
   role?: string;
 };
 
@@ -90,6 +94,24 @@ const normalizeRemoteImage = (value?: string) => {
 
   return `https://stay.dovail.com/${value}`;
 };
+
+const extractProfileImage = (payload: unknown): string => {
+  if (!payload) return "";
+  if (typeof payload === "string") return payload.trim();
+  if (typeof payload !== "object" || Array.isArray(payload)) return "";
+
+  const record = payload as Record<string, unknown>;
+  for (const key of ["profile_image", "profileImage", "avatar", "avatar_url", "imageUrl", "image", "url", "path"]) {
+    if (typeof record[key] === "string" && record[key].trim()) {
+      return record[key].trim();
+    }
+  }
+
+  return extractProfileImage(record.data) || extractProfileImage(record.user);
+};
+
+const withCacheRevision = (url: string) =>
+  `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
 
 const extractProfile = (
   payload: unknown
@@ -149,6 +171,21 @@ const getUploadMimeType = (asset: PickerAsset) => {
   return "image/jpeg";
 };
 
+const clearStoredSession = async () => {
+  try {
+    await logoutUser();
+  } catch (error) {
+    console.log("logoutUser service error:", error);
+  }
+
+  await AsyncStorage.multiRemove([
+    "token",
+    "user",
+    "adminToken",
+    "adminUser",
+  ]);
+};
+
 export default function ProfileScreen() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,6 +193,7 @@ export default function ProfileScreen() {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [profileLoadFailed, setProfileLoadFailed] = useState(false);
+  const [profileImageFailed, setProfileImageFailed] = useState(false);
 
   const persistUser = useCallback(
     async (nextUser: UserProfile) => {
@@ -205,6 +243,7 @@ export default function ProfileScreen() {
             extractProfile(response.data);
 
           if (remoteProfile) {
+            const remoteImage = extractProfileImage(remoteProfile);
             const mergedUser: UserProfile = {
               ...storedUser,
               ...remoteProfile,
@@ -212,6 +251,9 @@ export default function ProfileScreen() {
                 remoteProfile.id ??
                 storedUser.id ??
                 userId,
+              profile_image: normalizeRemoteImage(
+                remoteImage || storedUser.profile_image
+              ),
             };
 
             if (mergedUser.profile_image) {
@@ -222,6 +264,7 @@ export default function ProfileScreen() {
             }
 
             await persistUser(mergedUser);
+            setProfileImageFailed(false);
           }
         } catch (error: any) {
           console.log(
@@ -232,7 +275,7 @@ export default function ProfileScreen() {
           );
 
           if (error?.response?.status === 401) {
-            await clearSession();
+            await clearStoredSession();
             setUser(null);
             return;
           }
@@ -280,24 +323,6 @@ export default function ProfileScreen() {
     return role === "host" || role === "admin";
   }, [user?.role]);
 
-  const clearSession = async () => {
-    try {
-      await logoutUser();
-    } catch (error) {
-      console.log(
-        "logoutUser service error:",
-        error
-      );
-    }
-
-    await AsyncStorage.multiRemove([
-      "token",
-      "user",
-      "adminToken",
-      "adminUser",
-    ]);
-  };
-
   const confirmLogout = () => {
     if (logoutLoading) return;
 
@@ -322,7 +347,7 @@ export default function ProfileScreen() {
     try {
       setLogoutLoading(true);
 
-      await clearSession();
+      await clearStoredSession();
 
       setUser(null);
       router.replace("/login");
@@ -374,6 +399,7 @@ export default function ProfileScreen() {
       await requestPhotoPermission();
 
     if (!hasPermission) return;
+    const previousImage = user.profile_image;
 
     try {
       const result =
@@ -403,6 +429,8 @@ export default function ProfileScreen() {
       }
 
       setImageUploading(true);
+      setProfileImageFailed(false);
+      setUser((current) => current ? { ...current, profile_image: asset.uri } : current);
 
       const formData = new FormData();
 
@@ -427,10 +455,7 @@ export default function ProfileScreen() {
         }
       );
 
-      const uploadedImage =
-        response.data?.profile_image ||
-        response.data?.imageUrl ||
-        response.data?.data?.profile_image;
+      const uploadedImage = extractProfileImage(response.data);
 
       if (!uploadedImage) {
         throw new Error(
@@ -440,17 +465,19 @@ export default function ProfileScreen() {
 
       const nextUser: UserProfile = {
         ...user,
-        profile_image:
-          normalizeRemoteImage(uploadedImage),
+        profile_image: withCacheRevision(normalizeRemoteImage(uploadedImage)),
       };
 
       await persistUser(nextUser);
+      setProfileImageFailed(false);
 
       Alert.alert(
         "Photo updated",
         "Your profile picture has been updated."
       );
     } catch (error: any) {
+      setUser((current) => current ? { ...current, profile_image: previousImage } : current);
+      setProfileImageFailed(false);
       console.log(
         "Profile image upload error:",
         error?.response?.data ||
@@ -610,7 +637,7 @@ export default function ProfileScreen() {
             disabled={imageUploading}
             style={styles.avatarWrap}
           >
-            {user.profile_image ? (
+            {user.profile_image && !profileImageFailed ? (
               <Image
                 source={{
                   uri: normalizeRemoteImage(
@@ -619,16 +646,7 @@ export default function ProfileScreen() {
                 }}
                 style={styles.avatarImage}
                 resizeMode="cover"
-                onError={() => {
-                  setUser((current) =>
-                    current
-                      ? {
-                          ...current,
-                          profile_image: "",
-                        }
-                      : current
-                  );
-                }}
+                onError={() => setProfileImageFailed(true)}
               />
             ) : (
               <View
@@ -1117,7 +1135,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 118,
+    paddingBottom: 28,
   },
 
   header: {

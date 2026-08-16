@@ -1,3 +1,4 @@
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   Banknote,
@@ -17,7 +18,6 @@ import {
   Image,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,10 +27,15 @@ import {
 import api from "../../api/api";
 import { getStoredUser } from "../../services/authService";
 import { openRazorpayCheckout } from "../../services/razorpay";
+import {
+  parseCalendarDate,
+  startOfLocalDay,
+  toApiDate,
+} from "../../utils/date";
 
-const THEME = "#3b71e6";
-const THEME_DARK = "#2f5fc2";
-const THEME_LIGHT = "#eef4ff";
+const THEME = "#2DB281";
+const THEME_DARK = "#21845F";
+const THEME_LIGHT = "#E8F7F1";
 
 const TEXT = "#202124";
 const MUTED = "#5f6368";
@@ -129,6 +134,8 @@ export default function CheckoutScreen() {
   const propertyId = getParam(params.propertyId);
   const checkin = getParam(params.checkin);
   const checkout = getParam(params.checkout);
+  const normalizedCheckin = toApiDate(checkin);
+  const normalizedCheckout = toApiDate(checkout);
 
   const guests = Math.max(1, safeNumber(getParam(params.guests, "1"), 1));
   const adults = Math.max(1, safeNumber(getParam(params.adults, "1"), 1));
@@ -160,6 +167,7 @@ export default function CheckoutScreen() {
     0,
     safeNumber(getParam(params.total, "0"))
   );
+  const loginRedirect = `/booking/checkout?propertyId=${encodeURIComponent(propertyId)}&checkin=${encodeURIComponent(normalizedCheckin)}&checkout=${encodeURIComponent(normalizedCheckout)}&guests=${guests}&adults=${adults}&children=${children}&infants=${infants}&pets=${pets}&nights=${nights}&price=${passedPrice}&subtotal=${passedSubtotal}&taxes=${passedTaxes}&total=${passedTotal}`;
 
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
@@ -223,17 +231,25 @@ export default function CheckoutScreen() {
       return false;
     }
 
-    const start = new Date(`${checkin}T00:00:00`);
-    const end = new Date(`${checkout}T00:00:00`);
+    const start = parseCalendarDate(normalizedCheckin);
+    const end = parseCalendarDate(normalizedCheckout);
 
     if (
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
+      !start ||
+      !end ||
       end <= start
     ) {
       Alert.alert(
         "Invalid dates",
         "Checkout must be after the check-in date."
+      );
+      return false;
+    }
+
+    if (start.getTime() < startOfLocalDay().getTime()) {
+      Alert.alert(
+        "Dates have passed",
+        "Check-in must be today or a future date. Please choose new dates."
       );
       return false;
     }
@@ -268,8 +284,8 @@ export default function CheckoutScreen() {
       currency: "INR",
       property_id: Number(propertyId),
       user_id: user.id,
-      checkin,
-      checkout,
+      checkin: normalizedCheckin,
+      checkout: normalizedCheckout,
       guests,
     });
 
@@ -348,7 +364,10 @@ export default function CheckoutScreen() {
       const user = await getStoredUser();
 
       if (!user) {
-        router.push("/login");
+        router.push({
+          pathname: "/login",
+          params: { redirect: loginRedirect },
+        });
         return;
       }
 
@@ -369,8 +388,8 @@ export default function CheckoutScreen() {
       const bookingResponse = await api.post("/bookings", {
         property_id: Number(propertyId),
         user_id: user.id,
-        checkin,
-        checkout,
+        checkin: normalizedCheckin,
+        checkout: normalizedCheckout,
         guests,
         total,
 
