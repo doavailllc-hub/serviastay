@@ -8,6 +8,7 @@ type CurrencyConfig = {
 };
 
 export const CURRENCY_STORAGE_KEY = "dovail_currency";
+const CURRENCY_MODE_STORAGE_KEY = "dovail_currency_mode";
 
 const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
   INR: { locale: "en-IN", rate: 1 },
@@ -24,6 +25,7 @@ const EUROPEAN_REGION_CODES = new Set([
 ]);
 
 let activeCurrency: CurrencyCode = detectCurrencyCode();
+let hasManualOverride = false;
 const listeners = new Set<() => void>();
 
 export function detectRegionCode() {
@@ -57,8 +59,12 @@ export function detectCurrencyCode(): CurrencyCode {
 }
 
 export async function initializeDisplayCurrency() {
-  const saved = await AsyncStorage.getItem(CURRENCY_STORAGE_KEY);
-  if (saved && saved in CURRENCIES) {
+  const [saved, mode] = await Promise.all([
+    AsyncStorage.getItem(CURRENCY_STORAGE_KEY),
+    AsyncStorage.getItem(CURRENCY_MODE_STORAGE_KEY),
+  ]);
+  hasManualOverride = mode === "manual";
+  if (hasManualOverride && saved && saved in CURRENCIES) {
     activeCurrency = saved as CurrencyCode;
   } else {
     activeCurrency = detectCurrencyCode();
@@ -69,8 +75,30 @@ export async function initializeDisplayCurrency() {
 
 export async function saveDisplayCurrency(currency: CurrencyCode) {
   activeCurrency = currency;
-  await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, currency);
+  hasManualOverride = true;
+  await Promise.all([
+    AsyncStorage.setItem(CURRENCY_STORAGE_KEY, currency),
+    AsyncStorage.setItem(CURRENCY_MODE_STORAGE_KEY, "manual"),
+  ]);
   listeners.forEach((listener) => listener());
+}
+
+export async function applyLocationCurrency(countryCode?: string | null) {
+  if (hasManualOverride || !countryCode) return activeCurrency;
+  const region = countryCode.toUpperCase();
+  const nextCurrency: CurrencyCode =
+    region === "SA" ? "SAR" :
+      region === "AE" ? "AED" :
+        region === "US" ? "USD" :
+          region === "GB" ? "GBP" :
+            EUROPEAN_REGION_CODES.has(region) ? "EUR" : "INR";
+  activeCurrency = nextCurrency;
+  await Promise.all([
+    AsyncStorage.setItem(CURRENCY_STORAGE_KEY, nextCurrency),
+    AsyncStorage.setItem(CURRENCY_MODE_STORAGE_KEY, "automatic"),
+  ]);
+  listeners.forEach((listener) => listener());
+  return activeCurrency;
 }
 
 export function subscribeToCurrency(listener: () => void) {

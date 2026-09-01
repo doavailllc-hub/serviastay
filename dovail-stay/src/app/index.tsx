@@ -11,7 +11,8 @@ import {
   Navigation,
   PlaneTakeoff,
   Search,
-  Star
+  Star,
+  X,
 } from "lucide-react-native";
 import React, {
   useCallback,
@@ -38,9 +39,15 @@ import {
 import {
   SafeAreaView,
 } from "react-native-safe-area-context";
-import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition, ZoomIn } from "react-native-reanimated";
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Rect,
+  Stop,
+} from "react-native-svg";
 import api from "../api/api";
-import { currencySymbol, detectRegionCode, formatCurrency } from "../utils/currency";
+import { applyLocationCurrency, currencySymbol, detectRegionCode, formatCurrency } from "../utils/currency";
 import { icon, palette, spacing } from "../constants/theme";
 import { getStoredUser } from "../services/authService";
 
@@ -156,12 +163,12 @@ const tabs: {
   icon: typeof Building2;
 }[] = [
   {
-    name: "Stay",
-    icon: Building2,
-  },
-  {
     name: "Trip",
     icon: PlaneTakeoff,
+  },
+  {
+    name: "Stay",
+    icon: Building2,
   },
 ];
 
@@ -223,6 +230,16 @@ const distanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) =>
     Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
     Math.sin(lonDelta / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const countryCodeFromName = (value?: string) => {
+  const country = String(value || "").trim().toLowerCase();
+  if (/^(sa|saudi arabia)$/.test(country)) return "SA";
+  if (/^(ae|uae|united arab emirates)$/.test(country)) return "AE";
+  if (/^(us|usa|united states|united states of america)$/.test(country)) return "US";
+  if (/^(gb|uk|united kingdom)$/.test(country)) return "GB";
+  if (/^(in|india)$/.test(country)) return "IN";
+  return country.length === 2 ? country.toUpperCase() : "";
 };
 
 const getArrayFromResponse = <T,>(
@@ -476,7 +493,7 @@ export default function HomeScreen() {
   >([]);
 
   const [activeTab, setActiveTab] =
-    useState<HomeTab>("Stay");
+    useState<HomeTab>("Trip");
 
   const [loading, setLoading] =
     useState(true);
@@ -820,6 +837,15 @@ export default function HomeScreen() {
       })
       .slice(0, 6);
   }, [draftSearch.destination, items, userCoords]);
+
+  useEffect(() => {
+    if (locationStatus !== "granted" || !userCoords) return;
+    const countryCode = countryCodeFromName(locationSuggestions[0]?.country);
+    if (!countryCode) return;
+    applyLocationCurrency(countryCode).catch((error) => {
+      console.log("Automatic currency update error:", error);
+    });
+  }, [locationStatus, locationSuggestions, userCoords]);
 
   const hasActiveSearch = useMemo(
     () =>
@@ -1455,68 +1481,88 @@ router.push({
           />
         }
       >
-        <View
-          style={[
-            styles.topSpacer,
-            {
-              height: spacing.xs,
-            },
-          ]}
-        />
-
-        <View style={styles.heroHeader}>
-          <View>
-            <Text style={styles.heroTitle}>Where to next?</Text>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-            onPress={() => router.push("/notifications")}
-            style={({ pressed }) => [
-              styles.notificationButton,
-              pressed && styles.iconButtonPressed,
-            ]}
+        <View style={styles.topGradientSection}>
+          <Svg
+            pointerEvents="none"
+            width="100%"
+            height="100%"
+            style={StyleSheet.absoluteFill}
           >
-            <Bell size={icon.size} color={palette.ink} strokeWidth={icon.strokeWidth} />
-            <View style={styles.notificationDot} />
-          </Pressable>
-        </View>
+            <Defs>
+              <SvgLinearGradient id="topGlow" x1="0.5" y1="0" x2="0.5" y2="1">
+                <Stop offset="0" stopColor="#e7f1ff" />
+                <Stop offset="0.3" stopColor="#dff8ee" />
+                <Stop offset="0.56" stopColor="#f1eaff" />
+                <Stop offset="0.86" stopColor="#ffffff" />
+                <Stop offset="1" stopColor="#ffffff" />
+              </SvgLinearGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#topGlow)" />
+          </Svg>
 
-        <View style={styles.searchContainer}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open search"
-            onPress={() => openSearch("destination")}
-            style={({ pressed }) => [
-              styles.airbnbSearchBar,
-              pressed && styles.searchBarPressed,
+          <View
+            style={[
+              styles.topSpacer,
+              {
+                height: spacing.xs,
+              },
             ]}
-          >
-            <View style={styles.searchIconWrap}>
-              <Search size={icon.size} color={palette.ink} strokeWidth={icon.strokeWidth} />
+          />
+
+          <View style={styles.heroHeader}>
+            <View>
+              <Text style={styles.heroTitle}>Where to next?</Text>
             </View>
 
-            <Text numberOfLines={1} style={styles.searchOnlyText}>
-              {searchSummary.destination}
-            </Text>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open notifications"
+              onPress={() => router.push("/notifications")}
+              style={({ pressed }) => [
+                styles.notificationButton,
+                pressed && styles.iconButtonPressed,
+              ]}
+            >
+              <Bell size={icon.size} color={palette.ink} strokeWidth={icon.strokeWidth} />
+              <View style={styles.notificationDot} />
+            </Pressable>
+          </View>
+
+          <View style={styles.searchContainer}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open search"
+              onPress={() => openSearch("destination")}
+              style={({ pressed }) => [
+                styles.airbnbSearchBar,
+                pressed && styles.searchBarPressed,
+              ]}
+            >
+              <View style={styles.searchIconWrap}>
+                <Search size={icon.size} color={palette.ink} strokeWidth={icon.strokeWidth} />
+              </View>
+
+              <Text numberOfLines={1} style={styles.searchOnlyText}>
+                {searchSummary.destination}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {hasActiveSearch ? (
           <View style={styles.activeSearchRow}>
-            <Text style={styles.activeSearchText}>
-              {filteredItems.length}{" "}
-              {filteredItems.length === 1 ? "result" : "results"} found
-            </Text>
-
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Clear search"
               onPress={clearAppliedSearch}
-              hitSlop={8}
+              style={({ pressed }) => [
+                styles.clearSearchButton,
+                pressed && styles.clearSearchButtonPressed,
+              ]}
             >
+              <X size={14} color={TEXT} strokeWidth={2} />
               <Text style={styles.clearSearchText}>
-                Clear search
+                Clear
               </Text>
             </Pressable>
           </View>
@@ -1537,20 +1583,26 @@ router.push({
                   pressed && styles.segmentButtonPressed,
                 ]}
               >
-                <Icon
-                  size={19}
-                  color={active ? "#ffffff" : THEME}
-                  strokeWidth={active ? icon.strokeWidthActive : icon.strokeWidth}
-                />
-
-                <Text
-                  style={[
-                    styles.segmentText,
-                    active && styles.segmentTextActive,
-                  ]}
+                <Animated.View
+                  key={`${tab.name}-${active ? "active" : "idle"}`}
+                  entering={ZoomIn.duration(160)}
+                  style={styles.segmentButtonContent}
                 >
-                  {tab.name}
-                </Text>
+                  <Icon
+                    size={19}
+                    color={active ? "#ffffff" : THEME}
+                    strokeWidth={active ? icon.strokeWidthActive : icon.strokeWidth}
+                  />
+
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      active && styles.segmentTextActive,
+                    ]}
+                  >
+                    {tab.name}
+                  </Text>
+                </Animated.View>
               </Pressable>
             );
           })}
@@ -2644,7 +2696,7 @@ function EmptyState({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#e7f1ff",
   },
 
   screen: {
@@ -2659,6 +2711,10 @@ const styles = StyleSheet.create({
 
   topSpacer: {
     height: 8,
+  },
+
+  topGradientSection: {
+    paddingBottom: 28,
   },
 
   heroHeader: {
@@ -2706,7 +2762,6 @@ const styles = StyleSheet.create({
 
   searchContainer: {
     marginHorizontal: 18,
-    marginBottom: 14,
   },
 
   airbnbSearchBar: {
@@ -2714,7 +2769,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#dfe1e5",
+    borderColor: "rgba(255,255,255,0.95)",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
@@ -2752,22 +2807,33 @@ const styles = StyleSheet.create({
     minHeight: 32,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: 22,
-    marginBottom: 6,
+    justifyContent: "flex-end",
+    marginHorizontal: 18,
+    marginBottom: 10,
   },
 
-  activeSearchText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
-    color: MUTED,
+  clearSearchButton: {
+    height: 32,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    backgroundColor: "#ffffff",
+  },
+
+  clearSearchButtonPressed: {
+    opacity: 0.68,
+    transform: [{ scale: 0.96 }],
   },
 
   clearSearchText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
-    color: THEME,
-    textDecorationLine: "underline",
+    color: TEXT,
   },
 
   segmentWrap: {
@@ -2802,7 +2868,15 @@ const styles = StyleSheet.create({
   },
 
   segmentButtonPressed: {
-    opacity: 0.8,
+    opacity: 0.82,
+    transform: [{ scale: 0.97 }],
+  },
+
+  segmentButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 
   segmentText: {

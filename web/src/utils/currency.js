@@ -43,19 +43,24 @@ export function detectRegion() {
 }
 
 export function getRegionCode() {
-  return localStorage.getItem("region") || detectRegion();
+  const savedRegion = localStorage.getItem("region");
+  return localStorage.getItem("currency_mode") === "manual" && savedRegion
+    ? savedRegion
+    : detectRegion();
 }
 
 export function getCurrencyCode() {
   const saved = localStorage.getItem("currency") || "";
   const code = saved.match(/\(([A-Z]{3})\)$/)?.[1] || saved;
-  if (CURRENCIES[code]) return code;
+  const isManual = localStorage.getItem("currency_mode") === "manual";
+  if (isManual && CURRENCIES[code]) return code;
   return REGIONS.find((item) => item.code === getRegionCode())?.currency || BASE_CURRENCY;
 }
 
 export function saveRegionalPreferences({ region, currency, language }) {
   localStorage.setItem("region", region);
   localStorage.setItem("currency", currency);
+  localStorage.setItem("currency_mode", "manual");
   localStorage.setItem("language", language);
   window.dispatchEvent(new CustomEvent("regional-preferences-changed", { detail: { region, currency, language } }));
 }
