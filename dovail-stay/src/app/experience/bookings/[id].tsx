@@ -28,6 +28,7 @@ import {
 } from "react-native";
 
 import api from "../../../api/api";
+import { formatCurrency } from "../../../utils/currency";
 import { getStoredUser } from "../../../services/authService";
 
 const THEME = "#2DB281";
@@ -140,13 +141,6 @@ const toNumber = (value: unknown) => {
 
 const normalizeStatus = (value?: string) =>
   String(value || "").trim().toLowerCase();
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
 
 const formatDate = (value?: string) => {
   if (!value) return "Not available";

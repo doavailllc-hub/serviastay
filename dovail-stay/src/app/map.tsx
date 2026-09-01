@@ -17,6 +17,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "../components/maps";
 
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 
 const THEME = "#2DB281";
 const TEXT = "#172033";
@@ -207,7 +208,7 @@ export default function PropertyMapScreen() {
                 <Marker key={String(item.id)} coordinate={coordinates} onPress={() => setSelectedId(String(item.id))}>
                   <View style={[styles.marker, selectedMarker && styles.selectedMarker]}>
                     <Text style={[styles.markerText, selectedMarker && styles.selectedMarkerText]}>
-                      ₹{Math.round(toNumber(item.weekday_price ?? item.price) / 100) / 10}k
+                      {formatCurrency(toNumber(item.weekday_price ?? item.price))}
                     </Text>
                   </View>
                 </Marker>
@@ -246,7 +247,7 @@ function PropertyCard({ item, onPress }: { item: PropertyItem; onPress: () => vo
         <Text numberOfLines={1} style={styles.cardTitle}>{item.title || item.name || "Dovail Stay"}</Text>
         <Text numberOfLines={1} style={styles.cardLocation}>{propertyLocation(item)}</Text>
         <View style={styles.cardFooter}>
-          <Text style={styles.price}>₹{toNumber(item.weekday_price ?? item.price).toLocaleString("en-IN")} <Text style={styles.perNight}>/ night</Text></Text>
+          <Text style={styles.price}>{formatCurrency(toNumber(item.weekday_price ?? item.price))} <Text style={styles.perNight}>/ night</Text></Text>
           {rating > 0 ? <View style={styles.rating}><Star size={13} color="#f59e0b" fill="#f59e0b" /><Text style={styles.ratingText}>{rating.toFixed(1)}</Text></View> : null}
         </View>
       </View>

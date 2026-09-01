@@ -18,6 +18,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 
 const SITE_URL =
   import.meta.env.VITE_SITE_URL ||
@@ -762,7 +763,7 @@ function PackageCard({ item, onClick }) {
 
         <p className="mt-2 text-[15px] text-gray-700">
           <span className="font-semibold text-gray-950">
-            ₹{price.toLocaleString("en-IN")}
+            {formatCurrency(price)}
           </span>{" "}
           / person
         </p>

@@ -38,6 +38,7 @@ import {
 } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import api from "../api/api";
+import { currencySymbol, detectRegionCode, formatCurrency } from "../utils/currency";
 import { icon, palette, spacing } from "../constants/theme";
 import { getStoredUser } from "../services/authService";
 
@@ -208,13 +209,6 @@ const toNumber = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
 
 const getArrayFromResponse = <T,>(
   payload: unknown
@@ -733,6 +727,42 @@ export default function HomeScreen() {
       ),
     [visibleMonth]
   );
+
+  const locationSuggestions = useMemo(() => {
+    const query = draftSearch.destination.trim().toLowerCase();
+    const region = detectRegionCode();
+    const regionNames: Record<string, string> = {
+      IN: "india",
+      SA: "saudi arabia",
+      AE: "united arab emirates",
+      US: "united states",
+      GB: "united kingdom",
+    };
+    const grouped = new Map<string, { name: string; country: string; count: number }>();
+
+    items.forEach((item) => {
+      const city = String(item.city || item.location || item.destination || "").trim();
+      const country = String(item.country || "").trim();
+      if (!city) return;
+      const name = country && !city.toLowerCase().includes(country.toLowerCase())
+        ? `${city}, ${country}`
+        : city;
+      if (query && !`${name} ${country}`.toLowerCase().includes(query)) return;
+      const key = name.toLowerCase();
+      const current = grouped.get(key) || { name, country, count: 0 };
+      current.count += 1;
+      grouped.set(key, current);
+    });
+
+    return [...grouped.values()]
+      .sort((a, b) => {
+        const regionName = regionNames[region] || "";
+        const aLocal = regionName && `${a.name} ${a.country}`.toLowerCase().includes(regionName);
+        const bLocal = regionName && `${b.name} ${b.country}`.toLowerCase().includes(regionName);
+        return Number(bLocal) - Number(aLocal) || b.count - a.count || a.name.localeCompare(b.name);
+      })
+      .slice(0, 6);
+  }, [draftSearch.destination, items]);
 
   const hasActiveSearch = useMemo(
     () =>
@@ -1741,49 +1771,62 @@ router.push({
             >
               {searchStep ===
               "destination" ? (
-                <View
-                  style={
-                    styles.destinationInputContainer
-                  }
-                >
-                  <Search
-                    size={20}
-                    color={MUTED}
-                    strokeWidth={1.9}
-                  />
+                <View>
+                  <View style={styles.destinationInputContainer}>
+                    <Search size={20} color={MUTED} strokeWidth={1.9} />
+                    <TextInput
+                      value={draftSearch.destination}
+                      onChangeText={(value) =>
+                        setDraftSearch((current) => ({ ...current, destination: value }))
+                      }
+                      placeholder={
+                        activeTab === "Stay"
+                          ? "Search cities, resorts or stays"
+                          : "Search destinations or trips"
+                      }
+                      placeholderTextColor="#9aa3b1"
+                      autoFocus
+                      returnKeyType="next"
+                      style={styles.destinationInput}
+                      onSubmitEditing={() => setSearchStep("dates")}
+                    />
+                  </View>
 
-                  <TextInput
-                    value={
-                      draftSearch.destination
-                    }
-                    onChangeText={(
-                      value
-                    ) =>
-                      setDraftSearch(
-                        (current) => ({
-                          ...current,
-                          destination:
-                            value,
-                        })
-                      )
-                    }
-                    placeholder={
-                      activeTab === "Stay"
-                        ? "Search cities, resorts or stays"
-                        : "Search destinations or trips"
-                    }
-                    placeholderTextColor="#9aa3b1"
-                    autoFocus
-                    returnKeyType="next"
-                    style={
-                      styles.destinationInput
-                    }
-                    onSubmitEditing={() =>
-                      setSearchStep(
-                        "dates"
-                      )
-                    }
-                  />
+                  {locationSuggestions.length > 0 ? (
+                    <View style={styles.locationSuggestions}>
+                      <Text style={styles.locationSuggestionsLabel}>
+                        {activeTab === "Stay" ? "STAYS NEAR YOUR REGION" : "AVAILABLE DESTINATIONS"}
+                      </Text>
+                      {locationSuggestions.map((suggestion) => (
+                        <Pressable
+                          key={suggestion.name}
+                          onPress={() => {
+                            setDraftSearch((current) => ({
+                              ...current,
+                              destination: suggestion.name,
+                            }));
+                            setSearchStep("dates");
+                          }}
+                          style={({ pressed }) => [
+                            styles.locationSuggestionRow,
+                            pressed && styles.locationSuggestionRowPressed,
+                          ]}
+                        >
+                          <View style={styles.locationSuggestionIcon}>
+                            <MapPin size={17} color={THEME} />
+                          </View>
+                          <View style={styles.locationSuggestionContent}>
+                            <Text numberOfLines={1} style={styles.locationSuggestionName}>
+                              {suggestion.name}
+                            </Text>
+                            <Text style={styles.locationSuggestionMeta}>
+                              {suggestion.count} {suggestion.count === 1 ? "stay" : "stays"} available
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </SearchSectionCard>
@@ -2153,7 +2196,7 @@ router.push({
               summary={
                 draftSearch.minimumPrice ||
                 draftSearch.maximumPrice
-                  ? `${draftSearch.minimumPrice ? `₹${draftSearch.minimumPrice}` : "Any"} – ${draftSearch.maximumPrice ? `₹${draftSearch.maximumPrice}` : "Any"}`
+                  ? `${draftSearch.minimumPrice ? formatCurrency(Number(draftSearch.minimumPrice)) : "Any"} – ${draftSearch.maximumPrice ? formatCurrency(Number(draftSearch.maximumPrice)) : "Any"}`
                   : "Any price"
               }
               active={
@@ -2212,7 +2255,7 @@ router.push({
                             styles.currencyPrefix
                           }
                         >
-                          ₹
+                          {currencySymbol()}
                         </Text>
 
                         <TextInput
@@ -2274,7 +2317,7 @@ router.push({
                             styles.currencyPrefix
                           }
                         >
-                          ₹
+                          {currencySymbol()}
                         </Text>
 
                         <TextInput
@@ -3102,6 +3145,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: TEXT,
     paddingVertical: 0,
+  },
+
+  locationSuggestions: {
+    marginTop: 14,
+  },
+
+  locationSuggestionsLabel: {
+    marginBottom: 6,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    letterSpacing: 0.7,
+    color: MUTED,
+  },
+
+  locationSuggestionRow: {
+    minHeight: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 14,
+    paddingHorizontal: 8,
+  },
+
+  locationSuggestionRowPressed: {
+    backgroundColor: SURFACE,
+  },
+
+  locationSuggestionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: THEME_LIGHT,
+  },
+
+  locationSuggestionContent: {
+    flex: 1,
+  },
+
+  locationSuggestionName: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: TEXT,
+  },
+
+  locationSuggestionMeta: {
+    marginTop: 3,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: MUTED,
   },
 
   dateSelectionSummary: {

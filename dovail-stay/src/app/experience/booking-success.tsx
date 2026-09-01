@@ -26,6 +26,7 @@ import {
 } from "react-native";
 
 import api from "../../api/api";
+import { formatCurrency } from "../../utils/currency";
 
 const THEME = "#2DB281";
 const THEME_DARK = "#21845F";
@@ -67,13 +68,6 @@ const toNumber = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
 
 const formatDate = (value?: string) => {
   if (!value) return "Selected date";

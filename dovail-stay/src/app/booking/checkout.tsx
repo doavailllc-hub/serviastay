@@ -25,6 +25,7 @@ import {
 } from "react-native";
 
 import api from "../../api/api";
+import { formatCurrency } from "../../utils/currency";
 import { getStoredUser } from "../../services/authService";
 import { openRazorpayCheckout } from "../../services/razorpay";
 import {
@@ -533,7 +534,7 @@ export default function CheckoutScreen() {
 
             <View style={styles.priceLine}>
               <Text style={styles.nightlyPrice}>
-                ₹{price.toLocaleString("en-IN")}
+                {formatCurrency(price)}
               </Text>
 
               <Text style={styles.nightlySuffix}> / night</Text>
@@ -639,7 +640,7 @@ export default function CheckoutScreen() {
 
         <View style={styles.priceCard}>
           <PriceRow
-            label={`₹${price.toLocaleString("en-IN")} × ${nights} night${
+            label={`${formatCurrency(price)} × ${nights} night${
               nights === 1 ? "" : "s"
             }`}
             value={subtotal}
@@ -653,7 +654,7 @@ export default function CheckoutScreen() {
             <Text style={styles.totalLabel}>Total</Text>
 
             <Text style={styles.totalValue}>
-              ₹{total.toLocaleString("en-IN")}
+              {formatCurrency(total)}
             </Text>
           </View>
         </View>
@@ -688,7 +689,7 @@ export default function CheckoutScreen() {
           <Text style={styles.footerTotalLabel}>Total</Text>
 
           <Text style={styles.footerTotalValue}>
-            ₹{total.toLocaleString("en-IN")}
+            {formatCurrency(total)}
           </Text>
         </View>
 
@@ -709,7 +710,7 @@ export default function CheckoutScreen() {
           ) : (
             <Text style={styles.confirmButtonText}>
               {paymentMethod === "razorpay"
-                ? `Pay ₹${total.toLocaleString("en-IN")}`
+                ? `Pay ${formatCurrency(total)}`
                 : "Confirm booking"}
             </Text>
           )}
@@ -765,7 +766,7 @@ function PriceRow({
       <Text style={styles.priceLabel}>{label}</Text>
 
       <Text style={styles.priceValue}>
-        ₹{Number(value || 0).toLocaleString("en-IN")}
+        {formatCurrency(value)}
       </Text>
     </View>
   );

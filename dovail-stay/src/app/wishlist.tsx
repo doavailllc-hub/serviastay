@@ -21,6 +21,7 @@ import {
 } from "react-native";
 
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 import { getStoredUser } from "../services/authService";
 
 const THEME = "#2DB281";
@@ -270,7 +271,7 @@ export default function WishlistScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.price}>
-              ₹{price.toLocaleString("en-IN")}
+              {formatCurrency(price)}
             </Text>
 
             <Text style={styles.priceSuffix}>{item.item_type === "trip" ? " / person" : " / night"}</Text>

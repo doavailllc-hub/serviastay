@@ -19,7 +19,7 @@ import { useFonts } from "expo-font";
 import { Tabs, type ErrorBoundaryProps, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -30,6 +30,7 @@ import {
   User,
 } from "lucide-react-native";
 import { fontFamily, icon, palette } from "../constants/theme";
+import { initializeDisplayCurrency, subscribeToCurrency } from "../utils/currency";
 
 import {
   addNotificationListeners,
@@ -105,6 +106,7 @@ const errorStyles = StyleSheet.create({
 });
 
 function RootNavigation() {
+  const [, setCurrencyRevision] = useState(0);
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const tabRoutes = ["/", "/wishlist", "/trips", "/messages", "/profile"];
@@ -120,6 +122,16 @@ function RootNavigation() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   });
+
+  useEffect(() => {
+    const unsubscribe = subscribeToCurrency(() => {
+      setCurrencyRevision((revision) => revision + 1);
+    });
+    initializeDisplayCurrency().catch((error) => {
+      console.log("Currency initialization error:", error);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

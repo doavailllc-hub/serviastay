@@ -28,6 +28,7 @@ import {
 } from "react-native";
 
 import api from "../../api/api";
+import { formatCurrency } from "../../utils/currency";
 import { getStoredUser } from "../../services/authService";
 
 const THEME = "#2DB281";
@@ -91,10 +92,6 @@ function formatDate(value?: string) {
     month: "short",
     year: "numeric",
   }).format(date);
-}
-
-function formatCurrency(value?: number | string) {
-  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
 function getStatusMeta(status?: string) {

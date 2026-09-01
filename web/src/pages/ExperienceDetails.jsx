@@ -18,6 +18,7 @@ import Footer from "../components/Footer";
 import GoogleMapSection from "../components/GoogleMapSection";
 import Tabs from "../components/Tabs";
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 
 
 function todayISO() {
@@ -456,7 +457,7 @@ export default function ExperienceDetails() {
                     {item.title}
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    ₹{Number(item.price || 0).toLocaleString("en-IN")} / person
+                    {formatCurrency(item.price)} / person
                   </p>
                 </button>
               ))}
@@ -657,7 +658,7 @@ function BookingCard({
       <div className="mb-6 flex items-end justify-between">
         <p>
           <span className="text-2xl font-semibold text-gray-950">
-            ₹{price.toLocaleString("en-IN")}
+            {formatCurrency(price)}
           </span>{" "}
           <span className="text-sm text-gray-500">/ person</span>
         </p>
@@ -796,18 +797,18 @@ function BookingCard({
 
       <div className="mt-5 space-y-3 border-t border-gray-200 pt-5 text-sm">
         <PriceRow
-          label={`₹${price.toLocaleString("en-IN")} × ${travelers}`}
-          value={`₹${subtotal.toLocaleString("en-IN")}`}
+          label={`${formatCurrency(price)} × ${travelers}`}
+          value={formatCurrency(subtotal)}
         />
 
         <PriceRow
           label="Service fee"
-          value={`₹${serviceFee.toLocaleString("en-IN")}`}
+          value={formatCurrency(serviceFee)}
         />
 
         <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
           <span>Total</span>
-          <span>₹{total.toLocaleString("en-IN")}</span>
+          <span>{formatCurrency(total)}</span>
         </div>
       </div>
     </div>

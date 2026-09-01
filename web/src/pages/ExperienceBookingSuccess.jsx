@@ -10,6 +10,7 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { formatCurrency } from "../utils/currency";
 
 const BRAND = "#7E4FF5";
 
@@ -108,7 +109,7 @@ export default function ExperienceBookingSuccess() {
                   <InfoBox
                     icon={<ReceiptText size={18} />}
                     label="Total"
-                    value={`₹${Number(total || 0).toLocaleString("en-IN")}`}
+                    value={formatCurrency(total)}
                   />
                 </div>
               </div>

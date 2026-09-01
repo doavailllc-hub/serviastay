@@ -17,6 +17,7 @@ import {
   Text,
   View
 } from "react-native";
+import { detectCurrencyCode, saveDisplayCurrency, type CurrencyCode } from "../../utils/currency";
 
 const THEME = "#2DB281";
 const THEME_DARK = "#21845F";
@@ -32,8 +33,6 @@ const LANGUAGE_STORAGE_KEY = "dovail_language";
 const CURRENCY_STORAGE_KEY = "dovail_currency";
 
 type LanguageCode = "en" | "ar" | "hi" | "ml";
-type CurrencyCode = "INR" | "SAR" | "USD" | "AED";
-
 type LanguageOption = {
   code: LanguageCode;
   name: string;
@@ -90,11 +89,21 @@ const currencies: CurrencyOption[] = [
     symbol: "د.إ",
     name: "UAE dirham",
   },
+  {
+    code: "EUR",
+    symbol: "€",
+    name: "Euro",
+  },
+  {
+    code: "GBP",
+    symbol: "£",
+    name: "British pound",
+  },
 ];
 
 export default function PreferencesScreen() {
   const [language, setLanguage] = useState<LanguageCode>("en");
-  const [currency, setCurrency] = useState<CurrencyCode>("INR");
+  const [currency, setCurrency] = useState<CurrencyCode>(detectCurrencyCode);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -176,10 +185,7 @@ export default function PreferencesScreen() {
     try {
       setSaving(true);
 
-      await AsyncStorage.setItem(
-        CURRENCY_STORAGE_KEY,
-        nextCurrency
-      );
+      await saveDisplayCurrency(nextCurrency);
 
       setCurrency(nextCurrency);
       setCurrencyModalOpen(false);
@@ -327,7 +333,11 @@ export default function PreferencesScreen() {
                 ? "199"
                 : selectedCurrency.code === "AED"
                   ? "195"
-                  : "53"}
+                  : selectedCurrency.code === "EUR"
+                    ? "49"
+                    : selectedCurrency.code === "GBP"
+                      ? "42"
+                      : "53"}
           </Text>
 
           <Text style={styles.previewSuffix}>per night</Text>

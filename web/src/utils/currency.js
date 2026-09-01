@@ -18,13 +18,27 @@ export const REGIONS = [
   { code: "EU", name: "European Union", currency: "EUR", language: "English" },
 ];
 
+const EUROPEAN_REGION_CODES = new Set([
+  "AT", "BE", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR", "IE",
+  "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK",
+]);
+
 export function detectRegion() {
-  const localeRegion = navigator.language?.split("-")[1]?.toUpperCase();
+  const localeRegion = (() => {
+    try {
+      return new Intl.Locale(navigator.languages?.[0] || navigator.language).region?.toUpperCase();
+    } catch {
+      return navigator.language?.split("-")[1]?.toUpperCase();
+    }
+  })();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   if (localeRegion && REGIONS.some((item) => item.code === localeRegion)) return localeRegion;
+  if (EUROPEAN_REGION_CODES.has(localeRegion)) return "EU";
   if (timeZone === "Asia/Riyadh") return "SA";
   if (timeZone === "Asia/Dubai") return "AE";
   if (["Asia/Calcutta", "Asia/Kolkata"].includes(timeZone)) return "IN";
+  if (timeZone === "Europe/London") return "GB";
+  if (timeZone.startsWith("Europe/")) return "EU";
   return "IN";
 }
 

@@ -43,6 +43,7 @@ import {
 } from "react-native-safe-area-context";
 
 import api from "../../api/api";
+import { formatCurrency } from "../../utils/currency";
 import { getStoredUser } from "../../services/authService";
 
 const THEME = "#2DB281";
@@ -904,7 +905,7 @@ export default function PropertyDetailsScreen() {
           onPress={() => setBookingModalOpen(true)}
         >
           <Text style={styles.bottomPrice}>
-            ₹{price.toLocaleString("en-IN")}
+            {formatCurrency(price)}
             <Text style={styles.bottomPriceSuffix}> / night</Text>
           </Text>
 
@@ -1050,7 +1051,7 @@ function BookingModal({
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.sheetPriceRow}>
               <Text style={styles.sheetPrice}>
-                ₹{price.toLocaleString("en-IN")}
+                {formatCurrency(price)}
               </Text>
 
               <Text style={styles.sheetPriceSuffix}>/ night</Text>
@@ -1094,7 +1095,7 @@ function BookingModal({
             {nights > 0 && (
               <View style={styles.priceBreakdown}>
                 <PriceRow
-                  label={`₹${price.toLocaleString("en-IN")} × ${nights} night${
+                  label={`${formatCurrency(price)} × ${nights} night${
                     nights === 1 ? "" : "s"
                   }`}
                   value={subtotal}
@@ -1106,7 +1107,7 @@ function BookingModal({
                   <Text style={styles.totalLabel}>Total before payment</Text>
 
                   <Text style={styles.totalValue}>
-                    ₹{total.toLocaleString("en-IN")}
+                    {formatCurrency(total)}
                   </Text>
                 </View>
               </View>
@@ -1653,7 +1654,7 @@ function PriceRow({ label, value }: { label: string; value: number }) {
       <Text style={styles.priceRowLabel}>{label}</Text>
 
       <Text style={styles.priceRowValue}>
-        ₹{Number(value).toLocaleString("en-IN")}
+        {formatCurrency(value)}
       </Text>
     </View>
   );

@@ -4,7 +4,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Navigation,
   X,
   Minus,
   Plus,
@@ -16,6 +15,7 @@ import Navbar from "../components/Navbar";
 import PropertyCard from "../components/PropertyCard";
 import Footer from "../components/Footer";
 import api from "../api/api";
+import { getRegionCode } from "../utils/currency";
 
 function toISO(date) {
   if (!date) return "";
@@ -59,16 +59,41 @@ export default function Home() {
 
   const totalGuests = adults + children;
 
-  const destinations = [
-    { name: "Nearby", icon: <Navigation size={18} />, desc: "Find stays around your current location" },
-    { name: "Wayanad, India", icon: "🏞️", desc: "Nature stays, resorts and villas" },
-    { name: "Kozhikode, India", icon: "🌴", desc: "Beach stays and city homes" },
-    { name: "Riyadh, Saudi Arabia", icon: "🏙️", desc: "Modern apartments and premium stays" },
-    { name: "Kochi, India", icon: "🌊", desc: "Backwaters, city stays and villas" },
-    { name: "Bengaluru, India", icon: "🌆", desc: "Apartments near dining and work hubs" },
-    { name: "Sulthan Bathery, India", icon: "⛰️", desc: "Hill stays and peaceful escapes" },
-    { name: "Munnar, India", icon: "🍃", desc: "Tea gardens and mountain homes" },
-  ];
+  const destinations = useMemo(() => {
+    const region = getRegionCode();
+    const regionNames = {
+      IN: "india", SA: "saudi arabia", AE: "united arab emirates",
+      US: "united states", GB: "united kingdom", EU: "europe",
+    };
+    const grouped = new Map();
+
+    properties.forEach((property) => {
+      const city = String(property.city || property.location || "").trim();
+      const country = String(property.country || "").trim();
+      if (!city) return;
+      const name = country && !city.toLowerCase().includes(country.toLowerCase())
+        ? `${city}, ${country}`
+        : city;
+      const key = name.toLowerCase();
+      const current = grouped.get(key) || { name, country, count: 0 };
+      current.count += 1;
+      grouped.set(key, current);
+    });
+
+    return [...grouped.values()]
+      .sort((a, b) => {
+        const regionName = regionNames[region] || "";
+        const aLocal = regionName && `${a.name} ${a.country}`.toLowerCase().includes(regionName);
+        const bLocal = regionName && `${b.name} ${b.country}`.toLowerCase().includes(regionName);
+        return Number(bLocal) - Number(aLocal) || b.count - a.count || a.name.localeCompare(b.name);
+      })
+      .slice(0, 10)
+      .map((item) => ({
+        name: item.name,
+        icon: <MapPin size={18} />,
+        desc: `${item.count} ${item.count === 1 ? "stay" : "stays"} available`,
+      }));
+  }, [properties]);
 
   const filteredDestinations = useMemo(() => {
     const q = destination.trim().toLowerCase();
@@ -77,7 +102,7 @@ export default function Home() {
     return destinations.filter((item) =>
       `${item.name} ${item.desc}`.toLowerCase().includes(q)
     );
-  }, [destination]);
+  }, [destination, destinations]);
 
   useEffect(() => {
     // Initial public listing fetch.

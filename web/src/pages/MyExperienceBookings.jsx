@@ -15,6 +15,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 
 const BRAND = "#7E4FF5";
 
@@ -271,7 +272,7 @@ function BookingCard({ booking, onView, onCancel, cancelling }) {
           <div>
             <p className="text-sm text-gray-500">Total</p>
             <p className="mt-1 text-2xl font-black text-gray-900">
-              ₹{Number(booking.total || 0).toLocaleString("en-IN")}
+              {formatCurrency(booking.total)}
             </p>
           </div>
 

@@ -15,12 +15,13 @@ import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import Tabs from "../components/Tabs";
 import api from "../api/api";
+import { formatCurrency } from "../utils/currency";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
 
 function formatINR(amount) {
-  return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+  return formatCurrency(amount);
 }
 
 function formatDate(value) {
