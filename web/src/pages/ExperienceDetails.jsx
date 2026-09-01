@@ -15,6 +15,7 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import GoogleMapSection from "../components/GoogleMapSection";
 import Tabs from "../components/Tabs";
 import api from "../api/api";
 
@@ -339,11 +340,13 @@ export default function ExperienceDetails() {
             />
           </div>
 
-          <GoogleMapEmbed
-            latitude={pkg.pickup_latitude || pkg.latitude}
-            longitude={pkg.pickup_longitude || pkg.longitude}
-            title={pkg.title}
-          />
+          <div className="mt-4 overflow-hidden rounded-[28px] border border-gray-200 bg-gray-50">
+            <GoogleMapSection
+              latitude={pkg.pickup_latitude || pkg.latitude}
+              longitude={pkg.pickup_longitude || pkg.longitude}
+              title={pkg.title}
+            />
+          </div>
         </div>
       ),
     },
@@ -900,51 +903,6 @@ function formatInputDate(value) {
   } catch {
     return todayISO();
   }
-}
-function GoogleMapEmbed({ latitude, longitude, title }) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-  if (!apiKey) {
-    return (
-      <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 px-5 text-center text-sm text-gray-500">
-        Google Maps is not configured for this website.
-      </div>
-    );
-  }
-
-  if (!latitude || !longitude) {
-    return (
-      <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
-        Map location is not available for this package.
-      </div>
-    );
-  }
-
-  const lat = Number(latitude);
-  const lng = Number(longitude);
-
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return (
-      <div className="mt-4 flex h-64 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
-        Invalid map location.
-      </div>
-    );
-  }
-
-  const mapUrl = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${lat},${lng}&zoom=14`;
-
-  return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
-      <iframe
-        title={`Map of ${title || "trip destination"}`}
-        src={mapUrl}
-        className="h-72 w-full"
-        loading="lazy"
-        allowFullScreen
-        referrerPolicy="no-referrer-when-downgrade"
-      />
-    </div>
-  );
 }
 function formatDisplayDate(value) {
   if (!value) return "Today";
