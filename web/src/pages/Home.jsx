@@ -560,7 +560,7 @@ function MonthCalendar({ monthDate, checkin, checkout, onDateClick }) {
 
   return (
     <div>
-      <h3 className="mb-4 text-center text-base font-semibold text-gray-950">
+      <h3 className="mb-5 text-center text-base font-semibold text-gray-950">
         {monthDate.toLocaleString("en-IN", {
           month: "long",
           year: "numeric",
