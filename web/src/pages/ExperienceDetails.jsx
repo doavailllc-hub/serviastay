@@ -533,9 +533,9 @@ export default function ExperienceDetails() {
         </section>
 
         {/* Main Content Grid */}
-        <section className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <section className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           {/* Tabs Section */}
-          <div className="min-w-0 rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="min-w-0 self-start overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
             <Tabs tabs={tabsList} defaultTab={0} />
           </div>
 
@@ -650,8 +650,8 @@ function BookingCard({
     : null;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-5 flex items-end justify-between">
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_10px_35px_rgba(15,23,42,0.10)]">
+      <div className="mb-6 flex items-end justify-between">
         <p>
           <span className="text-2xl font-semibold text-gray-950">
             ₹{price.toLocaleString("en-IN")}
@@ -665,7 +665,7 @@ function BookingCard({
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200">
+      <div className="overflow-hidden rounded-2xl border border-slate-200">
         <div className="border-b border-gray-200 p-4">
           <label className="mb-3 block text-xs font-medium uppercase tracking-wide text-gray-500">
             Departure
@@ -782,7 +782,7 @@ function BookingCard({
 
       <button
         onClick={handleBookPackage}
-        className="mt-5 h-12 w-full rounded-xl bg-[#3b71e6] text-sm font-medium text-white transition duration-200 hover:bg-[#2f5fc2] active:scale-[0.99]"
+        className="mt-6 h-12 w-full rounded-xl bg-[#3b71e6] text-sm font-semibold text-white shadow-[0_8px_20px_rgba(59,113,230,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#2f5fc2] active:translate-y-0 active:scale-[0.99]"
       >
         Book package
       </button>

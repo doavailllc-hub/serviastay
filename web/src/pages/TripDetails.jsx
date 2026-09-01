@@ -384,15 +384,15 @@ export default function TripDetails() {
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           {/* Tabs Section */}
-          <section className="rounded-2xl border border-gray-200 overflow-hidden">
+          <section className="self-start overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
             <Tabs tabs={tabsList} defaultTab={0} />
           </section>
 
           {/* Sticky Sidebar */}
           <aside className="space-y-6">
-            <div className="sticky top-24 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_10px_35px_rgba(15,23,42,0.10)]">
               <h2 className="mb-6 text-xl font-semibold tracking-tight">
                 Payment summary
               </h2>
