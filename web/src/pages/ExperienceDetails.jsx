@@ -15,6 +15,7 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Tabs from "../components/Tabs";
 import api from "../api/api";
 
 
@@ -206,6 +207,263 @@ export default function ExperienceDetails() {
     );
   }
 
+  // Build tab configuration
+  const tabsList = [
+    {
+      label: "Overview",
+      content: (
+        <div className="px-6 py-8 space-y-8">
+          <div className="flex items-start justify-between gap-5">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-950">
+                Hosted by {pkg.host_name || pkg.host || "Dovail Travel"}
+              </h2>
+              <p className="mt-2 text-sm text-gray-500">
+                {days} days · {nights} nights ·{" "}
+                {pkg.group_size || `Up to ${pkg.max_people || 10} travelers`}
+              </p>
+            </div>
+            <HostAvatar name={pkg.host_name || pkg.host || "Dovail"} />
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-950 mb-3">About this package</h3>
+            <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
+              {pkg.description ||
+                "Enjoy a carefully planned trip package with comfortable stay, transport, local support and a day-wise itinerary designed for a smooth travel experience."}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      label: "What's Included",
+      content: (
+        <div className="px-6 py-8">
+          <div className="grid gap-4 md:grid-cols-2">
+            {includes.map((item) => (
+              <div key={item} className="flex items-center gap-3">
+                <CheckCircle2 className="text-[#3b71e6]" size={18} />
+                <span className="text-sm text-gray-700">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+    {
+      label: "Trip Details",
+      content: (
+        <div className="px-6 py-8 space-y-8">
+          <div>
+            <h3 className="font-semibold text-gray-950 mb-4">Details</h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow label="Hotel" value={pkg.hotel_name || "Included"} />
+              <DetailRow label="Transport" value={pkg.transport || "Private / shared transport"} />
+              <DetailRow label="Meals" value={pkg.meals || "Breakfast / selected meals"} />
+              <DetailRow label="Pickup" value={pkg.pickup_location || "Shared after booking"} />
+              <DetailRow label="Language" value={pkg.language || "English"} />
+              <DetailRow label="Travelers" value={pkg.group_size || `Up to ${pkg.max_people || 10}`} />
+            </div>
+          </div>
+
+          {departures.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-gray-950 mb-4">Available Departures</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {departures.slice(0, 6).map((departure) => {
+                  const remaining =
+                    Number(departure.total_seats || 0) -
+                    Number(departure.booked_seats || 0);
+
+                  return (
+                    <div key={departure.id} className="rounded-2xl border border-gray-200 p-4">
+                      <p className="text-sm font-medium text-gray-950">
+                        {formatDisplayDate(departure.departure_date)}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {departure.status === "Available" && remaining > 0
+                          ? `${remaining} seats left`
+                          : departure.status || "Unavailable"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      label: "Itinerary",
+      content: (
+        <div className="px-6 py-8">
+          {itinerary.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Itinerary details will be shared after booking confirmation.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {itinerary.map((item, index) => (
+                <div key={`${item.title}-${index}`} className="relative pl-8">
+                  <div className="absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3b71e6] bg-white">
+                    <span className="h-2 w-2 rounded-full bg-[#3b71e6]" />
+                  </div>
+                  {index !== itinerary.length - 1 && (
+                    <div className="absolute left-[9px] top-7 h-full w-px bg-gray-200" />
+                  )}
+                  <p className="text-sm font-semibold text-gray-950">{item.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-gray-600">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      label: "Location",
+      content: (
+        <div className="px-6 py-8 space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <DetailBox
+              label="Pickup location"
+              value={pkg.pickup_location || "Pickup details will be shared after booking."}
+            />
+            <DetailBox
+              label="Destination"
+              value={pkg.location || pkg.city || "Destination details unavailable"}
+            />
+          </div>
+
+          <GoogleMapEmbed
+            latitude={pkg.pickup_latitude || pkg.latitude}
+            longitude={pkg.pickup_longitude || pkg.longitude}
+            title={pkg.title}
+          />
+        </div>
+      ),
+    },
+    {
+      label: "Cancellation",
+      content: (
+        <div className="px-6 py-8">
+          <p className="rounded-2xl bg-gray-50 p-5 text-sm leading-7 text-gray-600">
+            {pkg.cancellation_policy ||
+              "Free cancellation support is available according to host/package rules. Contact Dovail Stay support for schedule changes or package availability issues."}
+          </p>
+        </div>
+      ),
+    },
+    {
+      label: `Reviews (${reviewCount})`,
+      content: (
+        <div className="px-6 py-8">
+          <div className="mb-6 flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Star
+                  key={index}
+                  size={16}
+                  fill={index < Math.round(rating) ? "currentColor" : "none"}
+                />
+              ))}
+            </div>
+            <span className="font-semibold text-gray-950">
+              {rating ? rating.toFixed(1) : "New"} · {reviewCount} reviews
+            </span>
+          </div>
+
+          {reviews.length === 0 ? (
+            <p className="text-sm text-gray-500">No reviews yet for this package.</p>
+          ) : (
+            <div className="grid gap-8 md:grid-cols-2">
+              {reviews.slice(0, 6).map((review) => (
+                <div key={review.id}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold">
+                      {(review.guest_name || "G").charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-950">
+                        {review.guest_name || "Guest"}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {review.created_at
+                          ? new Date(review.created_at).toLocaleDateString("en-IN")
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star
+                        key={index}
+                        size={13}
+                        fill={
+                          index < Math.round(Number(review.rating || 0))
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  <p className="mt-3 line-clamp-4 text-sm leading-6 text-gray-600">
+                    {review.review || "Great package."}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      label: "Similar",
+      content: (
+        <div className="px-6 py-8">
+          {similar.length === 0 ? (
+            <p className="text-sm text-gray-500">No similar packages available.</p>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              {similar.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(`/experiences/${item.id}`)}
+                  className="group text-left"
+                >
+                  <div className="overflow-hidden rounded-2xl bg-gray-100">
+                    <img
+                      src={getImageUrl(
+                        item.image_url ||
+                          item.image ||
+                          item.cover_image ||
+                          item.images?.[0]?.image_url
+                      ) || images[0]}
+                      alt={item.title}
+                      className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                  <h3 className="mt-3 line-clamp-2 text-sm font-medium text-gray-950">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    ₹{Number(item.price || 0).toLocaleString("en-IN")} / person
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
@@ -219,8 +477,9 @@ export default function ExperienceDetails() {
           Back
         </button>
 
-        <section>
-          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        {/* Hero Section */}
+        <section className="mb-8">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">
                 {pkg.package_type || pkg.category || "Trip package"}
@@ -273,168 +532,14 @@ export default function ExperienceDetails() {
           />
         </section>
 
-        <section className="grid gap-10 py-10 lg:grid-cols-[1fr_360px]">
-          <div className="min-w-0">
-            <Section>
-              <div className="flex items-start justify-between gap-5">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-950">
-                    Hosted by {pkg.host_name || pkg.host || "Dovail Travel"}
-                  </h2>
-                  <p className="mt-2 text-sm text-gray-500">
-                    {days} days · {nights} nights ·{" "}
-                    {pkg.group_size || `Up to ${pkg.max_people || 10} travelers`}
-                  </p>
-                </div>
-                <HostAvatar name={pkg.host_name || pkg.host || "Dovail"} />
-              </div>
-            </Section>
-
-            <Section title="Package overview">
-                         <br></br>
-              <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
-                {pkg.description ||
-                  "Enjoy a carefully planned trip package with comfortable stay, transport, local support and a day-wise itinerary designed for a smooth travel experience."}
-              </p>
-            </Section>
-
-            <Section title="What's included">
-                         <br></br>
-              <div className="grid gap-4 md:grid-cols-2">
-                {includes.map((item) => (
-                  <div key={item} className="flex items-center gap-3">
-                    <CheckCircle2 className="text-[#3b71e6]" size={18} />
-                    <span className="text-sm text-gray-700">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </Section>
-
-            <Section title="Trip details">
-                         <br></br>
-              <div className="grid gap-4 md:grid-cols-2">
-                <DetailRow label="Hotel" value={pkg.hotel_name || "Included"} />
-                <DetailRow label="Transport" value={pkg.transport || "Private / shared transport"} />
-                <DetailRow label="Meals" value={pkg.meals || "Breakfast / selected meals"} />
-                <DetailRow label="Pickup" value={pkg.pickup_location || "Shared after booking"} />
-                <DetailRow label="Language" value={pkg.language || "English"} />
-                <DetailRow label="Travelers" value={pkg.group_size || `Up to ${pkg.max_people || 10}`} />
-              </div>
-            </Section>
-
-            {departures.length > 0 && (
-              <Section title="Available departures">
-                <div className="grid gap-3 md:grid-cols-2">
-                  {departures.slice(0, 6).map((departure) => {
-                    const remaining =
-                      Number(departure.total_seats || 0) -
-                      Number(departure.booked_seats || 0);
-
-                    return (
-                      <div key={departure.id} className="rounded-2xl border border-gray-200 p-4">
-                        <p className="text-sm font-medium text-gray-950">
-                          {formatDisplayDate(departure.departure_date)}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500">
-                          {departure.status === "Available" && remaining > 0
-                            ? `${remaining} seats left`
-                            : departure.status || "Unavailable"}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Section>
-            )}
-
-            <Section title="Itinerary">
-           <br></br>
-              {itinerary.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Itinerary details will be shared after booking confirmation.
-                </p>
-              ) : (
-                <div className="space-y-5">
-                  {itinerary.map((item, index) => (
-                    <div key={`${item.title}-${index}`} className="relative pl-8">
-                      <div className="absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3b71e6] bg-white">
-                        <span className="h-2 w-2 rounded-full bg-[#3b71e6]" />
-                      </div>
-                      {index !== itinerary.length - 1 && (
-                        <div className="absolute left-[9px] top-7 h-full w-px bg-gray-200" />
-                      )}
-                      <p className="text-sm font-semibold text-gray-950">{item.title}</p>
-                      <p className="mt-1 text-sm leading-6 text-gray-600">
-                        {item.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-
-            <Section title="Pickup & destination">
-              <div className="grid gap-4 md:grid-cols-2">
-                <DetailBox
-                  label="Pickup location"
-                  value={pkg.pickup_location || "Pickup details will be shared after booking."}
-                />
-                <DetailBox
-                  label="Destination"
-                  value={pkg.location || pkg.city || "Destination details unavailable"}
-                />
-              </div>
-
-              <GoogleMapEmbed
-                latitude={pkg.pickup_latitude || pkg.latitude}
-                longitude={pkg.pickup_longitude || pkg.longitude}
-                title={pkg.title}
-              />
-            </Section>
-
-            <Section title="Cancellation policy">
-              <p className="rounded-2xl bg-gray-50 p-5 text-sm leading-7 text-gray-600">
-                {pkg.cancellation_policy ||
-                  "Free cancellation support is available according to host/package rules. Contact Dovail Stay support for schedule changes or package availability issues."}
-              </p>
-            </Section>
-
-            <ReviewsSection reviews={reviews} rating={rating} reviewCount={reviewCount} />
-
-            {similar.length > 0 && (
-              <Section title="Similar trip packages" last>
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                  {similar.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => navigate(`/experiences/${item.id}`)}
-                      className="group text-left"
-                    >
-                      <div className="overflow-hidden rounded-2xl bg-gray-100">
-                        <img
-                          src={getImageUrl(
-                            item.image_url ||
-                              item.image ||
-                              item.cover_image ||
-                              item.images?.[0]?.image_url
-                          ) || images[0]}
-                          alt={item.title}
-                          className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
-                        />
-                      </div>
-                      <h3 className="mt-3 line-clamp-2 text-sm font-medium text-gray-950">
-                        {item.title}
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        ₹{Number(item.price || 0).toLocaleString("en-IN")} / person
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </Section>
-            )}
+        {/* Main Content Grid */}
+        <section className="grid gap-8 lg:grid-cols-[1fr_360px]">
+          {/* Tabs Section */}
+          <div className="min-w-0 rounded-2xl border border-gray-200 overflow-hidden">
+            <Tabs tabs={tabsList} defaultTab={0} />
           </div>
 
+          {/* Sticky Booking Sidebar */}
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <BookingCard
               price={price}
@@ -706,19 +811,6 @@ function BookingCard({
   );
 }
 
-function Section({ title, children, last }) {
-  return (
-    <section className={`${last ? "py-8" : "border-b border-gray-200 py-8"}`}>
-      {title && (
-        <h2 className="mb-5 text-xl font-semibold tracking-tight text-gray-950">
-          {title}
-        </h2>
-      )}
-      {children}
-    </section>
-  );
-}
-
 function HostAvatar({ name }) {
   return (
     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
@@ -742,61 +834,6 @@ function DetailBox({ label, value }) {
       <p className="text-sm font-medium text-gray-950">{label}</p>
       <p className="mt-2 text-sm leading-6 text-gray-500">{value}</p>
     </div>
-  );
-}
-
-function ReviewsSection({ reviews, rating, reviewCount }) {
-  return (
-    <section className="border-b border-gray-200 py-8">
-      <h2 className="mb-5 flex items-center gap-2 text-xl font-semibold tracking-tight text-gray-950">
-        <Star size={18} fill="currentColor" />
-        {rating ? rating.toFixed(2) : "New"} · {reviewCount} reviews
-      </h2>
-
-      {reviews.length === 0 ? (
-        <p className="text-sm text-gray-500">No reviews yet for this package.</p>
-      ) : (
-        <div className="grid gap-8 md:grid-cols-2">
-          {reviews.slice(0, 6).map((review) => (
-            <div key={review.id}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold">
-                  {(review.guest_name || "G").charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-950">
-                    {review.guest_name || "Guest"}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {review.created_at
-                      ? new Date(review.created_at).toLocaleDateString("en-IN")
-                      : ""}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star
-                    key={index}
-                    size={13}
-                    fill={
-                      index < Math.round(Number(review.rating || 0))
-                        ? "currentColor"
-                        : "none"
-                    }
-                  />
-                ))}
-              </div>
-
-              <p className="mt-3 line-clamp-4 text-sm leading-6 text-gray-600">
-                {review.review || "Great package."}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
 

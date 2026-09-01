@@ -13,6 +13,7 @@ import {
 import toast from "react-hot-toast";
 
 import Navbar from "../components/Navbar";
+import Tabs from "../components/Tabs";
 import api from "../api/api";
 
 const FALLBACK_IMAGE =
@@ -236,6 +237,131 @@ export default function TripDetails() {
     normalizedStatus !== "cancelled" && normalizedStatus !== "completed";
   const canReview = normalizedStatus === "completed";
 
+  // Build tab configuration
+  const tabsList = [
+    {
+      label: "Overview",
+      content: (
+        <div className="px-6 py-8">
+          <div className="rounded-2xl overflow-hidden border border-gray-200 mb-6">
+            <img
+              src={data.image}
+              alt={data.title}
+              className="h-80 w-full object-cover"
+              onError={(event) => {
+                event.currentTarget.src = FALLBACK_IMAGE;
+              }}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+                {data.title}
+              </h2>
+              <p className="mt-2 text-sm text-gray-500">{data.location}</p>
+            </div>
+            <StatusBadge status={data.status} />
+          </div>
+
+          <p className="text-sm leading-7 text-gray-600">
+            {data.description}
+          </p>
+        </div>
+      ),
+    },
+    {
+      label: "Reservation",
+      content: (
+        <div className="px-6 py-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            <InfoBox
+              icon={<CalendarDays size={20} />}
+              label="Check-in"
+              value={formatDate(data.checkin)}
+            />
+            <InfoBox
+              icon={<CalendarDays size={20} />}
+              label="Check-out"
+              value={formatDate(data.checkout)}
+            />
+            <InfoBox
+              icon={<Users size={20} />}
+              label="Guests"
+              value={`${data.guests} ${data.guests > 1 ? "guests" : "guest"}`}
+            />
+          </div>
+        </div>
+      ),
+    },
+    {
+      label: "Property Info",
+      content: (
+        <div className="px-6 py-8">
+          <div className="grid gap-4 md:grid-cols-2">
+            <SimpleInfo label="Property ID" value={`#${data.propertyId}`} />
+            <SimpleInfo label="Booking ID" value={`#${data.id}`} />
+            <SimpleInfo label="Location" value={data.location} />
+            <SimpleInfo label="Payment" value={data.paymentMethod} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      label: "Host Details",
+      content: (
+        <div className="px-6 py-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
+              {data.hostName?.charAt(0)?.toUpperCase() || "H"}
+            </div>
+
+            <div>
+              <h3 className="font-semibold">{data.hostName}</h3>
+              <p className="mt-1 text-sm text-gray-500">{data.hostEmail}</p>
+              <p className="text-sm text-gray-500">{data.hostPhone}</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={contactHost}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 text-sm font-semibold transition hover:bg-gray-50"
+          >
+            <MessageCircle size={17} />
+            Contact host
+          </button>
+        </div>
+      ),
+    },
+    {
+      label: "Timeline",
+      content: (
+        <div className="px-6 py-8">
+          <Timeline status={data.status} />
+        </div>
+      ),
+    },
+    {
+      label: "Policy",
+      content: (
+        <div className="px-6 py-8">
+          <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <ShieldCheck className="text-yellow-700" size={21} />
+              <h3 className="text-lg font-semibold">Refund policy</h3>
+            </div>
+
+            <p className="text-sm leading-7 text-gray-700">
+              Cancel within 24 hours of booking for full refund where applicable.
+              After that, refund depends on the host policy and check-in time.
+            </p>
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-white text-gray-950">
       <Navbar />
@@ -259,106 +385,14 @@ export default function TripDetails() {
         </header>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          <section className="space-y-6">
-            <article className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-              <img
-                src={data.image}
-                alt={data.title}
-                className="h-80 w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.src = FALLBACK_IMAGE;
-                }}
-              />
-
-              <div className="p-6">
-                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-                  <div>
-                    <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                      {data.title}
-                    </h2>
-                    <p className="mt-2 text-sm text-gray-500">{data.location}</p>
-                  </div>
-
-                  <StatusBadge status={data.status} />
-                </div>
-
-                <p className="mt-5 text-sm leading-7 text-gray-600">
-                  {data.description}
-                </p>
-              </div>
-            </article>
-
-            <Card title="Reservation details">
-              <div className="grid gap-4 md:grid-cols-3">
-                <InfoBox
-                  icon={<CalendarDays size={20} />}
-                  label="Check-in"
-                  value={formatDate(data.checkin)}
-                />
-                <InfoBox
-                  icon={<CalendarDays size={20} />}
-                  label="Check-out"
-                  value={formatDate(data.checkout)}
-                />
-                <InfoBox
-                  icon={<Users size={20} />}
-                  label="Guests"
-                  value={`${data.guests} ${data.guests > 1 ? "guests" : "guest"}`}
-                />
-              </div>
-            </Card>
-
-            <Card title="Property information">
-              <div className="grid gap-4 md:grid-cols-2">
-                <SimpleInfo label="Property ID" value={`#${data.propertyId}`} />
-                <SimpleInfo label="Booking ID" value={`#${data.id}`} />
-                <SimpleInfo label="Location" value={data.location} />
-                <SimpleInfo label="Payment" value={data.paymentMethod} />
-              </div>
-            </Card>
-
-            <Card title="Host details">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eef4ff] text-xl font-semibold text-[#3b71e6]">
-                  {data.hostName?.charAt(0)?.toUpperCase() || "H"}
-                </div>
-
-                <div>
-                  <h3 className="font-semibold">{data.hostName}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{data.hostEmail}</p>
-                  <p className="text-sm text-gray-500">{data.hostPhone}</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={contactHost}
-                className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 text-sm font-semibold transition hover:bg-gray-50"
-              >
-                <MessageCircle size={17} />
-                Contact host
-              </button>
-            </Card>
-
-            <Card title="Booking timeline">
-              <Timeline status={data.status} />
-            </Card>
-
-            <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-6">
-              <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck className="text-yellow-700" size={21} />
-                <h3 className="text-lg font-semibold">Refund policy</h3>
-              </div>
-
-              <p className="text-sm leading-7 text-gray-700">
-                Cancel within 24 hours of booking for full refund where applicable.
-                After that, refund depends on the host policy and check-in time.
-              </p>
-            </div>
+          {/* Tabs Section */}
+          <section className="rounded-2xl border border-gray-200 overflow-hidden">
+            <Tabs tabs={tabsList} defaultTab={0} />
           </section>
 
+          {/* Sticky Sidebar */}
           <aside className="space-y-6">
-            <div className="sticky top-24 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="sticky top-24 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="mb-6 text-xl font-semibold tracking-tight">
                 Payment summary
               </h2>
@@ -406,7 +440,7 @@ export default function TripDetails() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-[#3b71e6] p-6 text-white">
+            <div className="rounded-2xl bg-[#3b71e6] p-6 text-white">
               <ReceiptText className="mb-3" />
               <h3 className="text-lg font-semibold">Need help?</h3>
               <p className="mt-2 text-sm leading-6 text-white/90">
@@ -418,15 +452,6 @@ export default function TripDetails() {
         </div>
       </main>
     </div>
-  );
-}
-
-function Card({ title, children }) {
-  return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-xl font-semibold tracking-tight">{title}</h2>
-      {children}
-    </section>
   );
 }
 
