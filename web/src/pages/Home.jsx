@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Navigation,
   X,
   Minus,
   Plus,
@@ -46,6 +47,8 @@ export default function Home() {
   const [loadError, setLoadError] = useState("");
   const [activePanel, setActivePanel] = useState(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("requesting");
+  const [userCoords, setUserCoords] = useState(null);
 
   const [destination, setDestination] = useState("");
   const [checkin, setCheckin] = useState(null);
@@ -58,6 +61,27 @@ export default function Home() {
   const [pets, setPets] = useState(0);
 
   const totalGuests = adults + children;
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationStatus("unsupported");
+      return;
+    }
+
+    setLocationStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setUserCoords({ latitude: coords.latitude, longitude: coords.longitude });
+        setLocationStatus("granted");
+      },
+      () => setLocationStatus("denied"),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+  }, []);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   const destinations = useMemo(() => {
     const region = getRegionCode();
@@ -75,8 +99,14 @@ export default function Home() {
         ? `${city}, ${country}`
         : city;
       const key = name.toLowerCase();
-      const current = grouped.get(key) || { name, country, count: 0 };
+      const latitude = Number(property.latitude);
+      const longitude = Number(property.longitude);
+      const distance = userCoords && Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? distanceInKm(userCoords.latitude, userCoords.longitude, latitude, longitude)
+        : Number.POSITIVE_INFINITY;
+      const current = grouped.get(key) || { name, country, count: 0, distance };
       current.count += 1;
+      current.distance = Math.min(current.distance, distance);
       grouped.set(key, current);
     });
 
@@ -85,6 +115,7 @@ export default function Home() {
         const regionName = regionNames[region] || "";
         const aLocal = regionName && `${a.name} ${a.country}`.toLowerCase().includes(regionName);
         const bLocal = regionName && `${b.name} ${b.country}`.toLowerCase().includes(regionName);
+        if (userCoords && a.distance !== b.distance) return a.distance - b.distance;
         return Number(bLocal) - Number(aLocal) || b.count - a.count || a.name.localeCompare(b.name);
       })
       .slice(0, 10)
@@ -93,16 +124,37 @@ export default function Home() {
         icon: <MapPin size={18} />,
         desc: `${item.count} ${item.count === 1 ? "stay" : "stays"} available`,
       }));
-  }, [properties]);
+  }, [properties, userCoords]);
+
+  const suggestedDestinations = useMemo(() => {
+    const nearest = destinations[0];
+    return [
+      {
+        name: "Nearby",
+        searchValue: nearest?.name || "",
+        icon: <Navigation size={19} />,
+        desc:
+          locationStatus === "granted"
+            ? nearest
+              ? `Closest available stays · ${nearest.name}`
+              : "No nearby stays are currently available"
+            : locationStatus === "requesting"
+              ? "Finding what's around you…"
+              : "Enable location access to find nearby stays",
+        isNearby: true,
+      },
+      ...destinations,
+    ];
+  }, [destinations, locationStatus]);
 
   const filteredDestinations = useMemo(() => {
     const q = destination.trim().toLowerCase();
-    if (!q) return destinations;
+    if (!q) return suggestedDestinations;
 
-    return destinations.filter((item) =>
+    return suggestedDestinations.filter((item) =>
       `${item.name} ${item.desc}`.toLowerCase().includes(q)
     );
-  }, [destination, destinations]);
+  }, [destination, suggestedDestinations]);
 
   useEffect(() => {
     // Initial public listing fetch.
@@ -313,7 +365,11 @@ export default function Home() {
                 destinations={filteredDestinations}
                 onClose={() => setActivePanel(null)}
                 onSelect={(place) => {
-                  setDestination(place.name);
+                  if (place.isNearby && locationStatus !== "granted") {
+                    requestLocation();
+                    return;
+                  }
+                  setDestination(place.searchValue || place.name);
                   setActivePanel("dates");
                 }}
               />
@@ -461,7 +517,7 @@ function SearchButton({ title, value, active, onClick, className }) {
 
 function DestinationDropdown({ destinations, onSelect, onClose }) {
   return (
-    <div className="absolute left-0 top-[78px] z-50 w-[430px] rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+    <div className="absolute left-0 top-[78px] z-50 w-[440px] overflow-hidden rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-base font-semibold text-gray-950">
           Suggested destinations
@@ -476,7 +532,7 @@ function DestinationDropdown({ destinations, onSelect, onClose }) {
         </button>
       </div>
 
-      <div className="max-h-[420px] overflow-y-auto">
+      <div className="max-h-[430px] overflow-y-auto pr-1 [scrollbar-width:thin]">
         {destinations.length === 0 ? (
           <p className="px-3 py-8 text-center text-sm text-gray-500">
             No destinations found.
@@ -487,17 +543,17 @@ function DestinationDropdown({ destinations, onSelect, onClose }) {
               key={place.name}
               type="button"
               onClick={() => onSelect(place)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50 active:scale-[0.99]"
+              className="group flex w-full items-center gap-4 rounded-2xl px-2 py-3 text-left transition hover:bg-gray-50 active:scale-[0.99]"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef4ff] text-xl text-[#3b71e6]">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${place.isNearby ? "bg-[#eef4ff] text-[#3b71e6]" : "bg-emerald-50 text-emerald-600"}`}>
                 {place.icon}
               </div>
 
-              <div>
-                <p className="text-sm font-medium text-gray-950">
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold text-gray-950">
                   {place.name}
                 </p>
-                <p className="text-sm text-gray-500">{place.desc}</p>
+                <p className="mt-0.5 line-clamp-2 text-sm leading-5 text-gray-500">{place.desc}</p>
               </div>
             </button>
           ))
@@ -840,7 +896,7 @@ function MobileSearchPanel({
               key={place.name}
               type="button"
               onClick={() => {
-                setDestination(place.name);
+                setDestination(place.searchValue || place.name);
                 setActivePanel("dates");
               }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-gray-50"
@@ -977,6 +1033,18 @@ function EmptyState() {
 
 function Divider() {
   return <div className="h-7 w-px shrink-0 bg-gray-200" />;
+}
+
+function distanceInKm(lat1, lon1, lat2, lon2) {
+  const toRadians = (value) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const latDelta = toRadians(lat2 - lat1);
+  const lonDelta = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(lonDelta / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function LoadError({ message, onRetry }) {

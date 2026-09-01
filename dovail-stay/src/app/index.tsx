@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import {
   Building2,
@@ -7,6 +8,7 @@ import {
   ChevronRight,
   Heart,
   MapPin,
+  Navigation,
   PlaneTakeoff,
   Search,
   Star
@@ -96,6 +98,8 @@ type ListingItem = {
   city?: string;
   state?: string;
   country?: string;
+  latitude?: number | string;
+  longitude?: number | string;
 
   guests?: number | string;
   max_guests?: number | string;
@@ -208,6 +212,17 @@ const formatMonth = (date: Date) =>
 const toNumber = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const distanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const latDelta = toRadians(lat2 - lat1);
+  const lonDelta = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(lonDelta / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
 const getArrayFromResponse = <T,>(
@@ -478,6 +493,14 @@ export default function HomeScreen() {
   const [searchModalVisible, setSearchModalVisible] =
     useState(false);
 
+  const [locationStatus, setLocationStatus] = useState<
+    "requesting" | "granted" | "denied"
+  >("requesting");
+  const [userCoords, setUserCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
   const [searchStep, setSearchStep] =
     useState<SearchStep>("destination");
 
@@ -496,6 +519,32 @@ export default function HomeScreen() {
           1
         )
     );
+
+  const requestUserLocation = useCallback(async () => {
+    try {
+      setLocationStatus("requesting");
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        setLocationStatus("denied");
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setUserCoords({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      setLocationStatus("granted");
+    } catch (error) {
+      console.log("Location permission error:", error);
+      setLocationStatus("denied");
+    }
+  }, []);
+
+  useEffect(() => {
+    requestUserLocation();
+  }, [requestUserLocation]);
 
   const loadData = useCallback(
     async (isRefresh = false) => {
@@ -738,7 +787,7 @@ export default function HomeScreen() {
       US: "united states",
       GB: "united kingdom",
     };
-    const grouped = new Map<string, { name: string; country: string; count: number }>();
+    const grouped = new Map<string, { name: string; country: string; count: number; distance: number }>();
 
     items.forEach((item) => {
       const city = String(item.city || item.location || item.destination || "").trim();
@@ -749,8 +798,15 @@ export default function HomeScreen() {
         : city;
       if (query && !`${name} ${country}`.toLowerCase().includes(query)) return;
       const key = name.toLowerCase();
-      const current = grouped.get(key) || { name, country, count: 0 };
+      const latitude = toNumber(item.latitude);
+      const longitude = toNumber(item.longitude);
+      const hasCoordinates = userCoords && latitude !== 0 && longitude !== 0;
+      const distance = hasCoordinates
+        ? distanceInKm(userCoords.latitude, userCoords.longitude, latitude, longitude)
+        : Number.POSITIVE_INFINITY;
+      const current = grouped.get(key) || { name, country, count: 0, distance };
       current.count += 1;
+      current.distance = Math.min(current.distance, distance);
       grouped.set(key, current);
     });
 
@@ -759,10 +815,11 @@ export default function HomeScreen() {
         const regionName = regionNames[region] || "";
         const aLocal = regionName && `${a.name} ${a.country}`.toLowerCase().includes(regionName);
         const bLocal = regionName && `${b.name} ${b.country}`.toLowerCase().includes(regionName);
+        if (userCoords && a.distance !== b.distance) return a.distance - b.distance;
         return Number(bLocal) - Number(aLocal) || b.count - a.count || a.name.localeCompare(b.name);
       })
       .slice(0, 6);
-  }, [draftSearch.destination, items]);
+  }, [draftSearch.destination, items, userCoords]);
 
   const hasActiveSearch = useMemo(
     () =>
@@ -1797,6 +1854,41 @@ router.push({
                       <Text style={styles.locationSuggestionsLabel}>
                         {activeTab === "Stay" ? "STAYS NEAR YOUR REGION" : "AVAILABLE DESTINATIONS"}
                       </Text>
+                      {activeTab === "Stay" ? (
+                        <Pressable
+                          onPress={() => {
+                            if (locationStatus !== "granted") {
+                              requestUserLocation();
+                              return;
+                            }
+                            const nearest = locationSuggestions[0];
+                            if (!nearest) return;
+                            setDraftSearch((current) => ({
+                              ...current,
+                              destination: nearest.name,
+                            }));
+                            setSearchStep("dates");
+                          }}
+                          style={({ pressed }) => [
+                            styles.locationSuggestionRow,
+                            pressed && styles.locationSuggestionRowPressed,
+                          ]}
+                        >
+                          <View style={styles.locationSuggestionIcon}>
+                            <Navigation size={18} color={THEME} />
+                          </View>
+                          <View style={styles.locationSuggestionContent}>
+                            <Text style={styles.locationSuggestionName}>Nearby</Text>
+                            <Text style={styles.locationSuggestionMeta}>
+                              {locationStatus === "granted"
+                                ? `Closest available stays · ${locationSuggestions[0]?.name || "Near you"}`
+                                : locationStatus === "requesting"
+                                  ? "Finding what's around you…"
+                                  : "Tap to enable location access"}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ) : null}
                       {locationSuggestions.map((suggestion) => (
                         <Pressable
                           key={suggestion.name}
