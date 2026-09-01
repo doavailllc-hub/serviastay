@@ -19,6 +19,8 @@ import GoogleMapSection from "../components/GoogleMapSection";
 import Tabs from "../components/Tabs";
 import api from "../api/api";
 import { formatCurrency } from "../utils/currency";
+import { Seo } from "../components/Seo";
+import { SEO_SITE_URL } from "../utils/seoConfig";
 
 
 function todayISO() {
@@ -470,6 +472,30 @@ export default function ExperienceDetails() {
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
+      <Seo
+        title={`${pkg.title} | Trips and Experiences | Dovail Stay`}
+        description={pkg.description || `Explore ${pkg.title} with Dovail Stay.`}
+        canonicalPath={`/experiences/${id}`}
+        image={images[0]}
+        type="product"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "TouristTrip",
+          name: pkg.title,
+          description: pkg.description || undefined,
+          url: `${SEO_SITE_URL}/experiences/${id}`,
+          image: images,
+          touristType: pkg.category || undefined,
+          itinerary: pkg.location || pkg.city || undefined,
+          offers: price > 0 ? {
+            "@type": "Offer",
+            price,
+            priceCurrency: "INR",
+            availability: "https://schema.org/InStock",
+            url: `${SEO_SITE_URL}/experiences/${id}`,
+          } : undefined,
+        }}
+      />
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-4 pb-14 pt-24 md:px-8">

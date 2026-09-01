@@ -82,6 +82,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 
 import { Toaster } from "react-hot-toast";
+import { RouteSeo } from "./components/Seo";
 
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
@@ -89,6 +90,7 @@ function ProtectedPage({ children }) {
 export default function App() {
   return (
     <>
+      <RouteSeo />
       <Toaster
         position="top-center"
         toastOptions={{

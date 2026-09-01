@@ -16,6 +16,8 @@ import HostSection from "../components/resort/HostSection";
 import ReviewsSection from "../components/resort/ReviewsSection";
 import ReservationCard from "../components/resort/ReservationCard";
 import LoginModal from "../components/resort/LoginModal";
+import { Seo } from "../components/Seo";
+import { SEO_SITE_URL } from "../utils/seoConfig";
 
 import {
   addDaysISO,
@@ -291,9 +293,40 @@ export default function ResortDetails() {
   if (!property) return null;
 
   const city = String(property.location || "this location").split(",")[0];
+  const seoDescription = property.description ||
+    `Book ${property.title} in ${property.location || city} with Dovail Stay.`;
+  const staySchema = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    name: property.title,
+    description: seoDescription,
+    url: `${SEO_SITE_URL}/reserve/${id}`,
+    image: galleryImages,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: property.city || city,
+      addressCountry: property.country || undefined,
+    },
+    priceRange: price > 0 ? `INR ${price}` : undefined,
+    ...(Number(property.rating) > 0 && reviews.length > 0 ? {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: Number(property.rating),
+        reviewCount: reviews.length,
+      },
+    } : {}),
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
+      <Seo
+        title={`${property.title} in ${property.location || city} | Dovail Stay`}
+        description={seoDescription}
+        canonicalPath={`/reserve/${id}`}
+        image={galleryImages[0]}
+        type="place"
+        jsonLd={staySchema}
+      />
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 md:px-8">

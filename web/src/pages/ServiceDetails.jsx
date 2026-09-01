@@ -17,6 +17,8 @@ import toast from "react-hot-toast";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { Seo } from "../components/Seo";
+import { SEO_SITE_URL } from "../utils/seoConfig";
 
 const SERVICES = [
   {
@@ -198,6 +200,34 @@ export default function ServiceDetails() {
 
   return (
     <div className="min-h-screen bg-white text-[#222]">
+      <Seo
+        title={`${service.title} in ${service.location || "your destination"} | Dovail Stay`}
+        description={service.description || `Book ${service.title} with a trusted local provider on Dovail Stay.`}
+        canonicalPath={`/service/${id}`}
+        image={service.image}
+        type="product"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Service",
+          name: service.title,
+          description: service.description || undefined,
+          image: service.image || undefined,
+          url: `${SEO_SITE_URL}/service/${id}`,
+          category: service.category || undefined,
+          areaServed: service.location || undefined,
+          provider: service.provider ? {
+            "@type": "Organization",
+            name: service.provider,
+          } : undefined,
+          offers: Number(service.price) > 0 ? {
+            "@type": "Offer",
+            price: Number(service.price),
+            priceCurrency: "USD",
+            availability: "https://schema.org/InStock",
+            url: `${SEO_SITE_URL}/service/${id}`,
+          } : undefined,
+        }}
+      />
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
