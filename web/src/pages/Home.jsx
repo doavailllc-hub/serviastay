@@ -489,7 +489,7 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {properties.map((item, index) => (
-              <PropertyCard key={item.id} property={item} priority={index === 0} />
+              <PropertyCard key={item.id} property={item} priority={index < 6} />
             ))}
           </div>
         )}

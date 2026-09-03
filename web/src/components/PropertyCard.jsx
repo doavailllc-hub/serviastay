@@ -44,6 +44,14 @@ function getImageUrl(property) {
   return image;
 }
 
+function getCardImageUrl(imageUrl) {
+  if (!imageUrl.includes(".s3.") || !/\/properties\//.test(imageUrl)) {
+    return imageUrl;
+  }
+
+  return imageUrl.replace(/\.[^./?]+(?=\?|$)/, "-480.webp");
+}
+
 export default function PropertyCard({ property, priority = false }) {
   const navigate = useNavigate();
 
@@ -51,6 +59,7 @@ export default function PropertyCard({ property, priority = false }) {
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
   const imageUrl = useMemo(() => getImageUrl(property), [property]);
+  const cardImageUrl = useMemo(() => getCardImageUrl(imageUrl), [imageUrl]);
 
   const ratingLabel =
     property?.rating && Number(property.rating) > 0
@@ -108,13 +117,16 @@ export default function PropertyCard({ property, priority = false }) {
       >
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100">
           <img
-            src={imageUrl}
+            src={cardImageUrl}
             alt={property.title || "Stay property image"}
             loading={priority ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : "auto"}
             decoding="async"
             onError={(e) => {
-              if (e.currentTarget.src !== FALLBACK_IMAGE) {
+              if (!e.currentTarget.dataset.originalTried && cardImageUrl !== imageUrl) {
+                e.currentTarget.dataset.originalTried = "true";
+                e.currentTarget.src = imageUrl;
+              } else if (e.currentTarget.src !== FALLBACK_IMAGE) {
                 e.currentTarget.src = FALLBACK_IMAGE;
               }
             }}
