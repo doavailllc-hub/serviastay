@@ -384,7 +384,7 @@ function NavTab({ to, icon, label, active, badge }) {
     <Link to={to} className="h-full no-underline">
       <button
         className={`relative flex h-full flex-col items-center justify-center px-1 transition ${
-          active ? "text-[#3b71e6]" : "text-gray-500 hover:text-[#3b71e6]"
+          active ? "text-[#2f5fc2]" : "text-gray-500 hover:text-[#2f5fc2]"
         }`}
       >
         {icon}
@@ -393,7 +393,7 @@ function NavTab({ to, icon, label, active, badge }) {
         </span>
 
         {badge && (
-          <span className="absolute -right-7 top-3 rounded-full bg-[#3b71e6]/10 px-2 py-0.5 text-[9px] font-black text-[#3b71e6]">
+          <span className="absolute -right-7 top-3 rounded-full bg-[#3b71e6]/10 px-2 py-0.5 text-[9px] font-black text-[#2f5fc2]">
             {badge}
           </span>
         )}
