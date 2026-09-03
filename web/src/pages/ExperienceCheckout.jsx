@@ -7,17 +7,23 @@ import {
   Loader2,
   MapPin,
   ShieldCheck,
-  Smartphone,
-  Wallet,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../api/api";
-import { formatINR, getStoredUser } from "../utils/resortUtils";
+import PaymentMethodSelector from "../components/PaymentMethodSelector";
+import { razorpayMethodConfig } from "../utils/razorpayCheckout";
+import { getStoredUser } from "../utils/resortUtils";
 
 const BRAND = "#3b71e6";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
+const formatPaymentINR = (amount) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(amount || 0));
 
 export default function ExperienceCheckout() {
   const { id } = useParams();
@@ -30,6 +36,7 @@ export default function ExperienceCheckout() {
   const [loading, setLoading] = useState(!state.experience);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
+  const [gatewayMethod, setGatewayMethod] = useState("upi");
   const [error, setError] = useState("");
 
   const selectedDate = state.selectedDate || "";
@@ -38,23 +45,25 @@ export default function ExperienceCheckout() {
   const selectedDeparture = state.selectedDeparture || null;
 
   useEffect(() => {
-    if (!pkg) loadPackage();
-  }, [id]);
+    if (pkg) return;
 
-  const loadPackage = async () => {
-    try {
-      setLoading(true);
-      setError("");
+    const loadPackage = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-      const res = await api.get(`/experiences/${id}`);
-      setPkg(res.data);
-    } catch (err) {
-      console.error("Package payment load failed:", err);
-      setError("Unable to load payment details.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        const res = await api.get(`/experiences/${id}`);
+        setPkg(res.data);
+      } catch (err) {
+        console.error("Package payment load failed:", err);
+        setError("Unable to load payment details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPackage();
+  }, [id, pkg]);
 
   const image = useMemo(() => {
     return (
@@ -183,6 +192,8 @@ export default function ExperienceCheckout() {
           ? `10% confirmation advance for ${pkg?.title || "trip package"}`
           : pkg?.title || "Trip package payment",
       order_id: orderRes.data.order.id,
+      method: gatewayMethod,
+      config: razorpayMethodConfig(gatewayMethod),
       theme: {
         color: BRAND,
       },
@@ -221,7 +232,11 @@ export default function ExperienceCheckout() {
       },
       modal: {
         escape: true,
-        ondismiss: () => setPaying(false),
+        backdropclose: false,
+        ondismiss: () => {
+          setError("Payment cancelled. Your trip booking was not created.");
+          setPaying(false);
+        },
       },
     };
 
@@ -338,39 +353,28 @@ export default function ExperienceCheckout() {
         <section className="grid gap-10 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">
             <Card title="Payment method">
-              <div className="space-y-3">
+              <div className="mb-5 space-y-3">
                 <PaymentOption
                   active={paymentMethod === "razorpay"}
-                  title="Razorpay secure checkout"
-                  text="Pay using UPI, card, net banking or wallet."
-                  icon={<Wallet size={20} />}
-                  onClick={() => setPaymentMethod("razorpay")}
-                />
-
-                <PaymentOption
-                  active={paymentMethod === "upi"}
-                  title="UPI / Google Pay"
-                  text="UPI payment handled securely through Razorpay."
-                  icon={<Smartphone size={20} />}
-                  onClick={() => setPaymentMethod("razorpay")}
-                />
-
-                <PaymentOption
-                  active={paymentMethod === "card"}
-                  title="Credit or debit card"
-                  text="Card payment handled securely through Razorpay."
+                  title="Pay full amount now"
+                  text={`Pay ${formatPaymentINR(total)} securely through Razorpay using UPI, card, net banking or wallet.`}
                   icon={<CreditCard size={20} />}
                   onClick={() => setPaymentMethod("razorpay")}
                 />
 
                 <PaymentOption
                   active={paymentMethod === "pay_later"}
-                  title="Pay at trip"
-                  text={`Pay ${formatINR(confirmationAmount)} (10%) now to confirm. Pay the remaining ${formatINR(balanceDue)} during the trip.`}
+                  title="Pay 10% now, balance on trip"
+                  text={`Pay ${formatPaymentINR(confirmationAmount)} now through Razorpay to confirm. Pay the remaining ${formatPaymentINR(balanceDue)} during the trip.`}
                   icon={<ShieldCheck size={20} />}
                   onClick={() => setPaymentMethod("pay_later")}
                 />
               </div>
+              <PaymentMethodSelector
+                value={gatewayMethod}
+                onChange={setGatewayMethod}
+                disabled={paying}
+              />
             </Card>
 
             <Card title="Trip summary">
@@ -401,7 +405,7 @@ export default function ExperienceCheckout() {
                 <CheckCircle2 className="mt-0.5 text-[#3b71e6]" size={20} />
                 <p className="text-sm leading-6 text-gray-600">
                   {paymentMethod === "pay_later"
-                    ? `Your booking is confirmed after the ${formatINR(confirmationAmount)} advance is verified. The ${formatINR(balanceDue)} balance is payable during the trip.`
+                    ? `Your booking is confirmed after the ${formatPaymentINR(confirmationAmount)} Razorpay advance is verified. The ${formatPaymentINR(balanceDue)} balance is payable during the trip.`
                     : "Your booking will be confirmed after successful payment verification."}
                 </p>
               </div>
@@ -422,8 +426,8 @@ export default function ExperienceCheckout() {
               {paying
                 ? "Processing..."
                 : paymentMethod === "pay_later"
-                ? `Pay ${formatINR(confirmationAmount)} advance`
-                : `Pay ${formatINR(total)}`}
+                ? `Pay ${formatPaymentINR(confirmationAmount)} with Razorpay`
+                : `Pay ${formatPaymentINR(total)} with Razorpay`}
             </button>
           </div>
 
@@ -459,20 +463,20 @@ export default function ExperienceCheckout() {
 
                 <div className="mt-4 space-y-3 text-sm">
                   <PriceRow
-                    label={`${formatINR(price)} × ${travelers}`}
-                    value={formatINR(subtotal)}
+                    label={`${formatPaymentINR(price)} × ${travelers}`}
+                    value={formatPaymentINR(subtotal)}
                   />
 
-                  <PriceRow label="Taxes" value={formatINR(taxes)} />
+                  <PriceRow label="Taxes" value={formatPaymentINR(taxes)} />
 
                   <div className="flex justify-between border-t border-gray-200 pt-4 font-semibold text-gray-950">
                     <span>Total</span>
-                    <span>{formatINR(total)}</span>
+                    <span>{formatPaymentINR(total)}</span>
                   </div>
                   {paymentMethod === "pay_later" && (
                     <div className="space-y-3 rounded-xl bg-blue-50 p-3 text-sm">
-                      <PriceRow label="10% confirmation advance" value={formatINR(confirmationAmount)} />
-                      <PriceRow label="Balance payable on trip" value={formatINR(balanceDue)} />
+                      <PriceRow label="10% confirmation advance" value={formatPaymentINR(confirmationAmount)} />
+                      <PriceRow label="Balance payable on trip" value={formatPaymentINR(balanceDue)} />
                     </div>
                   )}
                 </div>

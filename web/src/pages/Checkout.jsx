@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Check,
   CheckCircle,
-  CreditCard,
   Home,
   ShieldCheck,
   Sparkles,
@@ -14,6 +13,8 @@ import {
 } from "lucide-react";
 
 import api from "../api/api";
+import PaymentMethodSelector from "../components/PaymentMethodSelector";
+import { razorpayMethodConfig } from "../utils/razorpayCheckout";
 import { formatINR, getStoredUser } from "../utils/resortUtils";
 
 const BRAND = "#3b71e6";
@@ -80,6 +81,7 @@ export default function Checkout() {
 
   const [loading, setLoading] = useState(false);
   const [acceptedRules, setAcceptedRules] = useState(false);
+  const [gatewayMethod, setGatewayMethod] = useState("upi");
 
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -288,6 +290,8 @@ export default function Checkout() {
       name: APP_NAME,
       description: property?.title || "Stay booking",
       order_id: data.order.id,
+      method: gatewayMethod,
+      config: razorpayMethodConfig(gatewayMethod),
 
       prefill: {
         name: user.fullname || user.name || "",
@@ -309,7 +313,11 @@ export default function Checkout() {
 
       modal: {
         escape: true,
-        ondismiss: () => setLoading(false),
+        backdropclose: false,
+        ondismiss: () => {
+          toast("Payment cancelled. Your booking was not created.");
+          setLoading(false);
+        },
       },
 
       handler: async (response) => {
@@ -444,29 +452,11 @@ export default function Checkout() {
             <Divider />
 
             <Section title="Payment method">
-              <div className="flex w-full items-center justify-between rounded-2xl border-2 border-gray-950 p-5 text-left">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100">
-                    <CreditCard size={21} />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-gray-950">
-                      Pay securely with Razorpay
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      UPI, cards, wallets and net banking
-                    </p>
-                  </div>
-                </div>
-
-                <CheckCircle size={22} className="text-gray-950" />
-              </div>
-
-              <p className="mt-4 text-sm leading-6 text-gray-500">
-                Your payment details are handled securely by Razorpay. Your
-                booking is confirmed only after successful payment verification.
-              </p>
+              <PaymentMethodSelector
+                value={gatewayMethod}
+                onChange={setGatewayMethod}
+                disabled={loading}
+              />
             </Section>
 
             <Divider />
@@ -628,7 +618,7 @@ export default function Checkout() {
                 aria-label="Confirm and pay"
                 className="mt-6 w-full rounded-xl bg-[#3b71e6] py-3.5 text-sm font-semibold text-white transition hover:bg-[#2f5fc2] disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                {loading ? "Processing..." : "Confirm and pay"}
+                {loading ? "Processing..." : `Pay ${formatINR(total)}`}
               </button>
 
               {!acceptedRules && (
@@ -638,7 +628,7 @@ export default function Checkout() {
               )}
 
               <p className="mt-3 text-center text-xs text-gray-500">
-                You will be taken to secure Razorpay checkout.
+                A secure {gatewayMethod === "card" ? "card" : gatewayMethod} payment step will open.
               </p>
 
               <div className="mt-5 flex items-start gap-3 rounded-2xl bg-gray-50 p-4">

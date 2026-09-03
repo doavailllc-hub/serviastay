@@ -21,6 +21,7 @@ android_backup/
 *.jks
 env code.txt
 Google Api.txt
+/rzp-key.csv
 
 # Local notes and temporary files
 CHECKLISTY.xlsx

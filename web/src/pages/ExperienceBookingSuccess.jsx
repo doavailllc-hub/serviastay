@@ -10,9 +10,14 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { formatCurrency } from "../utils/currency";
 
 const BRAND = "#7E4FF5";
+const formatPaymentINR = (amount) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(amount || 0));
 
 export default function ExperienceBookingSuccess() {
   const navigate = useNavigate();
@@ -59,7 +64,7 @@ export default function ExperienceBookingSuccess() {
 
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-500 md:text-base">
             {paymentStatus === "Advance Paid"
-              ? `Your booking is confirmed with a ${formatCurrency(confirmationAmount)} advance. Pay the remaining ${formatCurrency(balanceDue)} during the trip.`
+              ? `Your booking is confirmed with a ${formatPaymentINR(confirmationAmount)} advance. Pay the remaining ${formatPaymentINR(balanceDue)} during the trip.`
               : "Your booking is confirmed. We'll share itinerary, pickup, hotel and travel instructions before your departure."}
           </p>
 
@@ -113,7 +118,7 @@ export default function ExperienceBookingSuccess() {
                   <InfoBox
                     icon={<ReceiptText size={18} />}
                     label={paymentStatus === "Advance Paid" ? "Paid now" : "Total"}
-                    value={formatCurrency(paymentStatus === "Advance Paid" ? confirmationAmount : total)}
+                    value={formatPaymentINR(paymentStatus === "Advance Paid" ? confirmationAmount : total)}
                   />
                 </div>
               </div>
@@ -125,7 +130,7 @@ export default function ExperienceBookingSuccess() {
 
             <div className="mt-4 grid gap-3 text-sm leading-6 text-gray-600">
               {paymentStatus === "Advance Paid" && (
-                <p>✓ Balance due during the trip: {formatCurrency(balanceDue)}</p>
+                <p>✓ Balance due during the trip: {formatPaymentINR(balanceDue)}</p>
               )}
               <p>✓ Host confirmation will be sent shortly.</p>
               <p>✓ Pickup instructions will be shared before departure.</p>

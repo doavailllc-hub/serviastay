@@ -26,7 +26,6 @@ import {
 } from "react-native";
 
 import api from "../../api/api";
-import { formatCurrency } from "../../utils/currency";
 
 const THEME = "#2DB281";
 const THEME_DARK = "#21845F";
@@ -41,6 +40,13 @@ const WARNING = "#a96300";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
+
+const formatPaymentINR = (value: number | string) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 
 type ExperienceImage = {
   image_url?: string;
@@ -422,7 +428,7 @@ export default function ExperienceBookingSuccessScreen() {
               />
             }
             label={advancePaid ? "Paid now" : "Total"}
-            value={formatCurrency(
+            value={formatPaymentINR(
               advancePaid ? confirmationAmount : total
             )}
           />
@@ -452,7 +458,7 @@ export default function ExperienceBookingSuccessScreen() {
             <Text style={styles.statusText}>
               {paid
                 ? advancePaid
-                  ? `Your trip is confirmed. Pay the remaining ${formatCurrency(balanceDue)} during the trip.`
+                  ? `Your trip is confirmed. Pay the remaining ${formatPaymentINR(balanceDue)} during the trip.`
                   : "Your payment was verified and the trip is confirmed."
                 : "Your reservation is saved. Complete payment according to the selected option."}
             </Text>
@@ -466,7 +472,7 @@ export default function ExperienceBookingSuccessScreen() {
 
           {advancePaid ? (
             <NextItem
-              text={`Balance due during the trip: ${formatCurrency(balanceDue)}`}
+              text={`Balance due during the trip: ${formatPaymentINR(balanceDue)}`}
             />
           ) : null}
 

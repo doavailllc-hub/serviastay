@@ -3534,8 +3534,21 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
         [eventId, String(event.event || "unknown"), JSON.stringify(event)]
       );
     } catch (error) {
-      if (error.code === "ER_DUP_ENTRY") return res.json({ success: true, duplicate: true });
-      throw error;
+      if (error.code === "ER_DUP_ENTRY") {
+        const existingEvents = await query(
+          "SELECT status FROM servia_webhook_events WHERE provider='razorpay' AND event_id=? LIMIT 1",
+          [eventId]
+        );
+        if (existingEvents[0]?.status === "Processed") {
+          return res.json({ success: true, duplicate: true });
+        }
+        await query(
+          "UPDATE servia_webhook_events SET status='Processing',attempts=attempts+1,payload=?,error_message=NULL WHERE provider='razorpay' AND event_id=?",
+          [JSON.stringify(event), eventId]
+        );
+      } else {
+        throw error;
+      }
     }
 
     if (event.event === "payment.captured") {
@@ -3546,10 +3559,19 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
       await query(
         `
         UPDATE servia_bookings
-        SET payment_status = ?, payment_id = ?
+        SET payment_status = ?, payment_id = ?, status = 'Confirmed'
         WHERE razorpay_order_id = ?
+          AND payment_status NOT IN ('Refunded', 'Refund Approved')
         `,
         ["Paid", paymentId, orderId]
+      );
+      await query(
+        `UPDATE experience_bookings
+         SET payment_status = CASE WHEN balance_due > 0 THEN 'Advance Paid' ELSE 'Paid' END,
+             razorpay_payment_id = ?, status = 'Confirmed'
+         WHERE razorpay_order_id = ?
+           AND payment_status NOT IN ('Refunded', 'Refund Approved')`,
+        [paymentId, orderId]
       );
     }
 
@@ -3561,8 +3583,15 @@ app.post("/api/payments/razorpay-webhook", async (req, res) => {
         UPDATE servia_bookings
         SET payment_status = ?
         WHERE razorpay_order_id = ?
+          AND payment_status NOT IN ('Paid', 'Refunded', 'Refund Approved')
         `,
         ["Failed", payment.order_id]
+      );
+      await query(
+        `UPDATE experience_bookings
+         SET payment_status = 'Failed'
+         WHERE razorpay_order_id = ? AND status != 'Confirmed'`,
+        [payment.order_id]
       );
     }
 

@@ -25,7 +25,6 @@ import {
     View
 } from "react-native";
 import api from "../../api/api";
-import { formatCurrency } from "../../utils/currency";
 import { getStoredUser } from "../../services/authService";
 import { openRazorpayCheckout } from "../../services/razorpay";
 import {
@@ -46,6 +45,13 @@ const DANGER = "#d93025";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
+
+const formatPaymentINR = (value: number | string) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 
 type PaymentMethod = "razorpay" | "pay_later";
 
@@ -898,8 +904,8 @@ export default function ExperienceCheckoutScreen() {
                   }
                 />
               }
-              title="Razorpay secure checkout"
-              description="Pay by UPI, card, net banking or wallet."
+              title="Pay full amount now"
+              description={`Pay ${formatPaymentINR(total)} securely through Razorpay using UPI, card, net banking or wallet.`}
               onPress={() =>
                 setPaymentMethod(
                   "razorpay"
@@ -923,8 +929,8 @@ export default function ExperienceCheckoutScreen() {
                   }
                 />
               }
-              title="Pay at trip"
-              description={`Pay ${formatCurrency(confirmationAmount)} (10%) now to confirm. Pay ${formatCurrency(balanceDue)} during the trip.`}
+              title="Pay 10% now, balance on trip"
+              description={`Pay ${formatPaymentINR(confirmationAmount)} now through Razorpay to confirm. Pay ${formatPaymentINR(balanceDue)} during the trip.`}
               onPress={() =>
                 setPaymentMethod(
                   "pay_later"
@@ -943,7 +949,7 @@ export default function ExperienceCheckoutScreen() {
               style={styles.secureNoticeText}
             >
               {paymentMethod === "pay_later"
-                ? `Pay the ${formatCurrency(confirmationAmount)} advance now. The ${formatCurrency(balanceDue)} balance is due during the trip.`
+                ? `Pay the ${formatPaymentINR(confirmationAmount)} Razorpay advance now. The ${formatPaymentINR(balanceDue)} balance is due during the trip.`
                 : "Paid bookings are confirmed after secure payment verification."}
             </Text>
           </View>
@@ -962,17 +968,17 @@ export default function ExperienceCheckoutScreen() {
 
           <View style={styles.priceCard}>
             <PriceRow
-              label={`${formatCurrency(
+              label={`${formatPaymentINR(
                 price
               )} × ${guests}`}
-              value={formatCurrency(
+              value={formatPaymentINR(
                 subtotal
               )}
             />
 
             <PriceRow
               label="Taxes"
-              value={formatCurrency(taxes)}
+              value={formatPaymentINR(taxes)}
             />
 
             <View style={styles.totalRow}>
@@ -981,7 +987,7 @@ export default function ExperienceCheckoutScreen() {
               </Text>
 
               <Text style={styles.totalValue}>
-                {formatCurrency(total)}
+                {formatPaymentINR(total)}
               </Text>
             </View>
 
@@ -989,11 +995,11 @@ export default function ExperienceCheckoutScreen() {
               <>
                 <PriceRow
                   label="10% confirmation advance"
-                  value={formatCurrency(confirmationAmount)}
+                  value={formatPaymentINR(confirmationAmount)}
                 />
                 <PriceRow
                   label="Balance payable on trip"
-                  value={formatCurrency(balanceDue)}
+                  value={formatPaymentINR(balanceDue)}
                 />
               </>
             ) : null}
@@ -1003,7 +1009,7 @@ export default function ExperienceCheckoutScreen() {
         <View style={styles.footer}>
           <View>
             <Text style={styles.footerTotal}>
-              {formatCurrency(
+              {formatPaymentINR(
                 paymentMethod === "pay_later"
                   ? confirmationAmount
                   : total
@@ -1051,12 +1057,12 @@ export default function ExperienceCheckoutScreen() {
               >
                 {paymentMethod ===
                 "pay_later"
-                  ? `Pay ${formatCurrency(
+                  ? `Pay ${formatPaymentINR(
                       confirmationAmount
-                    )} advance`
-                  : `Pay ${formatCurrency(
+                    )} with Razorpay`
+                  : `Pay ${formatPaymentINR(
                       total
-                    )}`}
+                    )} with Razorpay`}
               </Text>
             )}
           </Pressable>
