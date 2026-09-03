@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -236,8 +237,9 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
-    {showMobileTabs && (
-      <MobileTabBar pathname={location.pathname} unreadCount={unreadCount} />
+    {showMobileTabs && createPortal(
+      <MobileTabBar pathname={location.pathname} unreadCount={unreadCount} />,
+      document.body
     )}
     </>
   );
