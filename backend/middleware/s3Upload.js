@@ -42,6 +42,9 @@ const uploadFileToS3 = async (file, folder = "temp") => {
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
+      // Uploaded objects use unique, timestamped UUID keys, so they can be
+      // cached permanently without risking stale replacements.
+      CacheControl: "public, max-age=31536000, immutable",
     })
   );
 

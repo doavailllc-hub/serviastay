@@ -125,9 +125,9 @@ export default function PropertyCard({ property, priority = false }) {
 
         <div className="pt-3">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="line-clamp-1 text-sm font-semibold leading-5 text-gray-950">
+            <h2 className="line-clamp-1 text-sm font-semibold leading-5 text-gray-950">
               {property.title || "Untitled stay"}
-            </h3>
+            </h2>
 
             <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-gray-700">
               <Star size={11} fill="currentColor" strokeWidth={0} />

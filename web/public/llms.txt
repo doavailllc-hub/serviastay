@@ -1,0 +1,19 @@
+# Dovail Stay
+
+> Dovail Stay is an accommodation and travel marketplace for discovering homes, trips, and local services.
+
+## Main pages
+
+- [Home](https://stay.dovail.com/): Browse featured homes and search for stays.
+- [Trips and experiences](https://stay.dovail.com/experiences): Browse available travel experiences.
+- [Services](https://stay.dovail.com/services): Discover local services.
+- [Help Center](https://stay.dovail.com/help): Find help with bookings, hosting, payments, and accounts.
+- [Support](https://stay.dovail.com/support): Contact Dovail Stay support.
+
+## Policies and discovery
+
+- [Privacy Policy](https://stay.dovail.com/privacy): How Dovail Stay handles personal information.
+- [Terms of Service](https://stay.dovail.com/terms): Terms governing use of Dovail Stay.
+- [Sitemap](https://stay.dovail.com/sitemap.xml): Canonical public URLs for stays, experiences, services, and informational pages.
+
+Public catalog pages may be indexed. Account, checkout, booking, messaging, host-management, and administrative pages require user context and should not be treated as public reference material.

@@ -63,6 +63,11 @@ export default function Home() {
   const totalGuests = adults + children;
 
   const requestLocation = useCallback(() => {
+    // Permission prompts must only follow an explicit user interaction.
+    if (navigator.userActivation && !navigator.userActivation.isActive) {
+      return;
+    }
+
     if (!navigator.geolocation) {
       setLocationStatus("unsupported");
       return;
