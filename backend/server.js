@@ -2164,6 +2164,85 @@ app.get("/api/admin/stats", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/analytics", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const [revenueRows, revenueTrend, userGrowth, topCities, topProperties, topHosts] =
+      await Promise.all([
+        query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN status != 'Cancelled' THEN total ELSE 0 END), 0) AS totalRevenue,
+            COALESCE(SUM(CASE WHEN status != 'Cancelled' AND DATE(created_at) = CURDATE() THEN total ELSE 0 END), 0) AS todayRevenue,
+            COALESCE(SUM(CASE WHEN status != 'Cancelled' AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN total ELSE 0 END), 0) AS monthlyRevenue
+          FROM servia_bookings
+        `),
+        query(`
+          SELECT DATE(created_at) AS date,
+                 COALESCE(SUM(total), 0) AS revenue
+          FROM servia_bookings
+          WHERE status != 'Cancelled'
+            AND created_at >= CURDATE() - INTERVAL 29 DAY
+          GROUP BY DATE(created_at)
+          ORDER BY date ASC
+        `),
+        query(`
+          SELECT DATE(created_at) AS date, COUNT(*) AS users
+          FROM servia_users
+          WHERE created_at >= CURDATE() - INTERVAL 29 DAY
+          GROUP BY DATE(created_at)
+          ORDER BY date ASC
+        `),
+        query(`
+          SELECT COALESCE(NULLIF(TRIM(location), ''), 'Unknown') AS location,
+                 COUNT(*) AS total
+          FROM servia_properties
+          GROUP BY COALESCE(NULLIF(TRIM(location), ''), 'Unknown')
+          ORDER BY total DESC
+          LIMIT 10
+        `),
+        query(`
+          SELECT p.id, p.title, p.location, p.image,
+                 COUNT(b.id) AS bookings,
+                 COALESCE(SUM(CASE WHEN b.status != 'Cancelled' THEN b.total ELSE 0 END), 0) AS revenue
+          FROM servia_properties p
+          LEFT JOIN servia_bookings b ON b.property_id = p.id
+          GROUP BY p.id, p.title, p.location, p.image
+          ORDER BY revenue DESC, bookings DESC
+          LIMIT 10
+        `),
+        query(`
+          SELECT u.id, u.fullname, u.email,
+                 COUNT(b.id) AS bookings,
+                 COALESCE(SUM(CASE WHEN b.status != 'Cancelled' THEN b.total ELSE 0 END), 0) AS revenue
+          FROM servia_users u
+          JOIN servia_properties p ON p.user_id = u.id
+          LEFT JOIN servia_bookings b ON b.property_id = p.id
+          GROUP BY u.id, u.fullname, u.email
+          ORDER BY revenue DESC, bookings DESC
+          LIMIT 10
+        `),
+      ]);
+
+    res.json({
+      revenue: revenueRows[0] || {
+        totalRevenue: 0,
+        todayRevenue: 0,
+        monthlyRevenue: 0,
+      },
+      revenueTrend,
+      userGrowth,
+      topCities,
+      topProperties,
+      topHosts,
+    });
+  } catch (err) {
+    console.log("ADMIN ANALYTICS ERROR:", err.message);
+    res.status(500).json({
+      message: "Analytics load failed",
+      error: err.message,
+    });
+  }
+});
+
 app.get("/api/admin/users", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const rows = await query(
