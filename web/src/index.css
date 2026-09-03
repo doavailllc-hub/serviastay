@@ -37,7 +37,11 @@
   /* Shadows */
   --shadow-soft: 0 8px 30px rgba(17, 24, 39, 0.08);
   --shadow-card: 0 18px 45px rgba(17, 24, 39, 0.10);
-  --shadow-button: 0 10px 25px rgba(59, 113, 230, 0.25);
+  --shadow-button: 0 10px 25px rgba(17, 17, 17, 0.18);
+
+  /* Primary actions */
+  --action: #222222;
+  --action-hover: #000000;
 }
 
 /* ==============================
@@ -145,7 +149,7 @@ button {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: var(--action);
   color: white;
   border: none;
   border-radius: 999px;
@@ -154,8 +158,35 @@ button {
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: var(--action-hover);
   transform: translateY(-1px);
+}
+
+/*
+ * Keep brand blue for navigation, selection and status feedback while making
+ * primary actions consistent with the modern Dovail/Airbnb visual language.
+ * This covers existing Tailwind action classes without recolouring badges,
+ * charts, progress indicators or decorative brand elements.
+ */
+button[class*="bg-[#3b71e6]"],
+button[class*="bg-[#7E4FF5]"],
+a[class*="bg-[#3b71e6]"],
+a[class*="bg-[#7E4FF5]"] {
+  background-color: var(--action) !important;
+  box-shadow: var(--shadow-button);
+}
+
+button[class*="bg-[#3b71e6]"]:hover,
+button[class*="bg-[#7E4FF5]"]:hover,
+a[class*="bg-[#3b71e6]"]:hover,
+a[class*="bg-[#7E4FF5]"]:hover {
+  background-color: var(--action-hover) !important;
+}
+
+button[class*="bg-[#3b71e6]"]:disabled,
+button[class*="bg-[#7E4FF5]"]:disabled {
+  background-color: #d1d5db !important;
+  box-shadow: none;
 }
 
 .btn-outline {
