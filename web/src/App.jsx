@@ -1,91 +1,105 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
 import Home from "./pages/Home";
-import ResortDetails from "./pages/ResortDetails";
-import BecomeHost from "./pages/BecomeHost";
-import CategorySelect from "./pages/CategorySelect";
-import Profile from "./pages/Profile";
-import Wishlist from "./pages/Wishlist";
-import Trips from "./pages/Trips";
-import Messages from "./pages/Messages";
-import Notifications from "./pages/Notifications";
-import AccountSettings from "./pages/AccountSettings";
-import Checkout from "./pages/Checkout";
-import BookingSuccess from "./pages/BookingSuccess";
-import HostDashboard from "./pages/HostDashboard";
-import SearchResults from "./pages/SearchResults";
-import HostListings from "./pages/HostListings";
-import EditListing from "./pages/EditListing";
-import HostCalendar from "./pages/HostCalendar";
-import Earnings from "./pages/Earnings";
-import Reviews from "./pages/Reviews";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import NotFound from "./pages/NotFound";
-import HelpCenter from "./pages/HelpCenter";
-import LanguageCurrency from "./pages/LanguageCurrency";
-import Experience from "./pages/Experiences";
-import Services from "./pages/Services";
-import PaymentMethods from "./pages/PaymentMethods";
-import AddProperty from "./pages/AddProperty";
-import HostReservations from "./pages/HostReservations";
-import HostReviews from "./pages/HostReviews";
-import Analytics from "./pages/Analytics";
-import PaymentHistory from "./pages/PaymentHistory";
-import Payouts from "./pages/Payouts";
-import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import TripDetails from "./pages/TripDetails";
-import WriteReview from "./pages/WriteReview";
-import Receipt from "./pages/Receipt";
-import Security from "./pages/Security";
-import ForgotPassword from "./pages/ForgotPassword";
-import Support from "./pages/Support";
-import RecentlyViewed from "./pages/RecentlyViewed";
-import HostProfile from "./pages/HostProfile";
-import Verification from "./pages/Verification";
-import ServiceDetails from "./pages/ServiceDetails";
-import ServiceBookingDetails from "./pages/ServiceBookingDetails";
-import MyServiceBookings from "./pages/MyServiceBookings";
-import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProtectedRoute from "./routes/AdminProtectedRoute";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminProperties from "./pages/admin/AdminProperties";
-import AdminReviews from "./pages/admin/AdminReviews";
-import AdminBookings from "./pages/admin/AdminBookings";
-import AdminKyc from "./pages/admin/AdminKyc";
-import AdminCoupons from "./pages/admin/AdminCoupons";
-import ExperienceDetails from "./pages/ExperienceDetails";
-import ExperienceCheckout from "./pages/ExperienceCheckout";
-import ExperienceBookingSuccess from "./pages/ExperienceBookingSuccess";
-import MyExperienceBookings from "./pages/MyExperienceBookings";
-import AddTripPackage from "./pages/AddTripPackage";
-import HostTripPackages from "./pages/HostTripPackages";
-import HostPackageDepartures from "./pages/HostPackageDepartures";
-import EditTripPackage from "./pages/EditTripPackage";
-import HostWallet from "./pages/HostWallet";
-import AdminPayouts from "./pages/admin/AdminPayouts";
-import HostType from "./pages/HostType";
-import HostVerification from "./pages/HostVerification";
-import AdminUserDetails from "./pages/admin/AdminUserDetails";
-import AdminSupport from "./pages/admin/AdminSupport";
-import AdminFinance from "./pages/admin/AdminFinance";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
-import AdminAdmins from "./pages/admin/AdminAdmins";
-import AdminRefunds from "./pages/admin/AdminRefunds";
-import RefundRequest from "./pages/RefundRequest";
-import AdminTrips from "./pages/admin/AdminTrips";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Terms from "./pages/Terms";
 
 import { Toaster } from "react-hot-toast";
 import { RouteSeo } from "./components/Seo";
 
+const pageModules = import.meta.glob([
+  "./pages/**/*.jsx",
+  "./layouts/**/*.jsx",
+  "!./pages/Home.jsx",
+  "!./pages/AdminCoupons.jsx",
+  "!./pages/PriceSummary.jsx",
+]);
+const lazyPage = (path) => lazy(pageModules[`${path}.jsx`]);
+const Login = lazyPage("./pages/Login");
+const Signup = lazyPage("./pages/Signup");
+const ResortDetails = lazyPage("./pages/ResortDetails");
+const BecomeHost = lazyPage("./pages/BecomeHost");
+const CategorySelect = lazyPage("./pages/CategorySelect");
+const Profile = lazyPage("./pages/Profile");
+const Wishlist = lazyPage("./pages/Wishlist");
+const Trips = lazyPage("./pages/Trips");
+const Messages = lazyPage("./pages/Messages");
+const Notifications = lazyPage("./pages/Notifications");
+const AccountSettings = lazyPage("./pages/AccountSettings");
+const Checkout = lazyPage("./pages/Checkout");
+const BookingSuccess = lazyPage("./pages/BookingSuccess");
+const HostDashboard = lazyPage("./pages/HostDashboard");
+const SearchResults = lazyPage("./pages/SearchResults");
+const HostListings = lazyPage("./pages/HostListings");
+const EditListing = lazyPage("./pages/EditListing");
+const HostCalendar = lazyPage("./pages/HostCalendar");
+const Earnings = lazyPage("./pages/Earnings");
+const Reviews = lazyPage("./pages/Reviews");
+const NotFound = lazyPage("./pages/NotFound");
+const HelpCenter = lazyPage("./pages/HelpCenter");
+const LanguageCurrency = lazyPage("./pages/LanguageCurrency");
+const Experience = lazyPage("./pages/Experiences");
+const Services = lazyPage("./pages/Services");
+const PaymentMethods = lazyPage("./pages/PaymentMethods");
+const AddProperty = lazyPage("./pages/AddProperty");
+const HostReservations = lazyPage("./pages/HostReservations");
+const HostReviews = lazyPage("./pages/HostReviews");
+const Analytics = lazyPage("./pages/Analytics");
+const PaymentHistory = lazyPage("./pages/PaymentHistory");
+const Payouts = lazyPage("./pages/Payouts");
+const TripDetails = lazyPage("./pages/TripDetails");
+const WriteReview = lazyPage("./pages/WriteReview");
+const Receipt = lazyPage("./pages/Receipt");
+const Security = lazyPage("./pages/Security");
+const ForgotPassword = lazyPage("./pages/ForgotPassword");
+const Support = lazyPage("./pages/Support");
+const RecentlyViewed = lazyPage("./pages/RecentlyViewed");
+const HostProfile = lazyPage("./pages/HostProfile");
+const Verification = lazyPage("./pages/Verification");
+const ServiceDetails = lazyPage("./pages/ServiceDetails");
+const ServiceBookingDetails = lazyPage("./pages/ServiceBookingDetails");
+const MyServiceBookings = lazyPage("./pages/MyServiceBookings");
+const ExperienceDetails = lazyPage("./pages/ExperienceDetails");
+const ExperienceCheckout = lazyPage("./pages/ExperienceCheckout");
+const ExperienceBookingSuccess = lazyPage("./pages/ExperienceBookingSuccess");
+const MyExperienceBookings = lazyPage("./pages/MyExperienceBookings");
+const AddTripPackage = lazyPage("./pages/AddTripPackage");
+const HostTripPackages = lazyPage("./pages/HostTripPackages");
+const HostPackageDepartures = lazyPage("./pages/HostPackageDepartures");
+const EditTripPackage = lazyPage("./pages/EditTripPackage");
+const HostWallet = lazyPage("./pages/HostWallet");
+const HostType = lazyPage("./pages/HostType");
+const HostVerification = lazyPage("./pages/HostVerification");
+const RefundRequest = lazyPage("./pages/RefundRequest");
+const PrivacyPolicy = lazyPage("./pages/PrivacyPolicy");
+const Terms = lazyPage("./pages/Terms");
+const AdminLayout = lazyPage("./layouts/AdminLayout");
+const AdminLogin = lazyPage("./pages/admin/AdminLogin");
+const AdminDashboard = lazyPage("./pages/admin/AdminDashboard");
+const AdminAnalytics = lazyPage("./pages/admin/AdminAnalytics");
+const AdminUsers = lazyPage("./pages/admin/AdminUsers");
+const AdminProperties = lazyPage("./pages/admin/AdminProperties");
+const AdminReviews = lazyPage("./pages/admin/AdminReviews");
+const AdminBookings = lazyPage("./pages/admin/AdminBookings");
+const AdminKyc = lazyPage("./pages/admin/AdminKyc");
+const AdminCoupons = lazyPage("./pages/admin/AdminCoupons");
+const AdminPayouts = lazyPage("./pages/admin/AdminPayouts");
+const AdminUserDetails = lazyPage("./pages/admin/AdminUserDetails");
+const AdminSupport = lazyPage("./pages/admin/AdminSupport");
+const AdminFinance = lazyPage("./pages/admin/AdminFinance");
+const AdminSettings = lazyPage("./pages/admin/AdminSettings");
+const AdminAuditLogs = lazyPage("./pages/admin/AdminAuditLogs");
+const AdminAdmins = lazyPage("./pages/admin/AdminAdmins");
+const AdminRefunds = lazyPage("./pages/admin/AdminRefunds");
+const AdminTrips = lazyPage("./pages/admin/AdminTrips");
+
 function ProtectedPage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
+}
+
+function RouteFallback() {
+  return <div className="route-loading" role="status" aria-label="Loading page" />;
 }
 export default function App() {
   return (
@@ -103,6 +117,7 @@ export default function App() {
         }}
       />
 
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
       {/* ========= PUBLIC ROUTES ========= */}
 
@@ -403,6 +418,7 @@ export default function App() {
       <Route path="*" element={<NotFound />} />
 
       </Routes>
+      </Suspense>
     </>
   );
 }

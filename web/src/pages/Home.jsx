@@ -47,7 +47,7 @@ export default function Home() {
   const [loadError, setLoadError] = useState("");
   const [activePanel, setActivePanel] = useState(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [locationStatus, setLocationStatus] = useState("requesting");
+  const [locationStatus, setLocationStatus] = useState("idle");
   const [userCoords, setUserCoords] = useState(null);
 
   const [destination, setDestination] = useState("");
@@ -78,10 +78,6 @@ export default function Home() {
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
   }, []);
-
-  useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
 
   const destinations = useMemo(() => {
     const region = getRegionCode();
@@ -158,9 +154,8 @@ export default function Home() {
 
   useEffect(() => {
     // Initial public listing fetch.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProperties();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -301,6 +296,7 @@ export default function Home() {
                 {destination && (
                   <button
                     type="button"
+                    aria-label="Clear destination"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDestination("");
@@ -432,7 +428,6 @@ export default function Home() {
           setDestination={setDestination}
           destinations={filteredDestinations}
           setActivePanel={setActivePanel}
-          activePanel={activePanel}
           checkin={checkin}
           checkout={checkout}
           viewMonth={viewMonth}
@@ -488,8 +483,8 @@ export default function Home() {
           <EmptyState />
         ) : (
           <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {properties.map((item) => (
-              <PropertyCard key={item.id} property={item} />
+            {properties.map((item, index) => (
+              <PropertyCard key={item.id} property={item} priority={index === 0} />
             ))}
           </div>
         )}
@@ -525,6 +520,7 @@ function DestinationDropdown({ destinations, onSelect, onClose }) {
 
         <button
           type="button"
+          aria-label="Close destination suggestions"
           onClick={onClose}
           className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
         >
@@ -579,6 +575,7 @@ function DateRangeDropdown({
       <div className="mb-4 flex items-center justify-between">
         <button
           type="button"
+          aria-label="Show previous month"
           onClick={() => setViewMonth(addMonths(viewMonth, -1))}
           className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
         >
@@ -591,6 +588,7 @@ function DateRangeDropdown({
 
         <button
           type="button"
+          aria-label="Show next month"
           onClick={() => setViewMonth(addMonths(viewMonth, 1))}
           className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100"
         >
@@ -817,6 +815,7 @@ function GuestRow({
       <div className="flex items-center gap-4">
         <button
           type="button"
+          aria-label={`Decrease ${title}`}
           onClick={onMinus}
           disabled={minusDisabled}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition hover:border-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
@@ -828,6 +827,7 @@ function GuestRow({
 
         <button
           type="button"
+          aria-label={`Increase ${title}`}
           onClick={onPlus}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-700 transition hover:border-gray-950"
         >
@@ -842,7 +842,6 @@ function MobileSearchPanel({
   destination,
   setDestination,
   destinations,
-  activePanel,
   setActivePanel,
   checkin,
   checkout,
@@ -869,6 +868,7 @@ function MobileSearchPanel({
 
         <button
           type="button"
+          aria-label="Close search"
           onClick={onClose}
           className="rounded-full p-2 hover:bg-gray-100"
         >

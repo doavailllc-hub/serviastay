@@ -44,7 +44,7 @@ function getImageUrl(property) {
   return image;
 }
 
-export default function PropertyCard({ property }) {
+export default function PropertyCard({ property, priority = false }) {
   const navigate = useNavigate();
 
   const [liked, setLiked] = useState(Boolean(property?.is_wishlisted));
@@ -100,17 +100,19 @@ export default function PropertyCard({ property }) {
   if (!property?.id) return null;
 
   return (
-    <Link
-      to={`/reserve/${property.id}`}
-      className="group block text-inherit no-underline"
-      aria-label={`View ${property.title || "stay"}`}
-    >
-      <article className="w-full">
+    <article className="relative w-full">
+      <Link
+        to={`/reserve/${property.id}`}
+        className="group block text-inherit no-underline"
+        aria-label={`View ${property.title || "stay"}`}
+      >
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100">
           <img
             src={imageUrl}
             alt={property.title || "Stay property image"}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
             onError={(e) => {
               if (e.currentTarget.src !== FALLBACK_IMAGE) {
                 e.currentTarget.src = FALLBACK_IMAGE;
@@ -119,20 +121,6 @@ export default function PropertyCard({ property }) {
             className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"
           />
 
-          <button
-            type="button"
-            onClick={handleWishlist}
-            disabled={wishlistLoading}
-            aria-label={liked ? "Saved to wishlist" : "Add to wishlist"}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            <Heart
-              size={18}
-              strokeWidth={2}
-              className={liked ? "text-red-500" : "text-gray-700"}
-              fill={liked ? "currentColor" : "none"}
-            />
-          </button>
         </div>
 
         <div className="pt-3">
@@ -166,7 +154,22 @@ export default function PropertyCard({ property }) {
             )}
           </p>
         </div>
-      </article>
-    </Link>
+      </Link>
+
+      <button
+        type="button"
+        onClick={handleWishlist}
+        disabled={wishlistLoading}
+        aria-label={liked ? "Saved to wishlist" : "Add to wishlist"}
+        className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        <Heart
+          size={18}
+          strokeWidth={2}
+          className={liked ? "text-red-500" : "text-gray-700"}
+          fill={liked ? "currentColor" : "none"}
+        />
+      </button>
+    </article>
   );
 }

@@ -22,8 +22,6 @@ import logo from "../assets/logo.png";
 import api from "../api/api";
 import NotificationBell from "./NotificationBell";
 
-const THEME = "#3b71e6";
-
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,10 +31,6 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(0);
-
-  useEffect(() => {
-    loadUserState();
-  }, [location.pathname]);
 
   useEffect(() => {
     const closeOutside = (e) => {
@@ -49,7 +43,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", closeOutside);
   }, []);
 
-  const loadUserState = () => {
+  function loadUserState() {
     try {
       const storedUser =
         JSON.parse(localStorage.getItem("user") || "null") ||
@@ -71,9 +65,9 @@ export default function Navbar() {
       setUnreadCount(0);
       setNotificationCount(0);
     }
-  };
+  }
 
-  const loadUnreadMessages = async (userId) => {
+  async function loadUnreadMessages(userId) {
     try {
       const res = await api.get(`/conversations/${userId}`);
       const total = (res.data || []).reduce(
@@ -84,16 +78,20 @@ export default function Navbar() {
     } catch {
       setUnreadCount(0);
     }
-  };
+  }
 
-  const loadNotificationCount = async (userId) => {
+  async function loadNotificationCount(userId) {
     try {
       const res = await api.get(`/notifications/${userId}/unread-count`);
       setNotificationCount(res.data?.count || 0);
     } catch {
       setNotificationCount(0);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadUserState();
+  }, [location.pathname]);
 
   const closeMenu = () => setOpen(false);
 
@@ -164,6 +162,7 @@ export default function Navbar() {
           <Link
             to="/language"
             onClick={closeMenu}
+            aria-label="Languages and currency"
             className="hidden h-10 w-10 items-center justify-center rounded-full text-[#222] transition hover:bg-gray-100 md:flex"
             title="Languages & currency"
           >
@@ -177,6 +176,7 @@ export default function Navbar() {
               <Link
                 to="/messages"
                 onClick={closeMenu}
+                aria-label={unreadCount > 0 ? `Messages, ${unreadCount} unread` : "Messages"}
                 className="relative hidden h-10 w-10 items-center justify-center rounded-full text-[#222] transition hover:bg-gray-100 md:flex"
               >
                 <MessageSquare size={19} />
@@ -188,6 +188,8 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setOpen((p) => !p)}
+            aria-label={open ? "Close account menu" : "Open account menu"}
+            aria-expanded={open}
             className="relative flex h-[46px] w-[76px] items-center justify-between rounded-full border border-gray-300 bg-white px-3 text-[#222] transition hover:shadow-md"
           >
             {open ? <X size={18} /> : <Menu size={18} />}
