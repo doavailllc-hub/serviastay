@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Search,
   Settings,
   Sparkles,
   User,
@@ -112,8 +113,16 @@ export default function Navbar() {
     "U";
 
   const totalBadge = unreadCount + notificationCount;
+  const mobileTabPaths = ["/", "/home", "/wishlist", "/trips", "/messages", "/profile"];
+  const showMobileTabs = mobileTabPaths.includes(location.pathname);
+
+  useEffect(() => {
+    document.body.classList.toggle("has-mobile-tab-bar", showMobileTabs);
+    return () => document.body.classList.remove("has-mobile-tab-bar");
+  }, [showMobileTabs]);
 
   return (
+    <>
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex h-[82px] max-w-[1500px] items-center justify-between px-5 md:px-10">
         <Link to="/home" onClick={closeMenu} className="flex items-center">
@@ -225,6 +234,55 @@ export default function Navbar() {
             </div>
           )}
         </div>
+      </div>
+    </nav>
+    {showMobileTabs && (
+      <MobileTabBar pathname={location.pathname} unreadCount={unreadCount} />
+    )}
+    </>
+  );
+}
+
+function MobileTabBar({ pathname, unreadCount }) {
+  const tabs = [
+    { to: "/home", label: "Explore", icon: Search },
+    { to: "/wishlist", label: "Wishlist", icon: Heart },
+    { to: "/trips", label: "Trips", icon: CalendarDays },
+    { to: "/messages", label: "Messages", icon: MessageSquare, badge: unreadCount },
+    { to: "/profile", label: "Profile", icon: User },
+  ];
+
+  return (
+    <nav
+      aria-label="Mobile navigation"
+      className="fixed inset-x-0 bottom-0 z-[999] border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden"
+    >
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
+        {tabs.map(({ to, label, icon: Icon, badge }) => {
+          const active = (to === "/home" && ["/", "/home"].includes(pathname)) || pathname === to;
+          return (
+            <Link
+              key={to}
+              to={to}
+              aria-current={active ? "page" : undefined}
+              className={`relative flex min-w-0 flex-col items-center justify-center gap-1 no-underline transition-colors ${
+                active ? "text-[#2f5fc2]" : "text-gray-700"
+              }`}
+            >
+              <span className="relative">
+                <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+                {badge > 0 && (
+                  <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2f5fc2] px-1 text-[9px] font-bold leading-none text-white">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
+              </span>
+              <span className="truncate text-[10px] font-semibold leading-[15px]">
+                {label}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
