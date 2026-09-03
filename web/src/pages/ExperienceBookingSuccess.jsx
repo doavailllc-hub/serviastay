@@ -26,6 +26,9 @@ export default function ExperienceBookingSuccess() {
     departureId,
     guests,
     total,
+    paymentStatus,
+    confirmationAmount,
+    balanceDue,
   } = location.state || {};
 
   const travelers = Number(guests || 1);
@@ -55,8 +58,9 @@ export default function ExperienceBookingSuccess() {
           </h1>
 
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-500 md:text-base">
-            Your booking is confirmed. We&apos;ll share itinerary, pickup,
-            hotel and travel instructions before your departure.
+            {paymentStatus === "Advance Paid"
+              ? `Your booking is confirmed with a ${formatCurrency(confirmationAmount)} advance. Pay the remaining ${formatCurrency(balanceDue)} during the trip.`
+              : "Your booking is confirmed. We'll share itinerary, pickup, hotel and travel instructions before your departure."}
           </p>
 
           <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-[28px] border border-gray-200 text-left">
@@ -108,8 +112,8 @@ export default function ExperienceBookingSuccess() {
 
                   <InfoBox
                     icon={<ReceiptText size={18} />}
-                    label="Total"
-                    value={formatCurrency(total)}
+                    label={paymentStatus === "Advance Paid" ? "Paid now" : "Total"}
+                    value={formatCurrency(paymentStatus === "Advance Paid" ? confirmationAmount : total)}
                   />
                 </div>
               </div>
@@ -120,6 +124,9 @@ export default function ExperienceBookingSuccess() {
             <h3 className="text-lg font-black text-gray-900">What&apos;s next?</h3>
 
             <div className="mt-4 grid gap-3 text-sm leading-6 text-gray-600">
+              {paymentStatus === "Advance Paid" && (
+                <p>✓ Balance due during the trip: {formatCurrency(balanceDue)}</p>
+              )}
               <p>✓ Host confirmation will be sent shortly.</p>
               <p>✓ Pickup instructions will be shared before departure.</p>
               <p>✓ Hotel and itinerary details will appear in your package bookings.</p>

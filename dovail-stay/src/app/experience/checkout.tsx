@@ -42,7 +42,6 @@ const MUTED = "#5f6368";
 const BORDER = "#e5e7eb";
 const WHITE = "#ffffff";
 const SURFACE = "#f8fafc";
-const SUCCESS = "#188038";
 const DANGER = "#d93025";
 
 const FALLBACK_IMAGE =
@@ -384,6 +383,8 @@ export default function ExperienceCheckoutScreen() {
   const subtotal = price * guests;
   const taxes = Math.round(subtotal * 0.12);
   const total = subtotal + taxes;
+  const confirmationAmount = Math.max(1, Math.round(total * 0.1));
+  const balanceDue = total - confirmationAmount;
   const bookingDate = toApiDate(
     departure?.departure_date || selectedDate
   );
@@ -453,6 +454,12 @@ export default function ExperienceCheckoutScreen() {
           guests: String(guests),
           total: String(total),
           paymentStatus,
+          confirmationAmount: String(
+            paymentMethod === "pay_later" ? confirmationAmount : total
+          ),
+          balanceDue: String(
+            paymentMethod === "pay_later" ? balanceDue : 0
+          ),
         },
       });
     },
@@ -465,6 +472,9 @@ export default function ExperienceCheckoutScreen() {
       paymentMethod,
       selectedDate,
       bookingDate,
+      balanceDue,
+      confirmationAmount,
+      loginRedirect,
       taxes,
       total,
       user,
@@ -501,6 +511,7 @@ export default function ExperienceCheckoutScreen() {
           departure_id: departureId
             ? Number(departureId)
             : null,
+          payment_method: paymentMethod,
         }
       );
 
@@ -524,8 +535,9 @@ export default function ExperienceCheckoutScreen() {
           order_id: order.id,
           name: "Dovail Stay",
           description:
-            experience.title ||
-            "Trip package payment",
+            paymentMethod === "pay_later"
+              ? `10% confirmation advance for ${experience.title || "trip package"}`
+              : experience.title || "Trip package payment",
           image:
             "https://stay.dovail.com/favicon.png",
           prefill: {
@@ -564,7 +576,10 @@ export default function ExperienceCheckoutScreen() {
       );
 
       await createBooking({
-        paymentStatus: "Paid",
+        paymentStatus:
+          paymentMethod === "pay_later"
+            ? "Advance Paid"
+            : "Paid",
         paymentId:
           result.razorpay_payment_id,
         orderId:
@@ -577,6 +592,8 @@ export default function ExperienceCheckoutScreen() {
       experience,
       guests,
       id,
+      loginRedirect,
+      paymentMethod,
       selectedDate,
       bookingDate,
       total,
@@ -620,16 +637,6 @@ export default function ExperienceCheckoutScreen() {
         throw new Error(
           "The booking amount is invalid."
         );
-      }
-
-      if (
-        paymentMethod === "pay_later"
-      ) {
-        await createBooking({
-          paymentStatus: "Pay at trip",
-        });
-
-        return;
       }
 
       await payWithRazorpay();
@@ -917,7 +924,7 @@ export default function ExperienceCheckoutScreen() {
                 />
               }
               title="Pay at trip"
-              description="Reserve now and pay before or during the trip."
+              description={`Pay ${formatCurrency(confirmationAmount)} (10%) now to confirm. Pay ${formatCurrency(balanceDue)} during the trip.`}
               onPress={() =>
                 setPaymentMethod(
                   "pay_later"
@@ -935,8 +942,9 @@ export default function ExperienceCheckoutScreen() {
             <Text
               style={styles.secureNoticeText}
             >
-              Paid bookings are confirmed after
-              secure payment verification.
+              {paymentMethod === "pay_later"
+                ? `Pay the ${formatCurrency(confirmationAmount)} advance now. The ${formatCurrency(balanceDue)} balance is due during the trip.`
+                : "Paid bookings are confirmed after secure payment verification."}
             </Text>
           </View>
 
@@ -976,19 +984,38 @@ export default function ExperienceCheckoutScreen() {
                 {formatCurrency(total)}
               </Text>
             </View>
+
+            {paymentMethod === "pay_later" ? (
+              <>
+                <PriceRow
+                  label="10% confirmation advance"
+                  value={formatCurrency(confirmationAmount)}
+                />
+                <PriceRow
+                  label="Balance payable on trip"
+                  value={formatCurrency(balanceDue)}
+                />
+              </>
+            ) : null}
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
           <View>
             <Text style={styles.footerTotal}>
-              {formatCurrency(total)}
+              {formatCurrency(
+                paymentMethod === "pay_later"
+                  ? confirmationAmount
+                  : total
+              )}
             </Text>
 
             <Text
               style={styles.footerCaption}
             >
-              Total payable
+              {paymentMethod === "pay_later"
+                ? "Confirmation advance due now"
+                : "Total payable"}
             </Text>
           </View>
 
@@ -1024,7 +1051,9 @@ export default function ExperienceCheckoutScreen() {
               >
                 {paymentMethod ===
                 "pay_later"
-                  ? "Confirm booking"
+                  ? `Pay ${formatCurrency(
+                      confirmationAmount
+                    )} advance`
                   : `Pay ${formatCurrency(
                       total
                     )}`}

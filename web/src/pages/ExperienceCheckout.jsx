@@ -68,6 +68,8 @@ export default function ExperienceCheckout() {
   const subtotal = price * travelers;
   const taxes = Math.round(subtotal * 0.12);
   const total = subtotal + taxes;
+  const confirmationAmount = Math.max(1, Math.round(total * 0.1));
+  const balanceDue = total - confirmationAmount;
 
   const loadRazorpay = () =>
     new Promise((resolve) => {
@@ -143,6 +145,8 @@ export default function ExperienceCheckout() {
         total,
         paymentStatus,
         paymentId,
+        confirmationAmount: paymentMethod === "pay_later" ? confirmationAmount : total,
+        balanceDue: paymentMethod === "pay_later" ? balanceDue : 0,
       },
     });
   };
@@ -166,6 +170,7 @@ export default function ExperienceCheckout() {
       guests: travelers,
       booking_date: selectedDate,
       departure_id: departureId,
+      payment_method: paymentMethod,
     });
 
     const options = {
@@ -173,7 +178,10 @@ export default function ExperienceCheckout() {
       amount: orderRes.data.order.amount,
       currency: "INR",
       name: "Dovail Stay",
-      description: pkg?.title || "Trip package payment",
+      description:
+        paymentMethod === "pay_later"
+          ? `10% confirmation advance for ${pkg?.title || "trip package"}`
+          : pkg?.title || "Trip package payment",
       order_id: orderRes.data.order.id,
       theme: {
         color: BRAND,
@@ -198,7 +206,7 @@ export default function ExperienceCheckout() {
           });
 
           await createBooking({
-            paymentStatus: "Paid",
+            paymentStatus: paymentMethod === "pay_later" ? "Advance Paid" : "Paid",
             paymentId: response.razorpay_payment_id,
             orderId: response.razorpay_order_id,
           });
@@ -255,13 +263,6 @@ export default function ExperienceCheckout() {
       }
 
       setPaying(true);
-
-      if (paymentMethod === "pay_later") {
-        await createBooking({
-          paymentStatus: "Pay at trip",
-        });
-        return;
-      }
 
       await payWithRazorpay();
     } catch (err) {
@@ -365,7 +366,7 @@ export default function ExperienceCheckout() {
                 <PaymentOption
                   active={paymentMethod === "pay_later"}
                   title="Pay at trip"
-                  text="Confirm now and pay before or during the package."
+                  text={`Pay ${formatINR(confirmationAmount)} (10%) now to confirm. Pay the remaining ${formatINR(balanceDue)} during the trip.`}
                   icon={<ShieldCheck size={20} />}
                   onClick={() => setPaymentMethod("pay_later")}
                 />
@@ -399,8 +400,9 @@ export default function ExperienceCheckout() {
               <div className="flex gap-3">
                 <CheckCircle2 className="mt-0.5 text-[#3b71e6]" size={20} />
                 <p className="text-sm leading-6 text-gray-600">
-                  Your booking will be confirmed after successful payment
-                  verification.
+                  {paymentMethod === "pay_later"
+                    ? `Your booking is confirmed after the ${formatINR(confirmationAmount)} advance is verified. The ${formatINR(balanceDue)} balance is payable during the trip.`
+                    : "Your booking will be confirmed after successful payment verification."}
                 </p>
               </div>
             </div>
@@ -420,7 +422,7 @@ export default function ExperienceCheckout() {
               {paying
                 ? "Processing..."
                 : paymentMethod === "pay_later"
-                ? "Confirm booking"
+                ? `Pay ${formatINR(confirmationAmount)} advance`
                 : `Pay ${formatINR(total)}`}
             </button>
           </div>
@@ -467,6 +469,12 @@ export default function ExperienceCheckout() {
                     <span>Total</span>
                     <span>{formatINR(total)}</span>
                   </div>
+                  {paymentMethod === "pay_later" && (
+                    <div className="space-y-3 rounded-xl bg-blue-50 p-3 text-sm">
+                      <PriceRow label="10% confirmation advance" value={formatINR(confirmationAmount)} />
+                      <PriceRow label="Balance payable on trip" value={formatINR(balanceDue)} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

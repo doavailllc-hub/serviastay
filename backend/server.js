@@ -13,7 +13,7 @@ const PDFDocument = require("pdfkit");
 require("dotenv").config();
 const Sentry = require("@sentry/node");
 const deleteS3File = require("./utils/deleteS3File");
-const { canTransitionBooking, verifyHmacSignature, getWebhookEventId } = require("./utils/productionRules");
+const { canTransitionBooking, verifyHmacSignature, getWebhookEventId, tripPaymentBreakdown } = require("./utils/productionRules");
 const app = express();
 
 const server = http.createServer(app);
@@ -4374,15 +4374,23 @@ app.post("/api/experience-payments/create-order", verifyToken, paymentLimiter, a
     }
     const subtotal = Number(rows[0].price || 0) * guests;
     const total = subtotal + Math.round(subtotal * 0.12);
+    const paymentMethod = req.body.payment_method === "pay_later" ? "pay_later" : "razorpay";
+    const { amountPaid: paymentAmount } = tripPaymentBreakdown(total, paymentMethod);
     const order = await razorpay.orders.create({
-      amount: Math.round(total * 100), currency: "INR",
+      amount: Math.round(paymentAmount * 100), currency: "INR",
       receipt: `experience_${experienceId}_${Date.now()}`,
       notes: {
         experience_id: String(experienceId), user_id: String(req.user.id), guests: String(guests),
         booking_date: bookingDate, departure_id: departureId ? String(departureId) : "",
+        payment_method: paymentMethod, booking_total: String(total), payment_amount: String(paymentAmount),
       },
     });
-    res.json({ success: true, key: process.env.RAZORPAY_KEY_ID, order });
+    res.json({
+      success: true,
+      key: process.env.RAZORPAY_KEY_ID,
+      order,
+      pricing: { total, amountDueNow: paymentAmount, balanceDue: total - paymentAmount },
+    });
   } catch (err) {
     console.log("EXPERIENCE ORDER ERROR:", err.message);
     res.status(500).json({ message: "Payment order creation failed" });
@@ -4516,7 +4524,13 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
     const serverTotal = subtotal + taxes;
     if (serverTotal <= 0) return res.status(400).json({ message: "Invalid package price" });
 
-    if (payment_method === "razorpay") {
+    if (!["razorpay", "pay_later"].includes(payment_method)) {
+      return res.status(400).json({ message: "Invalid payment method" });
+    }
+
+    const { amountPaid, balanceDue } = tripPaymentBreakdown(serverTotal, payment_method);
+
+    if (payment_method === "razorpay" || payment_method === "pay_later") {
       if (!razorpay || !razorpay_payment_id || !razorpay_order_id) {
         return res.status(400).json({ message: "Verified payment details are required" });
       }
@@ -4527,12 +4541,15 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       const notes = order.notes || {};
       if (
         payment.order_id !== razorpay_order_id || payment.status !== "captured" ||
-        Number(payment.amount) !== Math.round(serverTotal * 100) || order.currency !== "INR" ||
+        Number(payment.amount) !== Math.round(amountPaid * 100) || order.currency !== "INR" ||
         String(notes.user_id) !== String(req.user.id) ||
         String(notes.experience_id) !== String(experience_id) ||
         String(notes.guests) !== String(guestCount) ||
         String(notes.booking_date) !== String(booking_date) ||
-        String(notes.departure_id || "") !== String(departure_id || "")
+        String(notes.departure_id || "") !== String(departure_id || "") ||
+        String(notes.payment_method || "razorpay") !== String(payment_method) ||
+        Number(notes.booking_total) !== serverTotal ||
+        Number(notes.payment_amount) !== amountPaid
       ) {
         return res.status(400).json({ message: "Payment does not match this trip booking" });
       }
@@ -4611,13 +4628,17 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
         booking_date,
         guests,
         total,
+        amount_paid,
+        balance_due,
         payment_method,
         payment_status,
+        razorpay_order_id,
+        razorpay_payment_id,
         status,
         pickup_note,
         special_request
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         experience_id,
@@ -4626,9 +4647,13 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
         booking_date,
         guestCount,
         serverTotal,
+        amountPaid,
+        balanceDue,
         payment_method || "cash",
-        payment_method === "razorpay" ? "Paid" : "Pay at trip",
-        payment_method === "razorpay" ? "Confirmed" : "Pending",
+        payment_method === "razorpay" ? "Paid" : "Advance Paid",
+        razorpay_order_id,
+        razorpay_payment_id,
+        "Confirmed",
         pickup_note || null,
         special_request || null,
       ]
@@ -4655,12 +4680,12 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       );
     }
 
-    if (payment_method === "razorpay") {
+    if (payment_method === "razorpay" || payment_method === "pay_later") {
       await connection.query(
         `INSERT INTO servia_payment_claims
          (payment_id, order_id, user_id, booking_type, booking_id, amount)
          VALUES (?, ?, ?, 'experience', ?, ?)`,
-        [razorpay_payment_id, razorpay_order_id, req.user.id, result.insertId, serverTotal]
+        [razorpay_payment_id, razorpay_order_id, req.user.id, result.insertId, amountPaid]
       );
     }
 
@@ -4670,6 +4695,11 @@ app.post("/api/experience-bookings", verifyToken, async (req, res) => {
       success: true,
       message: "Package booked successfully",
       bookingId: result.insertId,
+      pricing: {
+        total: serverTotal,
+        amountPaid,
+        balanceDue,
+      },
     });
   } catch (err) {
     try { await connection.rollback(); } catch {}

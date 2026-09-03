@@ -167,6 +167,8 @@ export default function ExperienceBookingSuccessScreen() {
     guests?: string | string[];
     total?: string | string[];
     paymentStatus?: string | string[];
+    confirmationAmount?: string | string[];
+    balanceDue?: string | string[];
   }>();
 
   const bookingId = firstParam(params.bookingId);
@@ -180,6 +182,12 @@ export default function ExperienceBookingSuccessScreen() {
   const total = toNumber(firstParam(params.total));
   const paymentStatus =
     firstParam(params.paymentStatus) || "Confirmed";
+  const confirmationAmount = toNumber(
+    firstParam(params.confirmationAmount)
+  );
+  const balanceDue = toNumber(
+    firstParam(params.balanceDue)
+  );
 
   const [experience, setExperience] =
     useState<Experience | null>(null);
@@ -252,8 +260,11 @@ export default function ExperienceBookingSuccessScreen() {
       days - 1
   );
 
-  const paid =
-    paymentStatus.toLowerCase() === "paid";
+  const paid = ["paid", "advance paid"].includes(
+    paymentStatus.toLowerCase()
+  );
+  const advancePaid =
+    paymentStatus.toLowerCase() === "advance paid";
 
   if (loading) {
     return (
@@ -410,8 +421,10 @@ export default function ExperienceBookingSuccessScreen() {
                 color={THEME}
               />
             }
-            label="Total"
-            value={formatCurrency(total)}
+            label={advancePaid ? "Paid now" : "Total"}
+            value={formatCurrency(
+              advancePaid ? confirmationAmount : total
+            )}
           />
         </View>
 
@@ -430,13 +443,17 @@ export default function ExperienceBookingSuccessScreen() {
           <View style={styles.statusContent}>
             <Text style={styles.statusTitle}>
               {paid
-                ? "Payment successful"
+                ? advancePaid
+                  ? "Advance payment successful"
+                  : "Payment successful"
                 : "Booking pending payment"}
             </Text>
 
             <Text style={styles.statusText}>
               {paid
-                ? "Your payment was verified and the trip is confirmed."
+                ? advancePaid
+                  ? `Your trip is confirmed. Pay the remaining ${formatCurrency(balanceDue)} during the trip.`
+                  : "Your payment was verified and the trip is confirmed."
                 : "Your reservation is saved. Complete payment according to the selected option."}
             </Text>
           </View>
@@ -446,6 +463,12 @@ export default function ExperienceBookingSuccessScreen() {
           <Text style={styles.nextTitle}>
             What’s next?
           </Text>
+
+          {advancePaid ? (
+            <NextItem
+              text={`Balance due during the trip: ${formatCurrency(balanceDue)}`}
+            />
+          ) : null}
 
           <NextItem text="The host will review your reservation details." />
           <NextItem text="Pickup instructions will be shared before departure." />

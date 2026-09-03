@@ -6,6 +6,7 @@ const {
   verifyHmacSignature,
   getWebhookEventId,
   availableDepartureSeats,
+  tripPaymentBreakdown,
 } = require("../utils/productionRules");
 
 test("booking lifecycle permits only forward production transitions", () => {
@@ -38,4 +39,15 @@ test("departure availability never becomes negative", () => {
   assert.equal(availableDepartureSeats(20, 7), 13);
   assert.equal(availableDepartureSeats(10, 10), 0);
   assert.equal(availableDepartureSeats(5, 8), 0);
+});
+
+test("pay-at-trip charges a 10% confirmation advance and preserves the balance", () => {
+  assert.deepEqual(tripPaymentBreakdown(11200, "pay_later"), {
+    amountPaid: 1120,
+    balanceDue: 10080,
+  });
+  assert.deepEqual(tripPaymentBreakdown(11200, "razorpay"), {
+    amountPaid: 11200,
+    balanceDue: 0,
+  });
 });

@@ -29,4 +29,12 @@ function availableDepartureSeats(totalSeats, bookedSeats) {
   return Math.max(0, Number(totalSeats || 0) - Number(bookedSeats || 0));
 }
 
-module.exports = { BOOKING_TRANSITIONS, canTransitionBooking, verifyHmacSignature, getWebhookEventId, availableDepartureSeats };
+function tripPaymentBreakdown(total, paymentMethod) {
+  const bookingTotal = Math.max(0, Math.round(Number(total || 0)));
+  const amountPaid = paymentMethod === "pay_later"
+    ? Math.min(bookingTotal, Math.max(1, Math.round(bookingTotal * 0.1)))
+    : bookingTotal;
+  return { amountPaid, balanceDue: bookingTotal - amountPaid };
+}
+
+module.exports = { BOOKING_TRANSITIONS, canTransitionBooking, verifyHmacSignature, getWebhookEventId, availableDepartureSeats, tripPaymentBreakdown };
