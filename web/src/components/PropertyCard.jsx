@@ -49,7 +49,7 @@ function getCardImageUrl(imageUrl) {
     return imageUrl;
   }
 
-  return imageUrl.replace(/\.[^./?]+(?=\?|$)/, "-480.webp");
+  return imageUrl.replace(/\.[^./?]+(?=\?|$)/, "-320.webp");
 }
 
 export default function PropertyCard({ property, priority = false }) {

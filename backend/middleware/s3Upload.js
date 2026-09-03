@@ -36,7 +36,7 @@ const uploadFileToS3 = async (file, folder = "temp") => {
 
   const ext = path.extname(file.originalname).toLowerCase();
   const key = `${getFolder(folder)}/${Date.now()}-${uuidv4()}${ext}`;
-  const optimizedKey = key.replace(/\.[^.]+$/, "-480.webp");
+  const optimizedKey = key.replace(/\.[^.]+$/, "-320.webp");
   const shouldCreateCardVariant = ["properties", "experiences"].includes(
     getFolder(folder)
   );
@@ -58,8 +58,8 @@ const uploadFileToS3 = async (file, folder = "temp") => {
   if (shouldCreateCardVariant) {
     const optimizedBuffer = await sharp(file.buffer)
       .rotate()
-      .resize({ width: 480, height: 480, fit: "cover", withoutEnlargement: true })
-      .webp({ quality: 72, effort: 4 })
+      .resize({ width: 320, height: 320, fit: "cover", withoutEnlargement: true })
+      .webp({ quality: 65, effort: 5 })
       .toBuffer();
 
     uploads.push(

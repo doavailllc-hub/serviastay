@@ -117,11 +117,6 @@ export default function Navbar() {
   const mobileTabPaths = ["/", "/home", "/wishlist", "/trips", "/messages", "/profile"];
   const showMobileTabs = mobileTabPaths.includes(location.pathname);
 
-  useEffect(() => {
-    document.body.classList.toggle("has-mobile-tab-bar", showMobileTabs);
-    return () => document.body.classList.remove("has-mobile-tab-bar");
-  }, [showMobileTabs]);
-
   return (
     <>
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-xl">

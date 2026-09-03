@@ -29,15 +29,15 @@ async function exists(key) {
 }
 
 async function createVariant(key) {
-  const optimizedKey = key.replace(/\.[^.]+$/, "-480.webp");
+  const optimizedKey = key.replace(/\.[^.]+$/, "-320.webp");
   if (await exists(optimizedKey)) return "skipped";
 
   const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const source = Buffer.from(await object.Body.transformToByteArray());
   const optimized = await sharp(source)
     .rotate()
-    .resize({ width: 480, height: 480, fit: "cover", withoutEnlargement: true })
-    .webp({ quality: 72, effort: 4 })
+    .resize({ width: 320, height: 320, fit: "cover", withoutEnlargement: true })
+    .webp({ quality: 65, effort: 5 })
     .toBuffer();
 
   await s3.send(
@@ -69,7 +69,7 @@ async function main() {
 
     const keys = (page.Contents || [])
       .map((item) => item.Key)
-      .filter((key) => /\.(jpe?g|png|webp)$/i.test(key) && !/-480\.webp$/i.test(key));
+      .filter((key) => /\.(jpe?g|png|webp)$/i.test(key) && !/-(320|480)\.webp$/i.test(key));
 
     for (const key of keys) {
       try {

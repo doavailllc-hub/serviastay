@@ -68,7 +68,7 @@ body {
 }
 
 @media (max-width: 767px) {
-  body.has-mobile-tab-bar {
+  body:has(> nav[aria-label="Mobile navigation"]) {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 }

@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -24,13 +24,62 @@ function inlineEntryCss() {
         delete bundle[fileName];
       }
 
+      const primaryFont = Object.keys(bundle).find(
+        (fileName) => fileName.includes("inter-latin-600-normal") && fileName.endsWith(".woff2"),
+      );
+      if (primaryFont) {
+        source = source.replace(
+          "</head>",
+          `<link rel="preload" href="/${primaryFont}" as="font" type="font/woff2" crossorigin>\n</head>`,
+        );
+      }
+
       html.source = source;
     },
   };
 }
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), inlineEntryCss()],
+function homepageLcpPreload(apiUrl) {
+  return {
+    name: "homepage-lcp-preload",
+    transformIndexHtml: {
+      order: "pre",
+      async handler() {
+        try {
+          const response = await fetch(`${apiUrl}/properties`, {
+            signal: AbortSignal.timeout(5000),
+          });
+          if (!response.ok) return [];
+
+          const payload = await response.json();
+          const properties = Array.isArray(payload)
+            ? payload
+            : payload.properties || payload.data || [];
+          const property = properties[0];
+          const image = property?.image || property?.image_url || property?.cover_image;
+          if (!image || !image.includes(".s3.") || !/\/properties\//.test(image)) return [];
+
+          const href = image.replace(/\.[^./?]+(?=\?|$)/, "-320.webp");
+          return [{
+            tag: "link",
+            attrs: { rel: "preload", as: "image", href, type: "image/webp", fetchpriority: "high" },
+            injectTo: "head",
+          }];
+        } catch {
+          return [];
+        }
+      },
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, ".", "");
+  const siteUrl = env.VITE_SITE_URL || env.VITE_APP_URL || "https://stay.dovail.com";
+  const apiUrl = (env.VITE_API_URL || `${siteUrl}/api`).replace(/\/$/, "");
+
+  return {
+  plugins: [react(), tailwindcss(), homepageLcpPreload(apiUrl), inlineEntryCss()],
   build: {
     rolldownOptions: {
       output: {
@@ -45,4 +94,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
